@@ -1,6 +1,6 @@
 # 安全政策 (Security Policy)
 
-語言：[English](SECURITY.md) | [繁體中文](SECURITY.zh-TW.md)
+語言：[English](.github/SECURITY.md) | [繁體中文](.github/SECURITY.zh-TW.md)
 
 ## 支援版本
 
