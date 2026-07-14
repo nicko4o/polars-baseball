@@ -1,6 +1,6 @@
 # Security Policy
 
-Languages: [English](SECURITY.md) | [Traditional Chinese](SECURITY.zh-TW.md)
+Languages: [English](.github/SECURITY.md) | [Traditional Chinese](.github/SECURITY.zh-TW.md)
 
 ## Supported Versions
 

@@ -1,6 +1,6 @@
 # 貢獻 polars-baseball
 
-語言：[English](CONTRIBUTING.md) | [繁體中文](CONTRIBUTING.zh-TW.md)
+語言：[English](.github/CONTRIBUTING.md) | [繁體中文](.github/CONTRIBUTING.zh-TW.md)
 
 歡迎提交 pull request 改進這個套件。為了維持程式品質與執行效能，所有貢獻都必須遵守明確的架構與工程紀律。
 

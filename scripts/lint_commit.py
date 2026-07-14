@@ -18,7 +18,7 @@ if __name__ == "__main__":
         sys.exit(1)
     with open(sys.argv[1], encoding="utf-8") as f:
         content = f.read()
-    if content.startswith("Merge branch"):
+    if content.startswith("Merge branch") or content.startswith("Merge "):
         sys.exit(0)
     if not validate_commit_msg(content):
         print(f"ERROR: Invalid commit message: '{content.strip()}'")
