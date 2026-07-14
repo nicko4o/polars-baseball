@@ -20,7 +20,7 @@ from polars_baseball.apis.teamid import team_ids
 
 async def main() -> None:
     teams_df = team_ids(2019)
-    batting_df = await fg_data(FanGraphsRequest.team_batting(2019))
+    batting_df = await fg_data(FanGraphsRequest.team_batting(start_season=2019))
     batting_df = batting_df.select([
         pl.col(column).alias(f"batting.{column}")
         for column in batting_df.columns
@@ -28,7 +28,7 @@ async def main() -> None:
     joined_df = teams_df.join(
         batting_df,
         left_on=["yearID", "teamIDfg"],
-        right_on=["batting.Season", "batting.teamIDfg"],
+        right_on=["batting.Season", "batting.teamid"],
         how="inner",
     )
     print(joined_df.head())
