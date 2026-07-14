@@ -64,9 +64,9 @@ import polars_baseball as bp
 
 async def main() -> None:
     df = await bp.statcast_pitcher(
-        start_dt="2024-05-01",
-        end_dt="2024-05-15",
-        player_id=450314,
+        start_dt="2024-05-06",
+        end_dt="2024-05-06",
+        player_id=506433,
     )
     pitch_df = df.filter(df["plate_x"].is_not_null() & df["plate_z"].is_not_null())
 

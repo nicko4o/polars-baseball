@@ -57,7 +57,7 @@ async def main() -> None:
     darvish_df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
-        player_id=450314,
+        player_id=506433,
     )
     print(darvish_df.head(5))
 
@@ -79,7 +79,7 @@ async def main() -> None:
     darvish_df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
-        player_id=450314,
+        player_id=506433,
     )
     summary = (
         darvish_df
@@ -190,6 +190,7 @@ Modules prefixed with `_`, including `_schemas`, are internal implementation det
 - [English documentation](docs/)
 - [Traditional Chinese documentation](docs/zh-tw/)
 - [Caching Guide](docs/caching.md)
+- [Jupyter Notebook Usage](docs/jupyter.md)
 - [Data Visualization Guide](docs/plotting.md)
 - [Statcast API](docs/statcast.md)
 - [Player ID Lookup](docs/playerid_lookup.md)
