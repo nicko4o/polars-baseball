@@ -1,6 +1,6 @@
 # Contributing to polars-baseball
 
-Languages: [English](CONTRIBUTING.md) | [Traditional Chinese](CONTRIBUTING.zh-TW.md)
+Languages: [English](.github/CONTRIBUTING.md) | [Traditional Chinese](.github/CONTRIBUTING.zh-TW.md)
 
 We welcome pull requests improving any aspect of this library! To maintain high code quality and runtime performance, we enforce strict architectural discipline.
 
