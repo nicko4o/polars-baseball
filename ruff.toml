@@ -1,0 +1,47 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "D103",   # docstring: public function / method required
+    "D200",   # docstring: one-line fits on one line
+    "D205",   # docstring: blank line after first sentence
+    "D400",   # docstring: ends with period
+    "D401",   # docstring: imperative mood
+    "D403",   # docstring: avoid improper first word capitalization
+    "D415",   # docstring: ends with punctuation
+    "D419",   # docstring: empty allowed (not forcing) — soft rule
+    "C901",   # McCabe complexity checking
+]
+ignore = [
+    "E501", # Line too long (handled by formatter)
+    "RUF100", # unused noqa — false-positive on F403 when isolated-file scanning differs from package scan
+]
+
+[lint.mccabe]
+max-complexity = 12
+
+[lint.per-file-ignores]
+# D103 only enforced in the public API layer; internal modules use
+# self-explanatory type hints per modern docstring philosophy.
+"polars_baseball/__init__.py" = ["D103"]
+"polars_baseball/_*.py" = ["D103"]
+"polars_baseball/enums/**" = ["D103"]
+"polars_baseball/gateways/**" = ["D103"]
+"polars_baseball/parsers/**" = ["D103"]
+"polars_baseball/_schemas/**" = ["D103"]
+"polars_baseball/exceptions.py" = ["D103"]
+"polars_baseball/context.py" = ["D103"]
+"polars_baseball/data/**" = ["D103"]
+"tests/**" = ["D103"]
+"scripts/**" = ["D103"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

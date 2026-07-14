@@ -1,0 +1,78 @@
+# This workflow will run tests on PRs and pushes to main
+
+name: PyTest On PR
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        python-version:
+        - "3.11"
+        - "3.12"
+        - "3.13"
+    name: Install dependencies and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-suffix: py-${{ matrix.python-version }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: Install dependencies
+        run: uv sync --locked --all-extras
+      - name: Cache Ruff
+        uses: actions/cache@v6
+        with:
+          path: .ruff_cache
+          key: ruff-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', 'ruff.toml') }}-${{ github.run_id }}
+          restore-keys: |
+            ruff-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', 'ruff.toml') }}-
+            ruff-${{ runner.os }}-${{ matrix.python-version }}-
+      - name: Cache MyPy
+        uses: actions/cache@v6
+        with:
+          path: .mypy_cache
+          key: mypy-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', 'mypy.ini') }}-${{ github.run_id }}
+          restore-keys: |
+            mypy-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', 'mypy.ini') }}-
+            mypy-${{ runner.os }}-${{ matrix.python-version }}-
+      - name: Run Ruff Linter
+        run: uv run ruff check .
+      - name: Run Ruff Formatter Check
+        run: uv run ruff format --check .
+      - name: Run Vulture Dead Code Check
+        run: uv run vulture polars_baseball tests --config pyproject.toml
+      - name: Run MyPy
+        run: make mypy ONLY_MODIFIED=0
+      - name: Validate Commit Message History
+        run: |
+          git fetch origin main
+          for commit in $(git log origin/main..HEAD --format="%H"); do
+            git log -1 --format="%B" $commit > .git/COMMIT_EDITMSG
+            uv run python scripts/lint_commit.py .git/COMMIT_EDITMSG
+          done
+      - name: Run tests
+        run: make test TEST_FLAGS="-n 5 -m 'not live'"
+      - name: Timing test
+        timeout-minutes: 2
+        run: uv run python scripts/statcast_timing.py
+      - name: Cache test
+        run: uv run python ./scripts/validate_cache.py
+      - name: Dry-run Package Build
+        run: uv build

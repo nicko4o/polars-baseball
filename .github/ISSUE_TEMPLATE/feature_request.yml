@@ -1,0 +1,41 @@
+name: "🚀 Feature Request"
+description: Propose a new feature or API extension for polars-baseball
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for polars-baseball? We'd love to hear it!
+        Please describe the problem you want to solve and the proposed design.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      placeholder: Is your feature request related to a problem? Please describe. (e.g. "I need to fetch team rosters but there is no API for it.")
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / API Design
+      placeholder: |
+        Describe the proposed API interface and returned DataFrame schema.
+        ```python
+        # Show what the proposed function signature or usage looks like
+        df = await pb.mlb_team_roster(team_id=147, year=2024)
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      placeholder: Describe any alternative solutions or workarounds you have considered.
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      placeholder: Any other context, references to MLB Stats API endpoints, or mock datasets.
+    validations:
+      required: false

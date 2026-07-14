@@ -1,0 +1,32 @@
+name: Compile Datasets
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-datasets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Compile parquet datasets
+        run: uv run python scripts/compile_datasets.py --output-dir dist/compiled-datasets
+      - name: Upload compiled datasets
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-datasets
+          path: dist/compiled-datasets
