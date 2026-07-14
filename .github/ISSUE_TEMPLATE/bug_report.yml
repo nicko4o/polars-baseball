@@ -1,0 +1,82 @@
+name: "🐛 Bug Report"
+description: Report a bug to help us improve polars-baseball
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the form below with as much detail as possible.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        Please provide a minimal, executable Python code snippet that reproduces the issue.
+        Avoid pseudocode.
+        ```python
+        import asyncio
+        import polars_baseball as pb
+
+        async def main():
+            # Code to reproduce the issue
+            pass
+
+        asyncio.run(main())
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior / Error Logs
+      placeholder: Provide logs, traceback, or the incorrect output DataFrame.
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      placeholder: e.g., 3.11.4
+    validations:
+      required: true
+  - type: input
+    id: polars-baseball-version
+    attributes:
+      label: polars-baseball Version
+      placeholder: e.g., 0.39.5
+    validations:
+      required: true
+  - type: input
+    id: polars-version
+    attributes:
+      label: Polars Version
+      placeholder: e.g., 1.0.0
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: e.g., Linux / macOS / Windows
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      placeholder: Any other context, screenshots, or links about the problem here.
+    validations:
+      required: false

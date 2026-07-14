@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polars-baseball"
+dynamic = ["version"]
+description = "Retrieve baseball data in Python"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "Nick"}
+]
+maintainers = [
+    {name = "Nick"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["baseball", "sabermetrics", "data", "statistics", "statcast", "web scraping"]
+dependencies = [
+    "lxml>=4.2.1",
+    "pyarrow>=1.0.1",
+    "tqdm>=4.50.0",
+    "curl_cffi>=0.10.0",
+    "polars>=1.0.0",
+    "httpx",
+    "typing_extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+plot = [
+    "hvplot>=0.9.0",
+    "altair>=5.0.0",
+]
+test = [
+    "pytest>=7.4,<8.4",
+    "mypy>=1.8,<1.15",
+    "pytest-cov>=2.10.1",
+    "pytest-xdist>=2.1.0",
+    "types-requests>=2.18.1",
+    "ruff>=0.1.0",
+    "types-tqdm",
+    "lxml-stubs",
+    "types-setuptools",
+    "pytest-asyncio",
+]
+
+[project.urls]
+Homepage = "https://github.com/nicko4o/polars-baseball"
+Repository = "https://github.com/nicko4o/polars-baseball"
+Issues = "https://github.com/nicko4o/polars-baseball/issues"
+Changelog = "https://github.com/nicko4o/polars-baseball/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["polars_baseball*"]
+exclude = ["tests*", "tests.*", "EXAMPLES*", "scripts*", "scratch*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "polars_baseball.__version__"}
+
+[tool.vulture]
+ignore_names = ["mock_cache_set"]
+min_confidence = 100
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+    "vulture>=2.16",
+]
