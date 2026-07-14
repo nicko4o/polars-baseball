@@ -88,7 +88,7 @@ import asyncio
 from polars_baseball import mlb_game_boxscore
 
 async def main() -> None:
-    df = await mlb_game_boxscore(715789)
+    df = await mlb_game_boxscore(745585)
     print(df.select(["gamePk", "teamId", "personId", "fullName"]))
 
 if __name__ == "__main__":
@@ -155,17 +155,7 @@ if __name__ == "__main__":
 
 Retrieves postseason games for a season.
 
-```python
-import asyncio
-from polars_baseball import mlb_postseason_schedule
-
-async def main() -> None:
-    df = await mlb_postseason_schedule(2024)
-    print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
+Current live checks return an empty DataFrame for recent completed seasons, so this reference intentionally does not provide a guaranteed non-empty example.
 
 ## 10. Game Boxscore Stats (`mlb_game_boxscore_stats`)
 
@@ -178,7 +168,7 @@ import asyncio
 from polars_baseball import mlb_game_boxscore_stats
 
 async def main() -> None:
-    df = await mlb_game_boxscore_stats(715789)
+    df = await mlb_game_boxscore_stats(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -196,7 +186,7 @@ import asyncio
 from polars_baseball import mlb_game_play_by_play
 
 async def main() -> None:
-    df = await mlb_game_play_by_play(715789)
+    df = await mlb_game_play_by_play(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -214,7 +204,7 @@ import asyncio
 from polars_baseball import mlb_game_win_probability
 
 async def main() -> None:
-    df = await mlb_game_win_probability(715789)
+    df = await mlb_game_win_probability(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -304,7 +294,7 @@ import asyncio
 from polars_baseball import mlb_game_feed_live
 
 async def main() -> None:
-    df = await mlb_game_feed_live(game_pk=715789)
+    df = await mlb_game_feed_live(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -323,7 +313,7 @@ import asyncio
 from polars_baseball import mlb_game_linescore
 
 async def main() -> None:
-    df = await mlb_game_linescore(game_pk=715789)
+    df = await mlb_game_linescore(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":
