@@ -54,7 +54,7 @@ async def main() -> None:
     darvish_df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
-        player_id=450314,
+        player_id=506433,
     )
     print(darvish_df.head(5))
 
@@ -76,7 +76,7 @@ async def main() -> None:
     darvish_df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
-        player_id=450314,
+        player_id=506433,
     )
     summary = (
         darvish_df
@@ -187,6 +187,7 @@ async def get_statcast():
 - [繁體中文文件](docs/zh-tw/)
 - [English documentation](docs/)
 - [快取指南](docs/zh-tw/caching.md)
+- [Jupyter Notebook 使用方式](docs/zh-tw/jupyter.md)
 - [資料視覺化指南](docs/zh-tw/plotting.md)
 - [Statcast API](docs/zh-tw/statcast.md)
 - [Player ID Lookup](docs/zh-tw/playerid_lookup.md)
