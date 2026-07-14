@@ -23,7 +23,7 @@ FanGraphs 資料透過單一 `fg_data(request: FanGraphsRequest)` 函式與 `Fan
 | `team` | `str` | `""` | 球隊篩選。 |
 | `max_results` | `int` | `1_000_000` | 最大回傳列數。 |
 
-可使用 factory 方法快速建立請求：`FanGraphsRequest.batting(2019)`、`.pitching(2019)`、`.team_batting(2019)` 等。
+可使用 factory 方法快速建立請求：`FanGraphsRequest.batting(start_season=2019)`、`.pitching(start_season=2019)`、`.team_batting(start_season=2019)` 等。
 
 ## 範例
 
@@ -32,11 +32,11 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    batting = await bp.fg_data(bp.FanGraphsRequest.batting(2019))
-    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(2019))
-    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(2019))
-    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(2019))
-    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(2019))
+    batting = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2019))
+    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(start_season=2019))
+    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(start_season=2019))
+    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(start_season=2019))
+    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(start_season=2019))
     print(batting.head())
     print(pitching.head())
     print(team_batting.head())

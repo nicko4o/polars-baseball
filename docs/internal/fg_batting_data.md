@@ -27,10 +27,10 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    season = await bp.fg_data(bp.FanGraphsRequest.batting(2024))
-    qualified = await bp.fg_data(bp.FanGraphsRequest.batting(2023, qual=50))
-    split = await bp.fg_data(bp.FanGraphsRequest.batting(2020, end_season=2024, split_seasons=True))
-    aggregate = await bp.fg_data(bp.FanGraphsRequest.batting(2020, end_season=2024, split_seasons=False))
+    season = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2024))
+    qualified = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2023, qual=50))
+    split = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2020, end_season=2024, split_seasons=True))
+    aggregate = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2020, end_season=2024, split_seasons=False))
     print(season.head())
     print(qualified.head())
     print(split.head())
