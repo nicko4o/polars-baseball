@@ -1,6 +1,6 @@
 # Security Policy
 
-Languages: [English](.github/SECURITY.md) | [Traditional Chinese](.github/SECURITY.zh-TW.md)
+Languages: [English](https://github.com/nicko4o/polars-baseball/blob/main/.github/SECURITY.md) | [Traditional Chinese](https://github.com/nicko4o/polars-baseball/blob/main/.github/SECURITY.zh-TW.md)
 
 ## Supported Versions
 
