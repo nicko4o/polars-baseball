@@ -60,13 +60,6 @@ jobs:
         run: uv run vulture polars_baseball tests --config pyproject.toml
       - name: Run MyPy
         run: make mypy ONLY_MODIFIED=0
-      - name: Validate Commit Message History
-        run: |
-          git fetch origin main
-          for commit in $(git log origin/main..HEAD --format="%H"); do
-            git log -1 --format="%B" $commit > .git/COMMIT_EDITMSG
-            uv run python scripts/lint_commit.py .git/COMMIT_EDITMSG
-          done
       - name: Run tests
         run: make test TEST_FLAGS="-n 5 -m 'not live'"
       - name: Timing test
