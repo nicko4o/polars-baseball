@@ -1,0 +1,78 @@
+# This workflow will upload a Python Package using Trusted Publisher (OIDC) when a release is published
+# For more information see: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
+
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v8.3.2
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: uv sync --locked --all-extras
+
+    - name: Run Ruff Linter
+      run: uv run ruff check .
+
+    - name: Run Ruff Formatter Check
+      run: uv run ruff format --check .
+
+    - name: Run Vulture Dead Code Check
+      run: uv run vulture polars_baseball tests --config pyproject.toml
+
+    - name: Run MyPy
+      run: uv run mypy polars_baseball/
+
+    - name: Run tests
+      run: uv run pytest tests/polars_baseball -n 5 -m "not live" --doctest-modules --cov=polars_baseball --cov-report term-missing
+
+    - name: Dry-run Package Build
+      run: uv build
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC authentication
+      contents: read
+      
+    steps:
+    - uses: actions/checkout@v7
+    
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v8.3.2
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: uv sync --locked --all-extras
+        
+    - name: Build package
+      run: uv build
+      
+    - name: Publish package to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
