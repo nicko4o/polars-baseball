@@ -1,0 +1,42 @@
+# Nightly live API verification to detect upstream MLB data source outages
+name: Nightly API Verification
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Run API verification
+        run: uv run python scripts/verify_all_apis.py 2>&1 | tee api_verification.log
+        env:
+          SKIP_BREF: "1"
+          SKIP_FG: "1"
+
+      - name: Upload verification log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-verification-log
+          path: api_verification.log
