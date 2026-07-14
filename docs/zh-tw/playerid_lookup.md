@@ -26,13 +26,12 @@ from polars_baseball.apis.playerid import player_search_list
 
 async def main() -> None:
     jones = await playerid_lookup("jones")
-    chipper = await playerid_lookup("jones", "chipper")
+    judge = await playerid_lookup("judge")
     players = await player_search_list([
-        ("brock", "lou"),
-        ("jones", "chipper"),
+        ("judge", "aaron"),
     ])
     print(jones.head())
-    print(chipper.head())
+    print(judge.head())
     print(players.head())
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ from polars_baseball.apis.savant_fielding_running import statcast_running_splits
 async def main() -> None:
     speed = await statcast_sprint_speed(2019, min_opp=50)
     splits = await statcast_running_splits(2019, min_opp=50)
-    percentiles = await statcast_running_splits(2019, min_opp=100, raw_splits=False)
+    percentiles = await statcast_running_splits(2019, min_opp=50, raw_splits=False)
     print(speed.head())
     print(splits.head())
     print(percentiles.head())

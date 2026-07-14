@@ -40,7 +40,7 @@ from polars_baseball import statcast_pitcher
 from polars_baseball.apis.savant_leaderboards import statcast_pitcher_pitch_arsenal
 
 async def main() -> None:
-    pitches = await statcast_pitcher("2024-05-01", "2024-05-15", player_id=450314)
+    pitches = await statcast_pitcher("2024-05-06", "2024-05-06", player_id=506433)
     arsenal = await statcast_pitcher_pitch_arsenal(2024, minP=250)
     print(pitches.head())
     print(arsenal.head())

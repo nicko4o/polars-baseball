@@ -39,8 +39,8 @@ from polars_baseball import (
 )
 
 async def main() -> None:
-    exit_velocity = await savant_gamefeed_exit_velocity(715789)
-    pitch_data = await savant_gamefeed_pitch_data_many([715789, "715790"])
+    exit_velocity = await savant_gamefeed_exit_velocity(745585)
+    pitch_data = await savant_gamefeed_pitch_data_many([745585, "746639"])
     print(exit_velocity.head())
     print(pitch_data.head())
 

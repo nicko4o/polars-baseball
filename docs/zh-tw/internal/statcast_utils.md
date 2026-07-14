@@ -9,6 +9,7 @@
 ```python
 from math import atan2, pi
 
+hc_x, hc_y = 125.42, 198.27
 spray_angle = atan2(hc_x - 125.42, 198.27 - hc_y) * 180 / pi
 ```
 

@@ -30,14 +30,12 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    single_day = await bp.statcast("2017-07-04")
-    week = await bp.statcast("2016-08-01", "2016-08-07")
-    rangers = await bp.statcast("2016-04-01", "2016-10-30", team="TEX")
-    yesterday = await bp.statcast()
+    single_day = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
+    two_days = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-07")
+    dodgers = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-06", team="LAD")
     print(single_day.head())
-    print(week.head())
-    print(rangers.head())
-    print(yesterday.head())
+    print(two_days.head())
+    print(dodgers.head())
 
 if __name__ == "__main__":
     asyncio.run(main())

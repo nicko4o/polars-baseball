@@ -36,7 +36,7 @@ from polars_baseball import statcast_batter
 from polars_baseball.apis.savant_leaderboards import statcast_batter_expected_stats
 
 async def main() -> None:
-    pitches = await statcast_batter("2024-05-01", "2024-05-15", player_id=545361)
+    pitches = await statcast_batter("2024-05-06", "2024-05-06", player_id=660271)
     expected = await statcast_batter_expected_stats(2024, minPA=100)
     print(pitches.head())
     print(expected.head())

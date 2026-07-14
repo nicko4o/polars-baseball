@@ -88,7 +88,7 @@ import asyncio
 from polars_baseball import mlb_game_boxscore
 
 async def main() -> None:
-    df = await mlb_game_boxscore(715789)
+    df = await mlb_game_boxscore(745585)
     print(df.select(["gamePk", "teamId", "personId", "fullName"]))
 
 if __name__ == "__main__":
@@ -155,17 +155,7 @@ if __name__ == "__main__":
 
 查詢指定球季的 postseason games。
 
-```python
-import asyncio
-from polars_baseball import mlb_postseason_schedule
-
-async def main() -> None:
-    df = await mlb_postseason_schedule(2024)
-    print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
+目前 live 驗證對近期已完成球季都回傳空 DataFrame，因此這裡刻意不提供「保證非空」的可執行範例。
 
 ## 10. Boxscore Stats (`mlb_game_boxscore_stats`)
 
@@ -178,7 +168,7 @@ import asyncio
 from polars_baseball import mlb_game_boxscore_stats
 
 async def main() -> None:
-    df = await mlb_game_boxscore_stats(715789)
+    df = await mlb_game_boxscore_stats(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -196,7 +186,7 @@ import asyncio
 from polars_baseball import mlb_game_play_by_play
 
 async def main() -> None:
-    df = await mlb_game_play_by_play(715789)
+    df = await mlb_game_play_by_play(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -214,7 +204,7 @@ import asyncio
 from polars_baseball import mlb_game_win_probability
 
 async def main() -> None:
-    df = await mlb_game_win_probability(715789)
+    df = await mlb_game_win_probability(745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -304,7 +294,7 @@ import asyncio
 from polars_baseball import mlb_game_feed_live
 
 async def main() -> None:
-    df = await mlb_game_feed_live(game_pk=715789)
+    df = await mlb_game_feed_live(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":
@@ -323,7 +313,7 @@ import asyncio
 from polars_baseball import mlb_game_linescore
 
 async def main() -> None:
-    df = await mlb_game_linescore(game_pk=715789)
+    df = await mlb_game_linescore(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":

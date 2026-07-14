@@ -11,18 +11,6 @@
 
 - `return_all`：`True` 時回傳 `war_daily_pitch` 的所有欄位；`False` 時回傳常用工作流需要的標準欄位子集。
 
-## 範例
+## Live-data 限制
 
-```python
-import asyncio
-from polars_baseball.apis.bref import bwar_pitch
-
-async def main() -> None:
-    summary = await bwar_pitch()
-    full_table = await bwar_pitch(return_all=True)
-    print(summary.head())
-    print(full_table.head())
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
+Baseball Reference 目前在 live 驗證中對此 endpoint 回傳 HTTP 403，因此本頁刻意不提供「保證非空」的可執行範例。

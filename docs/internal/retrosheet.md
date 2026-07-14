@@ -24,17 +24,15 @@ Retrosheet functions retrieve game logs, schedules, rosters, park codes, and eve
 
 ```python
 import asyncio
-from polars_baseball.apis.retrosheet import park_codes, rosters, schedules, season_game_logs
+from polars_baseball.apis.retrosheet import park_codes, rosters, schedules
 
 async def main() -> None:
     roster_df = await rosters(2019)
     schedule_df = await schedules(2019)
     parks_df = await park_codes()
-    logs_df = await season_game_logs(2019)
     print(roster_df.head())
     print(schedule_df.head())
     print(parks_df.head())
-    print(logs_df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
