@@ -23,7 +23,7 @@ FanGraphs data is retrieved via a single `fg_data(request: FanGraphsRequest)` fu
 | `team` | `str` | `""` | Team filter. Use `"0,ts"` for aggregate team rows. |
 | `max_results` | `int` | `1_000_000` | Maximum number of rows to request. |
 
-Use factory classmethods for convenience: `FanGraphsRequest.batting(2019)`, `.pitching(2019)`, `.team_batting(2019)`, etc.
+Use factory classmethods for convenience: `FanGraphsRequest.batting(start_season=2019)`, `.pitching(start_season=2019)`, `.team_batting(start_season=2019)`, etc.
 
 ## Example
 
@@ -32,11 +32,11 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    batting = await bp.fg_data(bp.FanGraphsRequest.batting(2019))
-    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(2019))
-    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(2019))
-    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(2019))
-    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(2019))
+    batting = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2019))
+    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(start_season=2019))
+    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(start_season=2019))
+    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(start_season=2019))
+    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(start_season=2019))
     print(batting.head())
     print(pitching.head())
     print(team_batting.head())

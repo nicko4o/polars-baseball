@@ -27,7 +27,7 @@ import asyncio
 from polars_baseball.apis.savant_fielding_running import statcast_catcher_framing, statcast_outs_above_average
 
 async def main() -> None:
-    oaa = await statcast_outs_above_average(2024, pos="OF", min_att="q")
+    oaa = await statcast_outs_above_average(2024, pos="CF", min_att="q")
     framing = await statcast_catcher_framing(2024, min_called_p="q")
     print(oaa.head())
     print(framing.head())
