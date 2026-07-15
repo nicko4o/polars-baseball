@@ -54,10 +54,10 @@ async def events(
     season: int,
     type: str = "regular",
     context: BaseballContext | None = None,
-) -> dict[str, bytes]:
+) -> pl.DataFrame:
     """Fetch Retrosheet event files for a given season.
 
-    Returns a dict of filename -> raw bytes content, not a DataFrame.
+    Returns one DataFrame with filename and raw event file content.
     Edge Cases: type parameter selects file extensions (".EVA"/".EVN" for "regular",
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
@@ -78,13 +78,29 @@ async def events(
     if not season_events:
         raise ServerError(f"Event files not available for {season}")
 
-    async def _fetch_event(filename: str) -> tuple[str, bytes | None]:
+    async def _fetch_event(filename: str) -> dict[str, object] | None:
         url = RETROSHEET_EVENT_URL.format(season, filename)
         raw = await ctx.http.get_text(url)
-        return filename, ensure_bytes(raw) if raw else None
+        if not raw:
+            return None
+        return {
+            "season": season,
+            "event_type": type,
+            "filename": filename,
+            "content": ensure_bytes(raw),
+        }
 
     results = await asyncio.gather(*[_fetch_event(f) for f in season_events])
-    return {name: content for name, content in results if content is not None}
+    rows = [row for row in results if row is not None]
+    return pl.DataFrame(
+        rows,
+        schema={
+            "season": pl.Int64,
+            "event_type": pl.Utf8,
+            "filename": pl.Utf8,
+            "content": pl.Binary,
+        },
+    )
 
 
 def _rosters_cache_key(season: int, **kwargs: object) -> str:

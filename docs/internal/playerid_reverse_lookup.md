@@ -16,8 +16,7 @@ Finds player records from a list of source-specific IDs.
 
 ```python
 import asyncio
-from polars_baseball import KeyType
-from polars_baseball.apis.playerid import playerid_reverse_lookup
+from polars_baseball import KeyType, playerid_reverse_lookup
 
 async def main() -> None:
     players = await playerid_reverse_lookup([592450], key_type=KeyType.MLBAM)

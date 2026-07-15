@@ -3,7 +3,7 @@ from collections.abc import Mapping
 
 import polars as pl
 
-from polars_baseball._cache import cached_list, generate_cache_key
+from polars_baseball._cache import cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
 from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball._season import most_recent_season
@@ -13,6 +13,9 @@ from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 # Standings schema
 STANDINGS_REQUIRED: list[str] = ["Tm", "W", "L"]
 STANDINGS_TYPES: dict[str, pl.DataType | type[pl.DataType]] = {
+    "season": pl.Int64,
+    "division_id": pl.Int64,
+    "division_name": pl.String,
     "teamId": pl.Int64,
     "Tm": pl.String,
     "W": pl.Int64,
@@ -64,14 +67,25 @@ def _parse_team_record(rec: Mapping[str, object]) -> dict[str, object]:
     }
 
 
-def _parse_division_records(division_record: Mapping[str, object]) -> pl.DataFrame:
+def _division_metadata(division_record: Mapping[str, object]) -> dict[str, object]:
+    division = division_record.get("division")
+    if not isinstance(division, Mapping):
+        return {"division_id": None, "division_name": None}
+    return {
+        "division_id": division.get("id"),
+        "division_name": division.get("name"),
+    }
+
+
+def _parse_division_records(division_record: Mapping[str, object], season: int) -> pl.DataFrame:
     team_records = division_record.get("teamRecords")
+    metadata = _division_metadata(division_record)
     parsed_records = []
     if isinstance(team_records, list):
         for r in team_records:
             if isinstance(r, Mapping):
                 typed_r = {str(k): v for k, v in r.items()}
-                parsed_records.append(_parse_team_record(typed_r))
+                parsed_records.append({"season": season, **metadata, **_parse_team_record(typed_r)})
 
     if not parsed_records:
         return pl.DataFrame(schema=STANDINGS_TYPES)
@@ -85,8 +99,8 @@ def _standings_cache_key(season: int) -> str:
     return generate_cache_key(url, {})
 
 
-@cached_list(key=_standings_cache_key)
-async def _fetch_standings(season: int, context: BaseballContext | None = None) -> list[pl.DataFrame]:
+@cached(key=_standings_cache_key)
+async def _fetch_standings(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
     ctx = context or default_context()
     url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
     try:
@@ -97,14 +111,19 @@ async def _fetch_standings(season: int, context: BaseballContext | None = None) 
         raise UpstreamParseError(f"Failed to fetch or parse standings from MLB Stats API: {e}") from e
 
     records = data.get("records", [])
-    return [_parse_division_records(rec) for rec in records]
+    if not isinstance(records, list):
+        return pl.DataFrame(schema=STANDINGS_TYPES)
+
+    divisions = [_parse_division_records(rec, season) for rec in records if isinstance(rec, Mapping)]
+    if not divisions:
+        return pl.DataFrame(schema=STANDINGS_TYPES)
+    return pl.concat(divisions)
 
 
-async def standings(season: int | None = None, context: BaseballContext | None = None) -> list[pl.DataFrame]:
+async def standings(season: int | None = None, context: BaseballContext | None = None) -> pl.DataFrame:
     """Fetch division standings from the MLB Stats API for a given season.
 
-    Returns a list of DataFrames, one per division, each containing ``Tm``,
-    ``W``, ``L``, ``W-L%``, and ``GB`` columns.
+    Returns one DataFrame with division metadata and team-level standings.
 
     Edge Cases:
         - Raises ``InvalidParameterError`` for seasons before 1901 (``MLB_FIRST_YEAR``).

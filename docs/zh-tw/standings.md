@@ -3,9 +3,9 @@
 
 # Standings
 
-`standings(season: int | None = None) -> list[pl.DataFrame]`
+`standings(season: int | None = None) -> pl.DataFrame`
 
-查詢指定球季的 MLB standings tables。
+查詢指定球季的單一 MLB standings table，並包含 division metadata 欄位。
 
 ## 參數
 
@@ -18,9 +18,8 @@ import asyncio
 from polars_baseball import standings
 
 async def main() -> None:
-    divisions = await standings(2019)
-    for division in divisions:
-        print(division.head())
+    df = await standings(2019)
+    print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
