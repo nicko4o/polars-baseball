@@ -24,7 +24,18 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-keywords = ["baseball", "sabermetrics", "data", "statistics", "statcast", "web scraping"]
+keywords = [
+    "baseball",
+    "mlb",
+    "sabermetrics",
+    "sports-analytics",
+    "python-baseball-data",
+    "statcast",
+    "baseball-savant",
+    "fangraphs",
+    "polars",
+    "async",
+]
 dependencies = [
     "lxml>=4.2.1",
     "pyarrow>=1.0.1",
