@@ -239,3 +239,19 @@ def test_html_strategy_no_table_in_html() -> None:
     strategy = SavantHTMLTableStrategy()
     result = strategy.can_handle(html)
     assert result.can_handle is False
+
+
+def test_savant_schema_overrides() -> None:
+    from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
+
+    assert "bat_speed" in SAVANT_SCHEMA_OVERRIDES
+    assert SAVANT_SCHEMA_OVERRIDES["bat_speed"] == pl.Float64
+
+    assert "swing_length" in SAVANT_SCHEMA_OVERRIDES
+    assert SAVANT_SCHEMA_OVERRIDES["swing_length"] == pl.Float64
+
+    assert "miss_distance" in SAVANT_SCHEMA_OVERRIDES
+    assert SAVANT_SCHEMA_OVERRIDES["miss_distance"] == pl.Float64
+
+    assert SAVANT_SCHEMA_OVERRIDES["game_pk"] == pl.Int64
+    assert SAVANT_SCHEMA_OVERRIDES["pitcher"] == pl.Int64
