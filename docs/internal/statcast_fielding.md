@@ -4,6 +4,7 @@
 # Statcast Fielding
 
 Statcast fielding functions retrieve Baseball Savant fielding leaderboards.
+New code can call these through `polars_baseball.savant`, such as `pb.savant.outs_above_average(...)`.
 
 ## Functions
 
@@ -24,11 +25,12 @@ Statcast fielding functions retrieve Baseball Savant fielding leaderboards.
 
 ```python
 import asyncio
-from polars_baseball.apis.savant_fielding_running import statcast_catcher_framing, statcast_outs_above_average
+
+import polars_baseball as pb
 
 async def main() -> None:
-    oaa = await statcast_outs_above_average(2024, pos="CF", min_att="q")
-    framing = await statcast_catcher_framing(2024, min_called_p="q")
+    oaa = await pb.savant.outs_above_average(2024, pos="CF", min_att="q")
+    framing = await pb.savant.catcher_framing(2024, min_called_p="q")
     print(oaa.head())
     print(framing.head())
 

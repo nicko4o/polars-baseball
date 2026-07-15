@@ -43,6 +43,7 @@ ROOT_PUBLIC_API = {
     "lcs_logs",
     "managers",
     "managers_half",
+    "mlb",
     "mlb_divisions",
     "mlb_draft",
     "mlb_game_boxscore",
@@ -75,6 +76,7 @@ ROOT_PUBLIC_API = {
     "prospect_rankings",
     "rosters",
     "salaries",
+    "savant",
     "savant_gamefeed_exit_velocity",
     "savant_gamefeed_exit_velocity_many",
     "savant_gamefeed_pitch_data",
@@ -141,6 +143,14 @@ def test_statcast_is_async_function() -> None:
 
 def test_cleanup_is_async_function() -> None:
     assert inspect.iscoroutinefunction(pb.cleanup)
+
+
+def test_provider_namespace_functions_are_async() -> None:
+    assert inspect.iscoroutinefunction(pb.mlb.schedule)
+    assert inspect.iscoroutinefunction(pb.mlb.game_boxscore)
+    assert inspect.iscoroutinefunction(pb.savant.statcast)
+    assert inspect.iscoroutinefunction(pb.savant.gamefeed_pitch_data)
+    assert inspect.iscoroutinefunction(pb.savant.arm_strength)
 
 
 def test_root_public_api_has_docstrings() -> None:

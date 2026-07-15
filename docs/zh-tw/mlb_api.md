@@ -4,6 +4,8 @@
 # MLB Stats API
 
 提供官方 MLB Stats API 端點 (`statsapi.mlb.com`) 的存取，用以查詢球員、賽程、球隊、名冊、比賽資料與排行榜。
+新程式碼可使用較短的 `polars_baseball.mlb` namespace，例如 `pb.mlb.schedule(...)`。
+既有 `mlb_*` root 函式仍會保留支援。
 
 ## 1. 球員基本資料 (`mlb_people`)
 
@@ -13,10 +15,11 @@
 
 ```python
 import asyncio
-from polars_baseball import mlb_people
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_people(450314)
+    df = await pb.mlb.people(450314)
     print(df.select(["id", "fullName", "currentAge", "mlbDebutDate"]))
 
 if __name__ == "__main__":
@@ -31,10 +34,11 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from polars_baseball import mlb_roster
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_roster(121, season=2024)
+    df = await pb.mlb.roster(121, season=2024)
     print(df.select(["personId", "fullName", "jerseyNumber", "positionName"]))
 
 if __name__ == "__main__":
@@ -49,10 +53,11 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from polars_baseball import mlb_schedule
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_schedule(date="2024-05-06")
+    df = await pb.mlb.schedule(date="2024-05-06")
     print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
 
 if __name__ == "__main__":

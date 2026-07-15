@@ -1,6 +1,6 @@
 import logging as _logging
 
-from polars_baseball import fangraphs
+from polars_baseball import fangraphs, mlb, savant
 from polars_baseball._cache import configure_cache
 from polars_baseball.apis.bref import bwar_bat, bwar_pitch
 from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
@@ -165,6 +165,7 @@ __all__ = [
     "lcs_logs",
     "managers",
     "managers_half",
+    "mlb",
     "mlb_divisions",
     "mlb_draft",
     "mlb_game_boxscore",
@@ -196,6 +197,7 @@ __all__ = [
     "playerid_reverse_lookup",
     "rosters",
     "salaries",
+    "savant",
     "savant_gamefeed_exit_velocity",
     "savant_gamefeed_exit_velocity_many",
     "savant_gamefeed_pitch_data",
