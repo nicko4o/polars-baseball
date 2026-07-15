@@ -2,18 +2,51 @@
 
 語言：[English](README.md) | [繁體中文](README.zh-TW.md)
 
-`polars-baseball` 是以 **Polars** 為核心、非同步優先的 Python 棒球資料擷取套件。公開資料 API 以 `async def` 提供，多數公開資料 API 回傳原生 `polars.DataFrame`（特別說明的例外如 `standings()` 則回傳其他格式），適合 Statcast、Baseball Reference、FanGraphs、Lahman、Retrosheet 與球員 ID 查詢工作流。
+`polars-baseball` 是 **The unified Polars-native baseball data SDK**：typed、async-first、
+以 Polars 為核心的 Python 棒球資料擷取套件，統一存取 Statcast、Baseball Savant、
+FanGraphs、Baseball Reference、Lahman、Retrosheet 與 MLB Stats API。
 
----
+如果你正在找 `python baseball data`、`python statcast`、`fangraphs python`、
+`baseball savant api`、`pybaseball alternative` 或 `polars dataframe baseball`，
+這個專案服務的就是「資料直接進 `polars.DataFrame`，不要先繞過 pandas」的工作流。
+
+## 為什麼不是只用 pybaseball？
+
+`pybaseball` 很有用，也很成熟。`polars-baseball` 的定位不同：async ingestion、
+原生 Polars 輸出，以及跨多個棒球資料來源的一致入口。
+
+| Feature | pybaseball | polars-baseball |
+| --- | --- | --- |
+| Polars native | No | Yes |
+| Async data fetching | No | Yes |
+| Statcast / Baseball Savant | Yes | Yes |
+| FanGraphs | Yes | Yes |
+| MLB Stats API | Limited | Yes |
+| Lahman / Retrosheet workflows | Partial | Yes |
+| Built-in cache | Partial | Yes |
+| Typed public API | Partial | Yes |
+
+傳統 pandas-first 流程：
+
+```text
+pybaseball -> pandas -> convert to Polars -> analysis
+```
+
+`polars-baseball` 流程：
+
+```text
+polars-baseball -> Polars -> analysis
+```
 
 ## 主要特性
 
-- **Polars Core**：多數公開 API 回傳原生 `polars.DataFrame`（例外如 `standings()` 回傳 `list[polars.DataFrame]`），方便直接使用 Polars expression 做篩選、聚合與輸出。
-- **Async-First Engine**：資料擷取 API 皆為非同步函式，需在 async 環境中使用 `await`，或在指令碼內用 `asyncio.run()` 執行。
-- **彈性並行**：支援自訂 context 設定以在多執行緒或多事件循環環境中隔離連線資源。
-- **Automatic Cache**：內建檔案快取，Statcast 與 Lahman 等大量查詢可減少重複網路請求。
-
----
+- **Polars-native data**：多數公開 API 回傳 `polars.DataFrame`；明確記載的例外如
+  `standings()` 回傳 `list[polars.DataFrame]`。
+- **Async-first engine**：資料擷取 API 都是 `async def`，可以和既有 async workflow 組合。
+- **多資料來源**：Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、
+  Retrosheet、MLB Stats API 與 player ID workflow。
+- **Built-in cache**：重複網路請求會以 Parquet 快取，適合大量查詢。
+- **Service-ready context**：`BaseballContext` 讓長駐服務明確控制 HTTP 與 cache 資源。
 
 ## 安裝
 
@@ -21,7 +54,7 @@
 pip install polars-baseball
 ```
 
-若要本地開發：
+本地開發：
 
 ```bash
 git clone https://github.com/nicko4o/polars-baseball
@@ -29,17 +62,15 @@ cd polars-baseball
 uv sync --all-extras
 ```
 
-若要執行文件中的視覺化範例，可安裝選用範例依賴：
+若要執行視覺化範例：
 
 ```bash
 pip install "polars-baseball[plot]"
 ```
 
----
-
 ## 快速開始
 
-### 1. Statcast 查詢
+### Statcast pitch-level data
 
 ```python
 import asyncio
@@ -51,19 +82,12 @@ async def main() -> None:
     df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
     print(df.head(5))
 
-    darvish_df = await pb.statcast_pitcher(
-        start_dt="2024-05-06",
-        end_dt="2024-05-06",
-        player_id=506433,
-    )
-    print(darvish_df.head(5))
-
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 2. 使用 Polars 聚合資料
+### 直接用 Polars 聚合
 
 ```python
 import asyncio
@@ -73,119 +97,86 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    darvish_df = await pb.statcast_pitcher(
+    df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
         player_id=506433,
     )
-    summary = (
-        darvish_df
-        .group_by("pitch_type")
-        .agg(pl.col("release_speed").mean().alias("mean_speed"))
+    summary = df.group_by("pitch_type").agg(
+        pl.col("release_speed").mean().alias("mean_speed"),
+        pl.len().alias("pitch_count"),
     )
-    print(summary)
+    print(summary.sort("pitch_count", descending=True))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 3. Top Prospects
+## Examples
 
-```python
-import asyncio
+可執行範例放在 [`examples/`](examples/)：
 
-import polars_baseball as pb
+- [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py)：Statcast pitch mix。
+- [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py)：FanGraphs batting leaderboard。
+- [`examples/mlb_schedule.py`](examples/mlb_schedule.py)：MLB Stats API schedule query。
+- [`examples/benchmark_statcast.py`](examples/benchmark_statcast.py)：保守的 Statcast timing 與 memory benchmark。
 
+## Benchmark
 
-async def main() -> None:
-    prospects = await pb.top_prospects(team_name="mets")
-    print(prospects.head(5))
+先用可重現指令，不要相信沒有條件的效能口號：
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+```bash
+python examples/benchmark_statcast.py --start-date 2024-04-01 --end-date 2024-04-07
 ```
 
-### 4. 互動式資料視覺化
+腳本會輸出 rows、columns、wall time，以及 `tracemalloc` 量到的 Python allocation peak。
+要比較 pandas-first workflow，請固定 date range、cache state、Python 版本與機器。
 
-`polars-baseball` 不提供繪圖 API。這個範例只是把回傳的 `polars.DataFrame` 交給 hvPlot。
+## Web 服務與高並行
 
-```python
-import asyncio
-
-import hvplot.polars  # noqa: F401
-import polars_baseball as pb
-
-
-async def main() -> None:
-    df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
-    chart = (
-        df
-        .filter(df["hc_x"].is_not_null() & df["hc_y"].is_not_null())
-        .plot.scatter(
-            x="hc_x",
-            y="hc_y",
-            by="events",
-            invert_y=True,
-        )
-    )
-    print(chart)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-## Web 服務與高並行 (FastAPI, Gunicorn, Celery)
-
-預設情況下，呼叫套件函式而不傳入 context 參數時，將會 fallback 回隱式的套件級全域單例 `BaseballContext`。**此全域預設 context 在長駐的高並行環境中，不保證執行緒安全（thread-safe）或事件循環安全（loop-safe）。**
-
-當在並行 Web 服務（如 FastAPI、Gunicorn 或 Celery worker）中部署 `polars-baseball` 時，您**必須**顯式管理 `BaseballContext` 的生命週期，並將其傳入所有 API 呼叫中。
-
-### FastAPI lifespan 範例
+未傳入 `context` 時，套件會使用隱式的 package-level `BaseballContext`。這對腳本很方便，
+但長駐高並行服務應該自己管理 context，並把它傳給每次 API 呼叫。
 
 ```python
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
 import polars_baseball as pb
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 初始化一個與 app 事件循環繫結的專屬 context
-    app.state.pb_context = pb.BaseballContext()
-    try:
+    async with pb.BaseballContext() as context:
+        app.state.pb_context = context
         yield
-    finally:
-        # 正確關閉 HTTP 連線以防資源洩漏
-        await app.state.pb_context.http.close()
+
 
 app = FastAPI(lifespan=lifespan)
 
+
 @app.get("/statcast")
-async def get_statcast():
+async def get_statcast() -> dict[str, int]:
     df = await pb.statcast(
         start_dt="2026-06-01",
         end_dt="2026-06-02",
         context=app.state.pb_context,
     )
-    return df.to_dicts()
+    return {"rows": df.height}
 ```
-
----
 
 ## API 命名空間政策
 
-套件根目錄（`import polars_baseball as pb`）只公開穩定且常用的 public API。Provider-specific 與進階函式保留在 `polars_baseball.apis.*`。
+套件根目錄（`import polars_baseball as pb`）只公開穩定且常用的 public API。
+Provider-specific 與進階函式保留在 `polars_baseball.apis.*`。
 
 以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 
----
-
 ## 文件
 
-- [繁體中文文件](docs/zh-tw/)
 - [English documentation](docs/)
+- [繁體中文文件](docs/zh-tw/)
 - [快取指南](docs/zh-tw/caching.md)
 - [Jupyter Notebook 使用方式](docs/zh-tw/jupyter.md)
 - [資料視覺化指南](docs/zh-tw/plotting.md)
@@ -195,13 +186,17 @@ async def get_statcast():
 - [Savant Gamefeed API](docs/zh-tw/savant_gamefeed.md)
 - [Prospect Rankings](docs/zh-tw/prospect_rankings.md)
 
----
+## Showcase
+
+使用 `polars-baseball` 的專案：
+
+- MLB dashboard workflows
+- 中文棒球網站資料工作流
+- Threads bot 棒球資料 pipeline
 
 ## 貢獻
 
 開發流程與專案結構請參考 [CONTRIBUTING.zh-TW.md](.github/CONTRIBUTING.zh-TW.md)。
-
----
 
 ## 作者
 

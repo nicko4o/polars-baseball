@@ -3,6 +3,7 @@ import pytest
 
 from polars_baseball import (
     standings,
+    statcast,
     statcast_single_game,
 )
 from polars_baseball.apis.savant_leaderboards import statcast_batter_exitvelo_barrels
@@ -57,3 +58,17 @@ def test_live_fangraphs_batting() -> None:
     assert "Name" in df.columns
     assert "WAR" in df.columns
     assert "OPS" in df.columns
+
+
+@pytest.mark.live
+def test_live_statcast_benchmark_range_does_not_schema_error() -> None:
+    # Benchmark date range from 2024 to verify alignment and guard against upstream schema drift
+    df = run_async(
+        statcast(
+            start_dt="2024-04-01",
+            end_dt="2024-04-07",
+            verbose=False,
+        )
+    )
+    assert isinstance(df, pl.DataFrame)
+    assert df.height > 0

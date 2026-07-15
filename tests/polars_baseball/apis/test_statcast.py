@@ -138,3 +138,66 @@ async def test_statcast_player_cross_year_with_empty_chunk(
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["game_date"][0] == "2025-06-01"
+
+
+def test_align_schemas() -> None:
+    from polars_baseball.apis.statcast import _align_schemas
+
+    # 1. Test physics columns (string/numeric conflict resolves to Float64)
+    df1 = pl.DataFrame({"bat_speed": [70.5, 75.2], "game_pk": [123, 456]})
+    df2 = pl.DataFrame({"bat_speed": ["", "null"], "game_pk": ["789", "101"]})  # game_pk is in overrides (Int64)
+    df3 = pl.DataFrame({"bat_speed": [None, 72.1], "game_pk": [112, 113]})
+
+    aligned = _align_schemas([df1, df2, df3])
+
+    # bat_speed should be Float64
+    assert aligned[0]["bat_speed"].dtype == pl.Float64
+    assert aligned[1]["bat_speed"].dtype == pl.Float64
+    assert aligned[2]["bat_speed"].dtype == pl.Float64
+    assert aligned[1]["bat_speed"][0] is None
+
+    # game_pk should be Int64 (as defined in SAVANT_SCHEMA_OVERRIDES) and NOT promoted to Float64
+    assert aligned[0]["game_pk"].dtype == pl.Int64
+    assert aligned[1]["game_pk"].dtype == pl.Int64
+    assert aligned[2]["game_pk"].dtype == pl.Int64
+    assert aligned[1]["game_pk"][0] == 789
+
+    # 2. Test unknown integer conflict (should align to Int64 instead of Float64)
+    df_int32 = pl.DataFrame({"unknown_int_col": pl.Series([1, 2], dtype=pl.Int32)})
+    df_int64 = pl.DataFrame({"unknown_int_col": pl.Series([3, 4], dtype=pl.Int64)})
+    aligned_ints = _align_schemas([df_int32, df_int64])
+    assert aligned_ints[0]["unknown_int_col"].dtype == pl.Int64
+    assert aligned_ints[1]["unknown_int_col"].dtype == pl.Int64
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.statcast.default_context")
+@patch("polars_baseball._cache.global_cache.get")
+@patch("polars_baseball._cache.global_cache.set")
+async def test_statcast_concat_path_with_schema_alignment(
+    mock_cache_set: AsyncMock,
+    mock_cache_get: AsyncMock,
+    mock_default_ctx: MagicMock,
+) -> None:
+    """Verify public statcast() API endpoint triggers schema alignment when merging chunks with mismatched schemas."""
+    mock_cache_get.return_value = None
+    mock_http = AsyncMock(spec=HttpClient)
+
+    # day 1: bat_speed is Float64
+    csv_day1 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-01,123456,70.5,1.2\n"
+    # day 2: bat_speed is empty string (making Polars infer it differently)
+    csv_day2 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-02,123457,,\n"
+
+    mock_http.get_text = AsyncMock(side_effect=[csv_day1, csv_day2])
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+
+    # Query 2 days to force multiple requests and concatenation
+    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-02", verbose=False)
+
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 2
+    # Verify that bat_speed and miss_distance have been aligned to Float64
+    assert df["bat_speed"].dtype == pl.Float64
+    assert df["miss_distance"].dtype == pl.Float64
+    assert df["bat_speed"][0] is None  # descending sort (June 2nd has None bat_speed)
+    assert df["bat_speed"][1] == 70.5  # June 1st has 70.5 bat_speed

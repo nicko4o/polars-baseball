@@ -17,4 +17,7 @@ SAVANT_SCHEMA_OVERRIDES: Mapping[str, pl.DataType | type[pl.DataType]] = {
     "launch_speed": pl.Float64,
     "launch_angle": pl.Float64,
     "game_pk": pl.Int64,
+    "bat_speed": pl.Float64,
+    "swing_length": pl.Float64,
+    "miss_distance": pl.Float64,
 }

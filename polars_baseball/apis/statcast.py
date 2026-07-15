@@ -163,7 +163,7 @@ async def statcast(
     if not dfs:
         return pl.DataFrame()
 
-    final_df = pl.concat(dfs, how="diagonal")
+    final_df = pl.concat(_align_schemas(dfs), how="diagonal")
     return _sort_statcast(final_df)
 
 
@@ -200,6 +200,74 @@ def _sort_statcast(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
+def _collect_dtypes(dfs: list[pl.DataFrame]) -> dict[str, set[pl.DataType]]:
+    col_dtypes: dict[str, set[pl.DataType]] = {}
+    for df in dfs:
+        for col, dtype in df.schema.items():
+            col_dtypes.setdefault(col, set()).add(dtype)
+    return col_dtypes
+
+
+def _resolve_conflicts(col_dtypes: dict[str, set[pl.DataType]]) -> dict[str, pl.DataType | type[pl.DataType]]:
+    from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
+
+    conflicts: dict[str, pl.DataType | type[pl.DataType]] = {}
+    for col, dtypes in col_dtypes.items():
+        if len(dtypes) <= 1:
+            continue
+
+        # 1. Prioritize SAVANT_SCHEMA_OVERRIDES as the single source of truth (SSOT)
+        if col in SAVANT_SCHEMA_OVERRIDES:
+            conflicts[col] = SAVANT_SCHEMA_OVERRIDES[col]
+            continue
+
+        # 2. Fallback alignment for unknown fields not in overrides
+        has_string = any(dt == pl.String for dt in dtypes)
+        has_numeric = any(dt.is_numeric() for dt in dtypes)
+
+        if has_string and has_numeric:
+            # Mixed string and numeric (often drifting floats with empty values), cast to Float64
+            conflicts[col] = pl.Float64
+        elif has_numeric:
+            # Pure numeric conflicts
+            has_float = any(dt.is_float() for dt in dtypes)
+            if has_float:
+                conflicts[col] = pl.Float64
+            else:
+                conflicts[col] = pl.Int64
+        else:
+            conflicts[col] = pl.String
+    return conflicts
+
+
+def _apply_casts(dfs: list[pl.DataFrame], conflicts: dict[str, pl.DataType | type[pl.DataType]]) -> list[pl.DataFrame]:
+    aligned_dfs = []
+    for df in dfs:
+        casts = [
+            pl.col(col).cast(target_dtype, strict=False).alias(col)
+            for col, target_dtype in conflicts.items()
+            if col in df.columns
+        ]
+        if casts:
+            aligned_dfs.append(df.with_columns(casts))
+        else:
+            aligned_dfs.append(df)
+    return aligned_dfs
+
+
+def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
+    if not dfs or len(dfs) == 1:
+        return dfs
+
+    col_dtypes = _collect_dtypes(dfs)
+    conflicts = _resolve_conflicts(col_dtypes)
+
+    if not conflicts:
+        return dfs
+
+    return _apply_casts(dfs, conflicts)
+
+
 async def _statcast_player(
     player_type: Literal["batter", "pitcher"],
     start_dt: str | None,
@@ -219,7 +287,7 @@ async def _statcast_player(
         curr = date(curr.year + 1, 1, 1)
     if not dfs:
         return pl.DataFrame()
-    return _sort_statcast(pl.concat(dfs, how="diagonal"))
+    return _sort_statcast(pl.concat(_align_schemas(dfs), how="diagonal"))
 
 
 async def statcast_batter(
