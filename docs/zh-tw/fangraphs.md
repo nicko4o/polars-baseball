@@ -3,7 +3,20 @@
 
 # FanGraphs 資料擷取
 
-FanGraphs 資料透過單一 `fg_data(request: FanGraphsRequest)` 函式與 `FanGraphsRequest` frozen dataclass 取得。
+FanGraphs 資料可以透過直接 helper 函式取得，例如 `fg_batting(...)`，也可以透過 `fangraphs` namespace（`fangraphs.batting(...)`）呼叫。進階使用者仍可建立 `FanGraphsRequest` 並傳給 `fg_data(request)`。
+
+## 直接 Helper
+
+| 函式 | 說明 |
+| --- | --- |
+| `fg_batting(start_season, ...)` | 球員打擊排行榜。 |
+| `fg_pitching(start_season, ...)` | 球員投球排行榜。 |
+| `fg_fielding(start_season, ...)` | 球員守備排行榜。 |
+| `fg_team_batting(start_season, ...)` | 球隊打擊排行榜。 |
+| `fg_team_pitching(start_season, ...)` | 球隊投球排行榜。 |
+| `fg_team_fielding(start_season, ...)` | 球隊守備排行榜。 |
+
+同一組 helper 也可從 `polars_baseball.fangraphs` 使用，名稱不帶 `fg_` 前綴。
 
 ## `FanGraphsRequest`
 
@@ -23,7 +36,7 @@ FanGraphs 資料透過單一 `fg_data(request: FanGraphsRequest)` 函式與 `Fan
 | `team` | `str` | `""` | 球隊篩選。 |
 | `max_results` | `int` | `1_000_000` | 最大回傳列數。 |
 
-可使用 factory 方法快速建立請求：`FanGraphsRequest.batting(start_season=2019)`、`.pitching(start_season=2019)`、`.team_batting(start_season=2019)` 等。
+進階請求可使用 factory 方法建立：`FanGraphsRequest.batting(start_season=2019)`、`.pitching(start_season=2019)`、`.team_batting(start_season=2019)` 等。
 
 ## 範例
 
@@ -32,11 +45,11 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    batting = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2019))
-    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(start_season=2019))
-    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(start_season=2019))
-    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(start_season=2019))
-    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(start_season=2019))
+    batting = await bp.fg_batting(start_season=2019)
+    pitching = await bp.fg_pitching(start_season=2019)
+    team_batting = await bp.fg_team_batting(start_season=2019)
+    team_fielding = await bp.fg_team_fielding(start_season=2019)
+    team_pitching = await bp.fg_team_pitching(start_season=2019)
     print(batting.head())
     print(pitching.head())
     print(team_batting.head())
