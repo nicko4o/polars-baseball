@@ -4,6 +4,7 @@
 # Statcast Running
 
 Statcast running functions retrieve sprint-speed and 90-foot split leaderboards.
+New code can call these through `polars_baseball.savant`, such as `pb.savant.sprint_speed(...)`.
 
 ## Functions
 
@@ -25,12 +26,13 @@ Statcast sprint opportunities include runs of at least two bases on non-home run
 
 ```python
 import asyncio
-from polars_baseball.apis.savant_fielding_running import statcast_running_splits, statcast_sprint_speed
+
+import polars_baseball as pb
 
 async def main() -> None:
-    speed = await statcast_sprint_speed(2019, min_opp=50)
-    splits = await statcast_running_splits(2019, min_opp=50)
-    percentiles = await statcast_running_splits(2019, min_opp=50, raw_splits=False)
+    speed = await pb.savant.sprint_speed(2019, min_opp=50)
+    splits = await pb.savant.running_splits(2019, min_opp=50)
+    percentiles = await pb.savant.running_splits(2019, min_opp=50, raw_splits=False)
     print(speed.head())
     print(splits.head())
     print(percentiles.head())
