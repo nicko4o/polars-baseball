@@ -3,7 +3,20 @@
 
 # FanGraphs Data Acquisition
 
-FanGraphs data is retrieved via a single `fg_data(request: FanGraphsRequest)` function using the `FanGraphsRequest` frozen dataclass.
+FanGraphs data can be retrieved through direct helper functions such as `fg_batting(...)`, or through the `fangraphs` namespace (`fangraphs.batting(...)`). Advanced callers can still build a `FanGraphsRequest` and pass it to `fg_data(request)`.
+
+## Direct Helpers
+
+| Function | Description |
+| --- | --- |
+| `fg_batting(start_season, ...)` | Player batting leaderboard. |
+| `fg_pitching(start_season, ...)` | Player pitching leaderboard. |
+| `fg_fielding(start_season, ...)` | Player fielding leaderboard. |
+| `fg_team_batting(start_season, ...)` | Team batting leaderboard. |
+| `fg_team_pitching(start_season, ...)` | Team pitching leaderboard. |
+| `fg_team_fielding(start_season, ...)` | Team fielding leaderboard. |
+
+The same helpers are available under `polars_baseball.fangraphs` without the `fg_` prefix.
 
 ## `FanGraphsRequest`
 
@@ -23,7 +36,7 @@ FanGraphs data is retrieved via a single `fg_data(request: FanGraphsRequest)` fu
 | `team` | `str` | `""` | Team filter. Use `"0,ts"` for aggregate team rows. |
 | `max_results` | `int` | `1_000_000` | Maximum number of rows to request. |
 
-Use factory classmethods for convenience: `FanGraphsRequest.batting(start_season=2019)`, `.pitching(start_season=2019)`, `.team_batting(start_season=2019)`, etc.
+Use factory classmethods for advanced request construction: `FanGraphsRequest.batting(start_season=2019)`, `.pitching(start_season=2019)`, `.team_batting(start_season=2019)`, etc.
 
 ## Example
 
@@ -32,11 +45,11 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    batting = await bp.fg_data(bp.FanGraphsRequest.batting(start_season=2019))
-    pitching = await bp.fg_data(bp.FanGraphsRequest.pitching(start_season=2019))
-    team_batting = await bp.fg_data(bp.FanGraphsRequest.team_batting(start_season=2019))
-    team_fielding = await bp.fg_data(bp.FanGraphsRequest.team_fielding(start_season=2019))
-    team_pitching = await bp.fg_data(bp.FanGraphsRequest.team_pitching(start_season=2019))
+    batting = await bp.fg_batting(start_season=2019)
+    pitching = await bp.fg_pitching(start_season=2019)
+    team_batting = await bp.fg_team_batting(start_season=2019)
+    team_fielding = await bp.fg_team_fielding(start_season=2019)
+    team_pitching = await bp.fg_team_pitching(start_season=2019)
     print(batting.head())
     print(pitching.head())
     print(team_batting.head())

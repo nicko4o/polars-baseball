@@ -1,5 +1,6 @@
 import logging as _logging
 
+from polars_baseball import fangraphs
 from polars_baseball._cache import configure_cache
 from polars_baseball.apis.bref import bwar_bat, bwar_pitch
 from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
@@ -94,6 +95,24 @@ from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext
 from polars_baseball.context import cleanup as _cleanup
 from polars_baseball.enums import ArsenalType, KeyType
+from polars_baseball.fangraphs import (
+    batting as fg_batting,
+)
+from polars_baseball.fangraphs import (
+    fielding as fg_fielding,
+)
+from polars_baseball.fangraphs import (
+    pitching as fg_pitching,
+)
+from polars_baseball.fangraphs import (
+    team_batting as fg_team_batting,
+)
+from polars_baseball.fangraphs import (
+    team_fielding as fg_team_fielding,
+)
+from polars_baseball.fangraphs import (
+    team_pitching as fg_team_pitching,
+)
 
 __version__ = "0.2.0"
 
@@ -132,7 +151,14 @@ __all__ = [
     "fielding_of",
     "fielding_of_split",
     "fielding_post",
+    "fangraphs",
+    "fg_batting",
     "fg_data",
+    "fg_fielding",
+    "fg_pitching",
+    "fg_team_batting",
+    "fg_team_fielding",
+    "fg_team_pitching",
     "get_lookup_table",
     "hall_of_fame",
     "home_games",
