@@ -90,4 +90,20 @@ min_confidence = 100
 dev = [
     "pre-commit>=4.6.0",
     "vulture>=2.16",
+    "bump-my-version>=0.28.1",
 ]
+
+[tool.bumpversion]
+current_version = "0.1.1"
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+serialize = ["{major}.{minor}.{patch}"]
+search = "{current_version}"
+replace = "{new_version}"
+commit = false
+tag = false
+
+[[tool.bumpversion.files]]
+filename = "polars_baseball/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'
+
