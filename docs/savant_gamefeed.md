@@ -4,6 +4,8 @@
 # Savant Gamefeed API
 
 Retrieves Baseball Savant per-game JSON datasets and returns `polars.DataFrame` objects.
+New code can call the shorter `polars_baseball.savant` namespace, such as `pb.savant.gamefeed_pitch_data(...)`.
+The existing `savant_gamefeed_*` root functions remain supported.
 
 ## Exit Velocity (`savant_gamefeed_exit_velocity`)
 
@@ -33,14 +35,12 @@ Fetches pitch-level gamefeed rows for multiple games and concatenates them.
 
 ```python
 import asyncio
-from polars_baseball import (
-    savant_gamefeed_exit_velocity,
-    savant_gamefeed_pitch_data_many,
-)
+
+import polars_baseball as pb
 
 async def main() -> None:
-    exit_velocity = await savant_gamefeed_exit_velocity(745585)
-    pitch_data = await savant_gamefeed_pitch_data_many([745585, "746639"])
+    exit_velocity = await pb.savant.gamefeed_exit_velocity(745585)
+    pitch_data = await pb.savant.gamefeed_pitch_data_many([745585, "746639"])
     print(exit_velocity.head())
     print(pitch_data.head())
 

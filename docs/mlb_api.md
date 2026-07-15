@@ -4,6 +4,8 @@
 # MLB Stats API
 
 Provides access to official MLB Stats API endpoints (`statsapi.mlb.com`) for player bios, schedules, teams, rosters, game data, and leaderboards.
+New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.schedule(...)`.
+The existing `mlb_*` root functions remain supported.
 
 ## 1. Player Bios (`mlb_people`)
 
@@ -13,10 +15,11 @@ Retrieves biographical information for one or more players.
 
 ```python
 import asyncio
-from polars_baseball import mlb_people
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_people(450314)
+    df = await pb.mlb.people(450314)
     print(df.select(["id", "fullName", "currentAge", "mlbDebutDate"]))
 
 if __name__ == "__main__":
@@ -31,10 +34,11 @@ Retrieves the roster for a team-season.
 
 ```python
 import asyncio
-from polars_baseball import mlb_roster
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_roster(121, season=2024)
+    df = await pb.mlb.roster(121, season=2024)
     print(df.select(["personId", "fullName", "jerseyNumber", "positionName"]))
 
 if __name__ == "__main__":
@@ -49,10 +53,11 @@ Retrieves MLB game schedules filtered by season, date, or team.
 
 ```python
 import asyncio
-from polars_baseball import mlb_schedule
+
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_schedule(date="2024-05-06")
+    df = await pb.mlb.schedule(date="2024-05-06")
     print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
 
 if __name__ == "__main__":
