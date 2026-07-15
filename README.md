@@ -90,7 +90,7 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
+    df = await pb.statcast(start_date="2024-05-06", end_date="2024-05-06")
     print(df.head(5))
 
 
@@ -109,8 +109,8 @@ import polars_baseball as pb
 
 async def main() -> None:
     df = await pb.statcast_pitcher(
-        start_dt="2024-05-06",
-        end_dt="2024-05-06",
+        start_date="2024-05-06",
+        end_date="2024-05-06",
         player_id=506433,
     )
     summary = df.group_by("pitch_type").agg(
@@ -133,13 +133,12 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    request = pb.FanGraphsRequest.batting(
+    df = await pb.fg_batting(
         start_season=2024,
         end_season=2024,
         qual=100,
         max_results=20,
     )
-    df = await pb.fg_data(request)
     print(df.head(10))
 
 
@@ -195,8 +194,8 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/statcast")
 async def get_statcast() -> dict[str, int]:
     df = await pb.statcast(
-        start_dt="2026-06-01",
-        end_dt="2026-06-02",
+        start_date="2026-06-01",
+        end_date="2026-06-02",
         context=app.state.pb_context,
     )
     return {"rows": df.height}

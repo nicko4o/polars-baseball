@@ -68,6 +68,33 @@ async def test_statcast_date_range(
 
 @pytest.mark.asyncio
 @patch("polars_baseball.apis.statcast.default_context")
+@patch("polars_baseball._cache.global_cache.get")
+@patch("polars_baseball._cache.global_cache.set")
+async def test_statcast_accepts_date_aliases(
+    mock_cache_set: AsyncMock,
+    mock_cache_get: AsyncMock,
+    mock_default_ctx: MagicMock,
+    mock_statcast_csv: str,
+) -> None:
+    mock_cache_get.return_value = None
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+
+    df = await statcast(start_date="2026-06-01", end_date="2026-06-01", verbose=False)
+
+    assert df.height == 2
+    mock_cache_set.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_statcast_rejects_conflicting_date_aliases() -> None:
+    with pytest.raises(InvalidParameterError, match="start_dt and start_date"):
+        await statcast(start_dt="2026-06-01", start_date="2026-06-02", verbose=False)
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.statcast.default_context")
 async def test_statcast_player_lookups(mock_default_ctx: MagicMock, mock_statcast_csv: str) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
