@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add FanGraphs direct helper functions (`fg_batting`, `fg_pitching`, `fg_fielding`, `fg_team_batting`, `fg_team_pitching`, `fg_team_fielding`) and the `polars_baseball.fangraphs` namespace while preserving `FanGraphsRequest` and `fg_data`.
+- Add `start_date` and `end_date` aliases for `statcast`, `statcast_batter`, and `statcast_pitcher`.
+
+### Changed
+
+- Update English and Traditional Chinese documentation to prefer the new FanGraphs helpers and Statcast date aliases.
+
 ## [0.2.0] - 2026-07-15
 
 ### Added
