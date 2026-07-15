@@ -17,4 +17,4 @@ spray_angle = atan2(hc_x - 125.42, 198.27 - hc_y) * 180 / pi
 
 ## 範例分布
 
-![Spray angle histograms](../images/spray_angle_hists.png)
+![Spray angle histograms](../../../images/spray_angle_hists.png)
