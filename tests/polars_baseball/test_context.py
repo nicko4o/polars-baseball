@@ -48,6 +48,16 @@ async def test_cleanup() -> None:
 
 
 @pytest.mark.asyncio
+async def test_context_close_closes_http_client() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    ctx = BaseballContext(http=mock_http)
+
+    await ctx.close()
+
+    mock_http.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_context_manager() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     async with BaseballContext(http=mock_http) as ctx:

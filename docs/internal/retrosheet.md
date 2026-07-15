@@ -9,7 +9,7 @@ Retrosheet functions retrieve game logs, schedules, rosters, park codes, and eve
 
 | Function | Data |
 | --- | --- |
-| `events(season, type="regular")` | Retrieves Retrosheet event files as a dictionary mapping filenames to bytes. |
+| `events(season, type="regular")` | Retrieves Retrosheet event files as a DataFrame with `season`, `event_type`, `filename`, and raw `content` columns. |
 | `rosters(season)` | Season roster data. |
 | `schedules(season)` | Season schedules. |
 | `season_game_logs(season)` | Regular-season game logs. |
@@ -24,7 +24,7 @@ Retrosheet functions retrieve game logs, schedules, rosters, park codes, and eve
 
 ```python
 import asyncio
-from polars_baseball.apis.retrosheet import park_codes, rosters, schedules
+from polars_baseball import park_codes, rosters, schedules
 
 async def main() -> None:
     roster_df = await rosters(2019)

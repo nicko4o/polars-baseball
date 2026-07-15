@@ -34,7 +34,7 @@ Lahman functions retrieve compiled Parquet tables from cache or `POLARS_BASEBALL
 
 ```python
 import asyncio
-from polars_baseball.apis.lahman import batting, download_lahman, people, teams_core
+from polars_baseball import batting, download_lahman, people, teams_core
 
 async def main() -> None:
     await download_lahman()  # validates and caches the upstream archive fallback

@@ -3,9 +3,9 @@
 
 # Standings
 
-`standings(season: int | None = None) -> list[pl.DataFrame]`
+`standings(season: int | None = None) -> pl.DataFrame`
 
-Retrieves MLB standings tables for a season.
+Retrieves one MLB standings table for a season, with division metadata columns.
 
 ## Arguments
 
@@ -18,9 +18,8 @@ import asyncio
 from polars_baseball import standings
 
 async def main() -> None:
-    divisions = await standings(2019)
-    for division in divisions:
-        print(division.head())
+    df = await standings(2019)
+    print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())

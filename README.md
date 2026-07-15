@@ -49,8 +49,8 @@ polars-baseball -> Polars -> analysis
 
 ## Key Features
 
-- **Polars-native data**: Most public APIs return `polars.DataFrame`; documented exceptions such as
-  `standings()` return `list[polars.DataFrame]`.
+- **Polars-native data**: Public data-fetching APIs return `polars.DataFrame` unless an API
+  reference explicitly documents a non-tabular contract.
 - **Async-first engine**: Data-fetching APIs are `async def` and can be composed with your own
   async workflows.
 - **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
@@ -204,11 +204,11 @@ async def get_statcast() -> dict[str, int]:
 
 ## API Namespace Policy
 
-The package root (`import polars_baseball as pb`) exposes only stable, commonly used public APIs.
-Provider-specific and advanced functions remain available under `polars_baseball.apis.*`.
+The package root (`import polars_baseball as pb`) exposes stable public APIs, including provider
+specific data functions such as Lahman, Retrosheet, Baseball Reference, and player ID workflows.
 
-Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not
-part of the compatibility contract.
+Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part
+of the compatibility contract.
 
 ## Documentation
 
