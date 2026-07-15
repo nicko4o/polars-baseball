@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Correct non-executable code blocks in documentation examples.
-- Fix relative language switcher links in `.github/` files to prevent 404 resolution.
+- Fix relative language switcher links in `.github/` files to prevent 404 resolution (using absolute URLs for `SECURITY.md` and `CONTRIBUTING.md`).
+- Fix relative image links in `statcast_utils.md` documentation pages.
 
 ### Added
 - Introduce Jupyter Notebook usage guide (`docs/jupyter.md` and `docs/zh-tw/jupyter.md`).
