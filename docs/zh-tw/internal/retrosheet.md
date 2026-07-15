@@ -9,7 +9,7 @@ Retrosheet 相關函式可查詢 game logs、賽程、名單、球場代碼與 e
 
 | 函式 | 資料 |
 | --- | --- |
-| `events(season, type="regular")` | 取得指定球季的 Retrosheet event 檔案，回傳檔名對應至 bytes 的 dict。 |
+| `events(season, type="regular")` | 取得指定球季的 Retrosheet event 檔案，回傳包含 `season`、`event_type`、`filename` 與 raw `content` 欄位的 DataFrame。 |
 | `rosters(season)` | 球季名單資料。 |
 | `schedules(season)` | 球季賽程。 |
 | `season_game_logs(season)` | 例行賽 game logs。 |
@@ -24,7 +24,7 @@ Retrosheet 相關函式可查詢 game logs、賽程、名單、球場代碼與 e
 
 ```python
 import asyncio
-from polars_baseball.apis.retrosheet import park_codes, rosters, schedules
+from polars_baseball import park_codes, rosters, schedules
 
 async def main() -> None:
     roster_df = await rosters(2019)

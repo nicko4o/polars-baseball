@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await app.state.pb_context.http.close()
+        await app.state.pb_context.close()
 ```
 
 ### Environment Variable
