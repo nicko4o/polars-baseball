@@ -17,4 +17,4 @@ For left-handed batters, adjusted spray angle flips the sign so push and pull co
 
 ## Sample Distribution
 
-![Spray angle histograms](images/spray_angle_hists.png)
+![Spray angle histograms](../images/spray_angle_hists.png)
