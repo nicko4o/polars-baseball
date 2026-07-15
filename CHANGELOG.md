@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Add documentation badges to `README.md` and `README.zh-TW.md`.
+- Add SEO keywords to `pyproject.toml`.
+- Configure Codecov integration for automated test coverage tracking.
+
+### Fixed
+- Correct non-working email address (`nicko4o@users.noreply.github.com`) in `CODE_OF_CONDUCT.md` and `CODE_OF_CONDUCT.zh-TW.md` to reference the GitHub profile contact info.
+
 ## [0.1.1] - 2026-07-15
 
 ### Added

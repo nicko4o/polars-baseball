@@ -27,14 +27,16 @@ classifiers = [
 keywords = [
     "baseball",
     "mlb",
-    "sabermetrics",
-    "sports-analytics",
-    "python-baseball-data",
     "statcast",
-    "baseball-savant",
+    "baseball savant",
     "fangraphs",
+    "retrosheet",
+    "sabermetrics",
+    "sports analytics",
+    "baseball analytics",
+    "python baseball",
     "polars",
-    "async",
+    "pybaseball alternative",
 ]
 dependencies = [
     "lxml>=4.2.1",

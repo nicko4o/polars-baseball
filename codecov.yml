@@ -1,0 +1,18 @@
+codecov:
+  disable_default_path_fixes: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 0%
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
