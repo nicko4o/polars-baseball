@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-15
+
 ### Added
 - Expose BRef (`bwar_bat`, `bwar_pitch`), Lahman database tables, Retrosheet datasets, and PlayerID utility functions directly from the package root (`polars_baseball`).
 - Add a public `close()` lifecycle method to `BaseballContext` for clean connection teardown.
