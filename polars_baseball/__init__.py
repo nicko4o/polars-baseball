@@ -114,7 +114,7 @@ from polars_baseball.fangraphs import (
     team_pitching as fg_team_pitching,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
