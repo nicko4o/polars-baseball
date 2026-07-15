@@ -15,7 +15,7 @@ Retrieves the Chadwick Register people table. The table contains baseball identi
 
 ```python
 import asyncio
-from polars_baseball.apis.playerid import chadwick_register
+from polars_baseball import chadwick_register
 
 async def main() -> None:
     register = await chadwick_register()

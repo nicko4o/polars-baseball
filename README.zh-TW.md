@@ -47,8 +47,7 @@ polars-baseball -> Polars -> analysis
 
 ## 主要特性
 
-- **Polars-native data**：多數公開 API 回傳 `polars.DataFrame`；明確記載的例外如
-  `standings()` 回傳 `list[polars.DataFrame]`。
+- **Polars-native data**：公開資料擷取 API 會回傳 `polars.DataFrame`，除非 API 文件明確記載非表格 contract。
 - **Async-first engine**：資料擷取 API 都是 `async def`，可以和既有 async workflow 組合。
 - **多資料來源**：Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、
   Retrosheet、MLB Stats API 與 player ID workflow。
@@ -175,8 +174,8 @@ async def get_statcast() -> dict[str, int]:
 
 ## API 命名空間政策
 
-套件根目錄（`import polars_baseball as pb`）只公開穩定且常用的 public API。
-Provider-specific 與進階函式保留在 `polars_baseball.apis.*`。
+套件根目錄（`import polars_baseball as pb`）公開穩定 public API，包含 Lahman、Retrosheet、
+Baseball Reference 與 player ID workflows 等 provider-specific 資料函式。
 
 以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 

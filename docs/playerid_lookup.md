@@ -7,6 +7,8 @@
 
 `player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame`
 
+`get_lookup_table(save: bool = True) -> pl.DataFrame`
+
 Looks up player IDs across MLBAM, Retrosheet, FanGraphs, Baseball Reference, and related sources.
 
 ## Arguments
@@ -21,8 +23,7 @@ Looks up player IDs across MLBAM, Retrosheet, FanGraphs, Baseball Reference, and
 
 ```python
 import asyncio
-from polars_baseball import playerid_lookup
-from polars_baseball.apis.playerid import player_search_list
+from polars_baseball import player_search_list, playerid_lookup
 
 async def main() -> None:
     jones = await playerid_lookup("jones")

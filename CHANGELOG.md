@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Add documentation badges to `README.md` and `README.zh-TW.md`.
+### Added
+- Expose BRef (`bwar_bat`, `bwar_pitch`), Lahman database tables, Retrosheet datasets, and PlayerID utility functions directly from the package root (`polars_baseball`).
+- Add a public `close()` lifecycle method to `BaseballContext` for clean connection teardown.
 - Add SEO keywords to `pyproject.toml`.
 - Configure Codecov integration for automated test coverage tracking.
 
+### Changed
+- **BREAKING CHANGE**: Change `standings()` return type from `list[polars.DataFrame]` to a single `polars.DataFrame` containing season, division_id, and division_name columns.
+- **BREAKING CHANGE**: Change `retrosheet.events()` return type from `dict[str, bytes]` to a single `polars.DataFrame` with season, event_type, filename, and content (Binary) columns.
+- Update documentation and caching guide examples to reflect the direct root namespace imports and `context.close()` lifecycle.
+- Add documentation badges to `README.md` and `README.zh-TW.md`.
+
 ### Fixed
 - Correct non-working email address (`nicko4o@users.noreply.github.com`) in `CODE_OF_CONDUCT.md` and `CODE_OF_CONDUCT.zh-TW.md` to reference the GitHub profile contact info.
+
 
 ## [0.1.1] - 2026-07-15
 

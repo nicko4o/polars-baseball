@@ -30,6 +30,10 @@ class BaseballContext:
         _exc_val: BaseException | None,
         _exc_tb: object | None,
     ) -> None:
+        await self.close()
+
+    async def close(self) -> None:
+        """Close HTTP resources owned by this context."""
         # Delegate to cleanup() so the singleton is reset if this instance is
         # the current default context.
         await cleanup(self)
