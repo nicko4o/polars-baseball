@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-15
+
 ### Added
 
 - Add FanGraphs direct helper functions (`fg_batting`, `fg_pitching`, `fg_fielding`, `fg_team_batting`, `fg_team_pitching`, `fg_team_fielding`) and the `polars_baseball.fangraphs` namespace while preserving `FanGraphsRequest` and `fg_data`.
