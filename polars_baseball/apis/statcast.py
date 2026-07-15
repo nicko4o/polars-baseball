@@ -69,6 +69,17 @@ def _check_warning(start_dt: date, end_dt: date) -> None:
         warnings.warn(_OVERSIZE_WARNING, stacklevel=2)
 
 
+def _resolve_date_alias(
+    legacy_value: str | None,
+    alias_value: str | None,
+    legacy_name: str,
+    alias_name: str,
+) -> str | None:
+    if legacy_value is not None and alias_value is not None and legacy_value != alias_value:
+        raise InvalidParameterError(f"{legacy_name} and {alias_name} must not conflict.")
+    return alias_value if alias_value is not None else legacy_value
+
+
 async def _small_request(
     start_dt: date,
     end_dt: date,
@@ -119,6 +130,9 @@ async def statcast(
     verbose: bool = True,
     parallel: bool = True,
     context: BaseballContext | None = None,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast pitch-level data for a date range.
 
@@ -131,7 +145,9 @@ async def statcast(
         - Emits a warning when the date range exceeds ~90 days (oversized threshold).
         - Requests spanning multiple calendar years are split at year boundaries.
     """
-    start_dt_date, end_dt_date = sanitize_date_range(start_dt, end_dt)
+    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
+    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
+    start_dt_date, end_dt_date = sanitize_date_range(resolved_start, resolved_end)
     _check_warning(start_dt_date, end_dt_date)
 
     if verbose:
@@ -295,13 +311,18 @@ async def statcast_batter(
     end_dt: str | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast data for a specific batter.
 
     Delegates to ``_statcast_player`` with ``player_type="batter"``.
     Requires a valid ``player_id`` (key_mlbam) or raises ``InvalidParameterError``.
     """
-    return await _statcast_player("batter", start_dt, end_dt, player_id, context=context)
+    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
+    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
+    return await _statcast_player("batter", resolved_start, resolved_end, player_id, context=context)
 
 
 async def statcast_pitcher(
@@ -309,10 +330,15 @@ async def statcast_pitcher(
     end_dt: str | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
+    *,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast data for a specific pitcher.
 
     Delegates to ``_statcast_player`` with ``player_type="pitcher"``.
     Requires a valid ``player_id`` (key_mlbam) or raises ``InvalidParameterError``.
     """
-    return await _statcast_player("pitcher", start_dt, end_dt, player_id, context=context)
+    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
+    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
+    return await _statcast_player("pitcher", resolved_start, resolved_end, player_id, context=context)

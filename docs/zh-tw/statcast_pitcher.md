@@ -24,7 +24,7 @@
 ## 常用參數
 
 - `year`：排行榜球季。
-- `start_dt` / `end_dt`：pitch-level 函式使用的日期區間。
+- `start_date` / `end_date`：pitch-level 函式使用的日期區間。
 - `player_id`：pitch-level 球員查詢使用的 MLBAM player ID。
 - `minPA`、`minP`、`minBBE`、`minSwings`：最低打席、投球數或事件門檻。部分函式接受 `'q'` 表示合格球員。
 
@@ -40,7 +40,7 @@ from polars_baseball import statcast_pitcher
 from polars_baseball.apis.savant_leaderboards import statcast_pitcher_pitch_arsenal
 
 async def main() -> None:
-    pitches = await statcast_pitcher("2024-05-06", "2024-05-06", player_id=506433)
+    pitches = await statcast_pitcher(start_date="2024-05-06", end_date="2024-05-06", player_id=506433)
     arsenal = await statcast_pitcher_pitch_arsenal(2024, minP=250)
     print(pitches.head())
     print(arsenal.head())

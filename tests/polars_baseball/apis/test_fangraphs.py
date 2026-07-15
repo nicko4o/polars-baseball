@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import FanGraphsRequest, fg_data
+from polars_baseball import FanGraphsRequest, fg_batting, fg_data
+from polars_baseball import fangraphs as fg
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
 from polars_baseball.context import BaseballContext
@@ -86,6 +87,51 @@ async def test_fg_data_with_batting_request(
     assert df["WAR"][0] == 8.5
     assert df["playerid"][0] == 19755
 
+    mock_http.get_text.assert_called_once()
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+@patch("polars_baseball.apis.fangraphs.default_context")
+async def test_fangraphs_batting_wrapper(
+    mock_default_ctx: MagicMock,
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+
+    df = await fg.batting(start_season=2019, league="AL", max_results=20)
+
+    assert df.height == 2
+    mock_http.get_text.assert_called_once()
+    _, kwargs = mock_http.get_text.call_args
+    assert kwargs["params"]["lg"] == "al"
+    assert kwargs["params"]["pageitems"] == "20"
+    mock_cache_get.assert_called_once()
+    mock_cache_set.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+@patch("polars_baseball.apis.fangraphs.default_context")
+async def test_root_fg_batting_wrapper(
+    mock_default_ctx: MagicMock,
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+
+    df = await fg_batting(start_season=2019)
+
+    assert df.height == 2
     mock_http.get_text.assert_called_once()
     mock_cache_get.assert_called_once()
     mock_cache_set.assert_called_once()

@@ -9,7 +9,7 @@ Jupyter 與 IPython 已經有執行中的 event loop。Notebook cell 裡呼叫�
 ```python
 import polars_baseball as pb
 
-df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
+df = await pb.statcast(start_date="2024-05-06", end_date="2024-05-06")
 df.head()
 ```
 
@@ -19,8 +19,8 @@ df.head()
 import polars_baseball as pb
 
 pitches = await pb.statcast_pitcher(
-    start_dt="2024-05-06",
-    end_dt="2024-05-06",
+    start_date="2024-05-06",
+    end_date="2024-05-06",
     player_id=506433,
 )
 pitches.select(["game_date", "pitch_type", "release_speed"]).head()
@@ -35,8 +35,8 @@ import polars as pl
 import polars_baseball as pb
 
 pitches = await pb.statcast_pitcher(
-    start_dt="2024-05-06",
-    end_dt="2024-05-06",
+    start_date="2024-05-06",
+    end_date="2024-05-06",
     player_id=506433,
 )
 summary = (

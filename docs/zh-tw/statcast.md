@@ -3,7 +3,7 @@
 
 # Statcast
 
-`statcast(start_dt: str | None = None, end_dt: str | None = None, team: str | None = None, verbose: bool = True, parallel: bool = True) -> pl.DataFrame`
+`statcast(start_date: str | None = None, end_date: str | None = None, team: str | None = None, verbose: bool = True, parallel: bool = True) -> pl.DataFrame`
 
 從 Baseball Savant 查詢指定日期區間的 pitch-level Statcast 資料。
 
@@ -13,11 +13,13 @@
 
 ## 參數
 
-- `start_dt`：起始日期，格式為 `YYYY-MM-DD`。省略時使用昨天。
-- `end_dt`：結束日期，格式為 `YYYY-MM-DD`。省略時只查詢 `start_dt`。
+- `start_date`：起始日期，格式為 `YYYY-MM-DD`。省略時使用昨天。
+- `end_date`：結束日期，格式為 `YYYY-MM-DD`。省略時只查詢 `start_date`。
 - `team`：選用球隊縮寫，例如 `BOS`、`SEA` 或 `NYY`。
 - `verbose`：是否輸出進度資訊。
 - `parallel`：大型日期區間查詢時，是否透過 event loop 並行請求。
+
+`start_dt` 與 `end_dt` 仍保留為向後相容 alias。
 
 ## 資料可用性
 
@@ -27,15 +29,18 @@ Pitch-tracking Statcast 資料自 2008 年起可用。Launch speed 與 launch an
 
 ```python
 import asyncio
+
 import polars_baseball as bp
 
+
 async def main() -> None:
-    single_day = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
-    two_days = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-07")
-    dodgers = await bp.statcast(start_dt="2024-05-06", end_dt="2024-05-06", team="LAD")
+    single_day = await bp.statcast(start_date="2024-05-06", end_date="2024-05-06")
+    two_days = await bp.statcast(start_date="2024-05-06", end_date="2024-05-07")
+    dodgers = await bp.statcast(start_date="2024-05-06", end_date="2024-05-06", team="LAD")
     print(single_day.head())
     print(two_days.head())
     print(dodgers.head())
+
 
 if __name__ == "__main__":
     asyncio.run(main())

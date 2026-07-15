@@ -24,7 +24,7 @@ These functions retrieve Baseball Savant player leaderboards and pitch-level dat
 ## Common Arguments
 
 - `year`: Leaderboard season.
-- `start_dt` / `end_dt`: Date range for pitch-level functions.
+- `start_date` / `end_date`: Date range for pitch-level functions.
 - `player_id`: MLBAM player ID for pitch-level player queries.
 - `minPA`, `minP`, `minBBE`, `minSwings`: Minimum playing-time or event thresholds. Some functions accept `'q'` for qualified players.
 
@@ -40,7 +40,7 @@ from polars_baseball import statcast_pitcher
 from polars_baseball.apis.savant_leaderboards import statcast_pitcher_pitch_arsenal
 
 async def main() -> None:
-    pitches = await statcast_pitcher("2024-05-06", "2024-05-06", player_id=506433)
+    pitches = await statcast_pitcher(start_date="2024-05-06", end_date="2024-05-06", player_id=506433)
     arsenal = await statcast_pitcher_pitch_arsenal(2024, minP=250)
     print(pitches.head())
     print(arsenal.head())
