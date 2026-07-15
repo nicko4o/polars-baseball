@@ -2,21 +2,55 @@
 
 Languages: [English](README.md) | [Traditional Chinese](README.zh-TW.md)
 
-`polars-baseball` is a modern asynchronous Python library for retrieving baseball data. It is built around
-Polars, where most public data APIs return `polars.DataFrame` objects (with documented exceptions such as `standings()`
-returning other shapes), and supports Statcast, Baseball Reference, FanGraphs, Lahman,
-Retrosheet, MLB Stats API, and player ID workflows.
+`polars-baseball` is **The unified Polars-native baseball data SDK**: a typed, async-first Python
+library for retrieving MLB and baseball analytics data from Statcast, Baseball Savant, FanGraphs,
+Baseball Reference, Lahman, Retrosheet, and the MLB Stats API.
 
----
+If you searched for `python baseball data`, `python statcast`, `fangraphs python`,
+`baseball savant api`, `pybaseball alternative`, or `polars dataframe baseball`, this project is
+built for the workflow where data should land directly in `polars.DataFrame` instead of going
+through pandas first.
+
+## Why use polars-baseball instead of pybaseball?
+
+`pybaseball` is useful and established. `polars-baseball` is aimed at a different execution model:
+async data ingestion, native Polars output, and one consistent entry point across multiple baseball
+data providers.
+
+| Feature | pybaseball | polars-baseball |
+| --- | --- | --- |
+| Polars native | No | Yes |
+| Async data fetching | No | Yes |
+| Statcast / Baseball Savant | Yes | Yes |
+| FanGraphs | Yes | Yes |
+| MLB Stats API | Limited | Yes |
+| Lahman / Retrosheet workflows | Partial | Yes |
+| Built-in cache | Partial | Yes |
+| Typed public API | Partial | Yes |
+
+Typical pandas-first workflow:
+
+```text
+pybaseball -> pandas -> convert to Polars -> analysis
+```
+
+`polars-baseball` workflow:
+
+```text
+polars-baseball -> Polars -> analysis
+```
 
 ## Key Features
 
-- **Polars Core**: Most public APIs return native `polars.DataFrame` objects (with `standings()` returning `list[polars.DataFrame]`) for filtering, aggregation, and export.
-- **Async-First Engine**: Data-fetching APIs are asynchronous and should be called with `await` or `asyncio.run()`.
-- **Flexible Concurrency**: Support for custom context configuration to isolate resources in multi-threaded/loop environments.
-- **Automatic Cache**: Built-in file caching reduces repeated network requests for large workflows.
-
----
+- **Polars-native data**: Most public APIs return `polars.DataFrame`; documented exceptions such as
+  `standings()` return `list[polars.DataFrame]`.
+- **Async-first engine**: Data-fetching APIs are `async def` and can be composed with your own
+  async workflows.
+- **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
+  Retrosheet, MLB Stats API, and player ID workflows.
+- **Built-in cache**: Repeated network requests are cached as Parquet files for large workflows.
+- **Service-ready context**: `BaseballContext` lets long-running apps control HTTP and cache
+  resources explicitly.
 
 ## Installation
 
@@ -32,17 +66,15 @@ cd polars-baseball
 uv sync --all-extras
 ```
 
-To run the visualization examples, install the optional example dependencies:
+To run visualization examples:
 
 ```bash
 pip install "polars-baseball[plot]"
 ```
 
----
-
 ## Quick Start
 
-### 1. Statcast Queries
+### Statcast pitch-level data
 
 ```python
 import asyncio
@@ -54,19 +86,12 @@ async def main() -> None:
     df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
     print(df.head(5))
 
-    darvish_df = await pb.statcast_pitcher(
-        start_dt="2024-05-06",
-        end_dt="2024-05-06",
-        player_id=506433,
-    )
-    print(darvish_df.head(5))
-
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 2. Aggregate with Polars
+### Aggregate directly with Polars
 
 ```python
 import asyncio
@@ -76,24 +101,23 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    darvish_df = await pb.statcast_pitcher(
+    df = await pb.statcast_pitcher(
         start_dt="2024-05-06",
         end_dt="2024-05-06",
         player_id=506433,
     )
-    summary = (
-        darvish_df
-        .group_by("pitch_type")
-        .agg(pl.col("release_speed").mean().alias("mean_speed"))
+    summary = df.group_by("pitch_type").agg(
+        pl.col("release_speed").mean().alias("mean_speed"),
+        pl.len().alias("pitch_count"),
     )
-    print(summary)
+    print(summary.sort("pitch_count", descending=True))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 3. Top Prospects
+### FanGraphs leaderboard
 
 ```python
 import asyncio
@@ -102,88 +126,82 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    prospects = await pb.top_prospects(team_name="mets")
-    print(prospects.head(5))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-### 4. Interactive Data Visualization
-
-`polars-baseball` does not provide a plotting API. This example passes the returned `polars.DataFrame` to hvPlot.
-
-```python
-import asyncio
-
-import hvplot.polars  # noqa: F401
-import polars_baseball as pb
-
-
-async def main() -> None:
-    df = await pb.statcast(start_dt="2024-05-06", end_dt="2024-05-06")
-    chart = (
-        df
-        .filter(df["hc_x"].is_not_null() & df["hc_y"].is_not_null())
-        .plot.scatter(
-            x="hc_x",
-            y="hc_y",
-            by="events",
-            invert_y=True,
-        )
+    request = pb.FanGraphsRequest.batting(
+        start_season=2024,
+        end_season=2024,
+        qual=100,
+        max_results=20,
     )
-    print(chart)
+    df = await pb.fg_data(request)
+    print(df.head(10))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Web Services & Concurrency (FastAPI, Gunicorn, Celery)
+## Examples
 
-By default, calling package functions without a `context` parameter will fallback to an implicit package-level global singleton `BaseballContext`. **This global default context is not guaranteed to be thread-safe or loop-safe in long-running concurrent environments.**
+Runnable examples live in [`examples/`](examples/):
 
-When deploying `polars-baseball` inside concurrent web services (such as FastAPI, Gunicorn, or Celery workers), you **must** explicitly manage the lifespan of `BaseballContext` and pass it to all API calls.
+- [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py): Statcast pitch mix with Polars.
+- [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py): FanGraphs batting leaderboard.
+- [`examples/mlb_schedule.py`](examples/mlb_schedule.py): MLB Stats API schedule query.
+- [`examples/benchmark_statcast.py`](examples/benchmark_statcast.py): Conservative Statcast timing and memory benchmark.
 
-### FastAPI lifespan Example
+## Benchmarking
+
+Do not trust performance claims without a reproducible command. Start with:
+
+```bash
+python examples/benchmark_statcast.py --start-date 2024-04-01 --end-date 2024-04-07
+```
+
+The script reports row count, column count, wall time, and Python allocation peak measured by
+`tracemalloc`. Use the same date range, cache state, Python version, and machine when comparing
+against pandas-first workflows.
+
+## Web Services & Concurrency
+
+Calling package functions without `context` uses the implicit package-level `BaseballContext`.
+That default context is convenient for scripts, but long-running concurrent services should manage
+their own context and pass it into every API call.
 
 ```python
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
 import polars_baseball as pb
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize a dedicated context bound to the app's event loop
-    app.state.pb_context = pb.BaseballContext()
-    try:
+    async with pb.BaseballContext() as context:
+        app.state.pb_context = context
         yield
-    finally:
-        # Properly clean up HTTP connections
-        await app.state.pb_context.http.close()
+
 
 app = FastAPI(lifespan=lifespan)
 
+
 @app.get("/statcast")
-async def get_statcast():
+async def get_statcast() -> dict[str, int]:
     df = await pb.statcast(
         start_dt="2026-06-01",
         end_dt="2026-06-02",
         context=app.state.pb_context,
     )
-    return df.to_dicts()
+    return {"rows": df.height}
 ```
-
----
 
 ## API Namespace Policy
 
-The package root (`import polars_baseball as pb`) exposes only the stable, commonly used public API. Provider-specific and advanced functions remain available from `polars_baseball.apis.*`.
+The package root (`import polars_baseball as pb`) exposes only stable, commonly used public APIs.
+Provider-specific and advanced functions remain available under `polars_baseball.apis.*`.
 
-Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part of the compatibility contract.
-
----
+Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not
+part of the compatibility contract.
 
 ## Documentation
 
@@ -198,13 +216,17 @@ Modules prefixed with `_`, including `_schemas`, are internal implementation det
 - [Savant Gamefeed API](docs/savant_gamefeed.md)
 - [Prospect Rankings](docs/prospect_rankings.md)
 
----
+## Showcase
+
+Projects using `polars-baseball`:
+
+- MLB dashboard workflows
+- Chinese baseball website data jobs
+- Threads bot baseball data pipelines
 
 ## Contributing
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for the development workflow and architecture notes.
-
----
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development workflow and architecture notes.
 
 ## Author
 
