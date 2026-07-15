@@ -4,6 +4,8 @@
 # Savant Gamefeed API
 
 擷取 Baseball Savant 單場比賽 JSON 資料集，並回傳 `polars.DataFrame`。
+新程式碼可使用較短的 `polars_baseball.savant` namespace，例如 `pb.savant.gamefeed_pitch_data(...)`。
+既有 `savant_gamefeed_*` root 函式仍會保留支援。
 
 ## Exit Velocity (`savant_gamefeed_exit_velocity`)
 
@@ -33,14 +35,12 @@
 
 ```python
 import asyncio
-from polars_baseball import (
-    savant_gamefeed_exit_velocity,
-    savant_gamefeed_pitch_data_many,
-)
+
+import polars_baseball as pb
 
 async def main() -> None:
-    exit_velocity = await savant_gamefeed_exit_velocity(745585)
-    pitch_data = await savant_gamefeed_pitch_data_many([745585, "746639"])
+    exit_velocity = await pb.savant.gamefeed_exit_velocity(745585)
+    pitch_data = await pb.savant.gamefeed_pitch_data_many([745585, "746639"])
     print(exit_velocity.head())
     print(pitch_data.head())
 
