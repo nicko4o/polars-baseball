@@ -28,41 +28,20 @@ from pathlib import Path
 
 import polars as pl
 
-from polars_baseball import cleanup, configure_cache
-from polars_baseball.apis.bref import bwar_bat
-from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
-from polars_baseball.apis.lahman import people as lahman_people
-from polars_baseball.apis.mlb import (
-    mlb_divisions,
-    mlb_draft,
-    mlb_game_boxscore,
-    mlb_game_boxscore_stats,
-    mlb_game_feed_live,
-    mlb_game_linescore,
-    mlb_game_play_by_play,
-    mlb_game_win_probability,
-    mlb_leagues,
-    mlb_people,
-    mlb_people_awards,
-    mlb_pitch_arsenal,
-    mlb_player_stats,
-    mlb_postseason_schedule,
-    mlb_roster,
-    mlb_schedule,
-    mlb_stat_leaders,
-    mlb_team_stats,
-    mlb_teams,
-    mlb_transactions,
-    mlb_venues,
+from polars_baseball import (
+    bwar_bat,
+    cleanup,
+    configure_cache,
+    fg_data,
+    mlb,
+    prospect_rankings,
+    savant,
+    standings,
 )
+from polars_baseball.apis.fangraphs import FanGraphsRequest
+from polars_baseball.apis.lahman import people as lahman_people
 from polars_baseball.apis.playerid import chadwick_register, playerid_lookup
 from polars_baseball.apis.retrosheet import schedules as retrosheet_schedules
-from polars_baseball.apis.savant_fielding_running import statcast_outs_above_average
-from polars_baseball.apis.savant_gamefeed import savant_gamefeed_exit_velocity, savant_gamefeed_pitch_data
-from polars_baseball.apis.savant_leaderboards import statcast_exitvelo_barrels
-from polars_baseball.apis.standings import standings
-from polars_baseball.apis.statcast import statcast, statcast_single_game
-from polars_baseball.apis.top_prospects import prospect_rankings
 from polars_baseball.context import BaseballContext, default_context
 
 GAME_PK = 823359
@@ -151,12 +130,14 @@ def _build_tests() -> list[TestCase]:
 
     if os.environ.get("SKIP_SAVANT") != "1":
         tests += [
-            TestCase("statcast_range_3day", "Savant", lambda: statcast("2023-08-01", "2023-08-03", verbose=False)),
-            TestCase("statcast_single_game", "Savant", lambda: statcast_single_game(GAME_PK)),
-            TestCase("savant_exitvelo_barrels", "Savant", lambda: statcast_exitvelo_barrels(2023)),
-            TestCase("savant_outs_above_average", "Savant", lambda: statcast_outs_above_average(2023, pos="CF")),
-            TestCase("savant_gamefeed_exit_velocity", "Savant", lambda: savant_gamefeed_exit_velocity(GAME_PK)),
-            TestCase("savant_gamefeed_pitch_data", "Savant", lambda: savant_gamefeed_pitch_data(GAME_PK)),
+            TestCase(
+                "statcast_range_3day", "Savant", lambda: savant.statcast("2023-08-01", "2023-08-03", verbose=False)
+            ),
+            TestCase("statcast_single_game", "Savant", lambda: savant.single_game(GAME_PK)),
+            TestCase("savant_exitvelo_barrels", "Savant", lambda: savant.exitvelo_barrels(2023)),
+            TestCase("savant_outs_above_average", "Savant", lambda: savant.outs_above_average(2023, pos="CF")),
+            TestCase("savant_gamefeed_exit_velocity", "Savant", lambda: savant.gamefeed_exit_velocity(GAME_PK)),
+            TestCase("savant_gamefeed_pitch_data", "Savant", lambda: savant.gamefeed_pitch_data(GAME_PK)),
         ]
 
     if os.environ.get("SKIP_BREF") != "1":
@@ -182,27 +163,27 @@ def _build_tests() -> list[TestCase]:
 
     if os.environ.get("SKIP_MLB_API") != "1":
         tests += [
-            TestCase("mlb_teams", "MLB_API", lambda: mlb_teams(season=2023)),
-            TestCase("mlb_divisions", "MLB_API", lambda: mlb_divisions()),
-            TestCase("mlb_leagues", "MLB_API", lambda: mlb_leagues()),
-            TestCase("mlb_people", "MLB_API", lambda: mlb_people([PLAYER_ID])),
-            TestCase("mlb_people_awards", "MLB_API", lambda: mlb_people_awards(PLAYER_ID)),
-            TestCase("mlb_schedule", "MLB_API", lambda: mlb_schedule(2023, team_id=108)),
-            TestCase("mlb_roster", "MLB_API", lambda: mlb_roster(TEAM_ID, 2023)),
-            TestCase("mlb_player_stats", "MLB_API", lambda: mlb_player_stats(PLAYER_ID, "hitting", season=2023)),
-            TestCase("mlb_game_boxscore", "MLB_API", lambda: mlb_game_boxscore(GAME_PK)),
-            TestCase("mlb_game_boxscore_stats", "MLB_API", lambda: mlb_game_boxscore_stats(GAME_PK)),
-            TestCase("mlb_game_play_by_play", "MLB_API", lambda: mlb_game_play_by_play(GAME_PK)),
-            TestCase("mlb_game_win_probability", "MLB_API", lambda: mlb_game_win_probability(GAME_PK)),
-            TestCase("mlb_stat_leaders", "MLB_API", lambda: mlb_stat_leaders(season=2023, categories=["homeRuns"])),
-            TestCase("mlb_team_stats", "MLB_API", lambda: mlb_team_stats(TEAM_ID, season=2023, group="hitting")),
-            TestCase("mlb_postseason_schedule", "MLB_API", lambda: mlb_postseason_schedule(season=2023)),
-            TestCase("mlb_draft", "MLB_API", lambda: mlb_draft(2023)),
-            TestCase("mlb_pitch_arsenal", "MLB_API", lambda: mlb_pitch_arsenal(PLAYER_ID, 2023)),
-            TestCase("mlb_transactions", "MLB_API", lambda: mlb_transactions(date="2023-06-01")),
-            TestCase("mlb_venues", "MLB_API", lambda: mlb_venues(10)),
-            TestCase("mlb_game_feed_live", "MLB_API", lambda: mlb_game_feed_live(GAME_PK)),
-            TestCase("mlb_game_linescore", "MLB_API", lambda: mlb_game_linescore(GAME_PK)),
+            TestCase("mlb_teams", "MLB_API", lambda: mlb.teams(season=2023)),
+            TestCase("mlb_divisions", "MLB_API", lambda: mlb.divisions()),
+            TestCase("mlb_leagues", "MLB_API", lambda: mlb.leagues()),
+            TestCase("mlb_people", "MLB_API", lambda: mlb.people([PLAYER_ID])),
+            TestCase("mlb_people_awards", "MLB_API", lambda: mlb.people_awards(PLAYER_ID)),
+            TestCase("mlb_schedule", "MLB_API", lambda: mlb.schedule(2023, team_id=108)),
+            TestCase("mlb_roster", "MLB_API", lambda: mlb.roster(TEAM_ID, 2023)),
+            TestCase("mlb_player_stats", "MLB_API", lambda: mlb.player_stats(PLAYER_ID, "hitting", season=2023)),
+            TestCase("mlb_game_boxscore", "MLB_API", lambda: mlb.game_boxscore(GAME_PK)),
+            TestCase("mlb_game_boxscore_stats", "MLB_API", lambda: mlb.game_boxscore_stats(GAME_PK)),
+            TestCase("mlb_game_play_by_play", "MLB_API", lambda: mlb.game_play_by_play(GAME_PK)),
+            TestCase("mlb_game_win_probability", "MLB_API", lambda: mlb.game_win_probability(GAME_PK)),
+            TestCase("mlb_stat_leaders", "MLB_API", lambda: mlb.stat_leaders(season=2023, categories=["homeRuns"])),
+            TestCase("mlb_team_stats", "MLB_API", lambda: mlb.team_stats(TEAM_ID, season=2023, group="hitting")),
+            TestCase("mlb_postseason_schedule", "MLB_API", lambda: mlb.postseason_schedule(season=2023)),
+            TestCase("mlb_draft", "MLB_API", lambda: mlb.draft(2023)),
+            TestCase("mlb_pitch_arsenal", "MLB_API", lambda: mlb.pitch_arsenal(PLAYER_ID, 2023)),
+            TestCase("mlb_transactions", "MLB_API", lambda: mlb.transactions(date="2023-06-01")),
+            TestCase("mlb_venues", "MLB_API", lambda: mlb.venues(10)),
+            TestCase("mlb_game_feed_live", "MLB_API", lambda: mlb.game_feed_live(GAME_PK)),
+            TestCase("mlb_game_linescore", "MLB_API", lambda: mlb.game_linescore(GAME_PK)),
             TestCase("mlb_standings", "MLB_API", lambda: standings(2023)),
             TestCase("mlb_prospect_rankings", "MLB_API", lambda: prospect_rankings("top100", 2023)),
         ]

@@ -13,11 +13,7 @@ from tests._async_utils import run_async
 @pytest.mark.live
 def test_live_mlb_standings() -> None:
     # Fetch historical standings for 2023 season
-    dfs = run_async(standings(season=2023))
-    assert isinstance(dfs, list)
-    assert len(dfs) > 0
-
-    df = dfs[0]
+    df = run_async(standings(season=2023))
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
     assert "Tm" in df.columns
