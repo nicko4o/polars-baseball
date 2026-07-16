@@ -3,6 +3,11 @@
 
 # Statcast 投手排行榜
 
+適用情境：查投手的 pitch-level data 或 Baseball Savant 投手排行榜。
+不適用情境：需要打者面向的 leaderboard metrics；請改用 batter APIs。
+回傳粒度：`statcast_pitcher` 回傳 pitch-level rows，Savant 投手 helpers 回傳 leaderboard rows。
+資料來源：Baseball Savant。
+
 這些函式會以 `polars.DataFrame` 回傳 Baseball Savant 的球員排行榜與 pitch-level 資料。
 
 ## 函式

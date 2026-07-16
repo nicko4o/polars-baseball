@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Simplify documentation structure: reorganize documents into `guides/` and `reference/` directories, introduce `api_index.md` for task-based API selection, and establish `MAINTAINING.md` rules.
+- Update documentation tests to exempt legacy FanGraphs root convenience aliases from markdown coverage checks, encouraging namespace APIs.
+
 ## [0.4.0] - 2026-07-16
 
 ### Changed

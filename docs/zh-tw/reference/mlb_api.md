@@ -1,16 +1,31 @@
 > [!NOTE]
-> All public data-fetching APIs are asynchronous. Use `await` inside an async environment, or wrap calls with `asyncio.run()` in scripts.
+> 所有公開資料擷取 API 都是非同步函式。請在 async 環境中使用 `await`，或在指令碼中用 `asyncio.run()` 包裝呼叫。
 
 # MLB Stats API
 
-Provides access to official MLB Stats API endpoints (`statsapi.mlb.com`) for player bios, schedules, teams, rosters, game data, and leaderboards.
-New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.schedule(...)`.
+適用情境：查官方 MLB endpoint 資料，例如賽程、名冊、game feed、boxscore、交易或 metadata。
+不適用情境：需要 FanGraphs leaderboard、Lahman 歷史表，或 Baseball Savant pitch-level search。
+回傳粒度：依 endpoint 而定，例如比賽、人員、名冊、play、局數或維度資料列。
+資料來源：MLB Stats API。
 
-## 1. Player Bios (`mlb.people`)
+提供官方 MLB Stats API 端點 (`statsapi.mlb.com`) 的存取，用以查詢球員、賽程、球隊、名冊、比賽資料與排行榜。
+新程式碼可使用較短的 `polars_baseball.mlb` namespace，例如 `pb.mlb.schedule(...)`。
+
+## API 分類
+
+| 分類 | APIs | 適用情境 |
+| --- | --- | --- |
+| Identity | `mlb.people`, `mlb.people_awards` | 查官方人物 metadata 或獎項時間線。 |
+| 賽程與球隊 metadata | `mlb.schedule`, `mlb.teams`, `mlb.roster`, `mlb.venues`, `mlb.divisions`, `mlb.leagues` | 查比賽列表、名冊 snapshot 或可 join 的維度表。 |
+| 比賽資料 | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore` | 查單場球員、play、live feed 或局數資料。 |
+| 統計與排行榜 | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal` | 查官方 stat groups 或 league leaders。 |
+| Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | 查球員異動、選秀或季後賽賽程列。 |
+
+## 1. 球員基本資料 (`mlb.people`)
 
 `mlb.people(person_ids: list[int] | int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves biographical information for one or more players.
+查詢一或多位球員的基本資料。
 
 ```python
 import asyncio
@@ -25,11 +40,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 2. Roster (`mlb.roster`)
+## 2. 球隊名冊 (`mlb.roster`)
 
 `mlb.roster(team_id: int, season: int | None = None, roster_type: str = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves the roster for a team-season.
+查詢指定球隊與球季的名冊。
 
 ```python
 import asyncio
@@ -44,11 +59,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 3. Schedule (`mlb.schedule`)
+## 3. 賽程 (`mlb.schedule`)
 
 `mlb.schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves MLB game schedules filtered by season, date, or team.
+依球季、日期或球隊查詢 MLB 賽程。
 
 ```python
 import asyncio
@@ -63,11 +78,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 4. Player Stats (`mlb.player_stats`)
+## 4. 球員統計 (`mlb.player_stats`)
 
 `mlb.player_stats(person_id: int, group: str, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves hitting, pitching, or fielding statistics for a player.
+查詢球員打擊、投球或守備統計。
 
 ```python
 import asyncio
@@ -81,11 +96,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 5. Game Boxscore (`mlb.game_boxscore`)
+## 5. Boxscore (`mlb.game_boxscore`)
 
 `mlb.game_boxscore(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves player boxscore rows for a single game.
+查詢單場比賽的球員 boxscore rows。
 
 ```python
 import asyncio
@@ -99,11 +114,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 6. Teams (`mlb.teams`)
+## 6. 球隊資料 (`mlb.teams`)
 
 `mlb.teams(season: int | None = None, league_id: int | None = None, sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves official MLB team metadata.
+查詢官方 MLB 球隊 metadata。
 
 ```python
 import asyncio
@@ -117,11 +132,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 7. Team Stats (`mlb.team_stats`)
+## 7. 球隊統計 (`mlb.team_stats`)
 
 `mlb.team_stats(team_id: int, season: int | None = None, group: str = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves team-level hitting, pitching, or fielding statistics.
+查詢球隊層級的打擊、投球或守備統計。
 
 ```python
 import asyncio
@@ -135,11 +150,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 8. Stat Leaders (`mlb.stat_leaders`)
+## 8. 排行榜 (`mlb.stat_leaders`)
 
 `mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves league leaders for one or more stat categories.
+查詢一或多個統計類別的 league leaders。
 
 ```python
 import asyncio
@@ -153,19 +168,19 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 9. Postseason Schedule (`mlb.postseason_schedule`)
+## 9. 季後賽賽程 (`mlb.postseason_schedule`)
 
 `mlb.postseason_schedule(season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves postseason games for a season.
+查詢指定球季的 postseason games。
 
-Current live checks return an empty DataFrame for recent completed seasons, so this reference intentionally does not provide a guaranteed non-empty example.
+目前 live 驗證對近期已完成球季都回傳空 DataFrame，因此這裡刻意不提供「保證非空」的可執行範例。
 
-## 10. Game Boxscore Stats (`mlb.game_boxscore_stats`)
+## 10. Boxscore Stats (`mlb.game_boxscore_stats`)
 
 `mlb.game_boxscore_stats(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves flattened batting, pitching, and fielding stats from a single game boxscore.
+查詢單場比賽攤平後的打擊、投球與守備 boxscore stats。
 
 ```python
 import asyncio
@@ -183,7 +198,7 @@ if __name__ == "__main__":
 
 `mlb.game_play_by_play(game_pk: int, win_probability: bool = False, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves play-level data for a single game. Set `win_probability=True` to use the win probability endpoint.
+查詢單場比賽的 play-level data。設定 `win_probability=True` 時會使用 win probability endpoint。
 
 ```python
 import asyncio
@@ -201,7 +216,7 @@ if __name__ == "__main__":
 
 `mlb.game_win_probability(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves per-play win probability, WPA, leverage, and drama index fields for a single game.
+查詢單場比賽每個 play 的 win probability、WPA、leverage 與 drama index 欄位。
 
 ```python
 import asyncio
@@ -215,11 +230,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 13. Draft (`mlb.draft`)
+## 13. 選秀資料 (`mlb.draft`)
 
 `mlb.draft(year: int, draft_round: int | None = None, team_id: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves amateur draft details for a specific year, with optional round and team filtering.
+查詢特定年份的業餘選秀詳細資料，支援指定輪次與球隊篩選。
 
 ```python
 import asyncio
@@ -233,11 +248,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 14. Pitch Arsenal (`mlb.pitch_arsenal`)
+## 14. 球員球種庫 (`mlb.pitch_arsenal`)
 
 `mlb.pitch_arsenal(person_id: int, season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves a player's pitch arsenal stats (average speed, percentage, etc.) for a season.
+查詢特定球員在該球季的球種庫數據（包含球種編碼、使用比例、平均球速等）。
 
 ```python
 import asyncio
@@ -251,11 +266,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 15. Transactions (`mlb.transactions`)
+## 15. 交易記錄 (`mlb.transactions`)
 
 `mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves transaction records for a specific date or date range.
+查詢指定日期或日期區間的球員異動與交易記錄。
 
 ```python
 import asyncio
@@ -269,11 +284,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 16. Venues (`mlb.venues`)
+## 16. 球場與場館 (`mlb.venues`)
 
 `mlb.venues(venue_ids: int | list[int] | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves stadium and venue metadata.
+查詢球場與場館的詳細元數據。
 
 ```python
 import asyncio
@@ -287,11 +302,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 17. Game Feed Live (`mlb.game_feed_live`)
+## 17. 即時比賽資料流 (`mlb.game_feed_live`)
 
 `mlb.game_feed_live(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves granular, real-time live feed events and pitch Statcast measurements for a game.
+呼叫 v1.1 live feed 端點獲取單場比賽極度細緻的即時事件與 Statcast 投球量測資料。
 
 ```python
 import asyncio
@@ -305,12 +320,12 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 18. Game Linescore (`mlb.game_linescore`)
+## 18. 即時比分與局數數據 (`mlb.game_linescore`)
 
 `mlb.game_linescore(game_pk: int, force_update: bool = False, cache_max_age: timedelta | None = timedelta(seconds=10), context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves inning-by-inning linescore data (runs, hits, errors) for a game.
-Use `cache_max_age` to tune freshness for polling or completed games; `force_update=True` bypasses the cache.
+獲取單場比賽每局的得分、安打與失誤數據。
+可用 `cache_max_age` 依輪詢或已完賽查詢需求調整快取新鮮度；`force_update=True` 會略過快取。
 
 ```python
 import asyncio
@@ -324,11 +339,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 19. Divisions (`mlb.divisions`)
+## 19. 分區維度表 (`mlb.divisions`)
 
 `mlb.divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves official division dimension metadata.
+獲取官方分區維度資料。
 
 ```python
 import asyncio
@@ -342,11 +357,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 20. Leagues (`mlb.leagues`)
+## 20. 聯盟維度表 (`mlb.leagues`)
 
 `mlb.leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves official league dimension metadata.
+獲取官方聯盟維度資料。
 
 ```python
 import asyncio
@@ -360,11 +375,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 21. People Awards (`mlb.people_awards`)
+## 21. 球員獎項時間線 (`mlb.people_awards`)
 
 `mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves official person-centric MLB award timeline rows. This does not replace Lahman award or award vote-share tables.
+獲取官方單一人物獎項時間線資料。這不是 Lahman 獎項表或投票占比表的替代品。
 
 ```python
 import asyncio

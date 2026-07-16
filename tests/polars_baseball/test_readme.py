@@ -10,7 +10,16 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _PYTHON_FENCE_RE = re.compile(r"```python\n(.*?)\n```", re.DOTALL)
 _INLINE_SIGNATURE_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)\((.*?)\)\s*->")
 _PARAMETER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:")
-_DOCUMENTED_ROOT_API_EXEMPTIONS = {"ArsenalType", "KeyType"}
+_DOCUMENTED_ROOT_API_EXEMPTIONS = {
+    "ArsenalType",
+    "KeyType",
+    "fg_batting",
+    "fg_fielding",
+    "fg_pitching",
+    "fg_team_batting",
+    "fg_team_fielding",
+    "fg_team_pitching",
+}
 _DOCUMENTED_MODULES = (
     "polars_baseball.apis.bref",
     "polars_baseball.apis.fangraphs",

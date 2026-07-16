@@ -129,7 +129,7 @@ We strictly enforce **Conventional Commits**.
 ### 2. General Scope
 * Keep your PR scope highly focused. Do not combine unrelated refactoring with feature development.
 * Ensure new features are covered by unit tests under `tests/polars_baseball/`.
-* Keep documentation under `docs/` updated if API signatures or behaviors change.
+* Keep documentation under `docs/` updated if API signatures or behaviors change. Follow `docs/MAINTAINING.md` so updates land in the right layer instead of creating duplicate pages.
 
 ### 3. Out-of-Scope Contributions
 The following changes are generally out of scope. Please open an issue or start a discussion before attempting:

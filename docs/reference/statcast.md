@@ -3,6 +3,11 @@
 
 # Statcast
 
+Use this when: you need pitch-level Statcast rows for a date range.
+Do not use this when: you only need official schedules, rosters, boxscores, or standings.
+Output grain: one row per pitch.
+Source: Baseball Savant.
+
 `statcast(start_date: str | None = None, end_date: str | None = None, team: str | None = None, verbose: bool = True, parallel: bool = True) -> pl.DataFrame`
 
 Retrieves pitch-level Statcast data from Baseball Savant for a date range.
@@ -24,6 +29,29 @@ Returns one row per pitch as a `polars.DataFrame`. Baseball Savant documents CSV
 ## Data Availability
 
 Pitch-tracking Statcast data starts in 2008. Launch-speed and launch-angle metrics are available from 2015 onward.
+
+## Single Game
+
+`statcast_single_game(game_pk: str | int) -> pl.DataFrame`
+
+Retrieves Statcast data for one MLB game.
+
+- `game_pk`: MLB Advanced Media game identifier.
+
+```python
+import asyncio
+
+from polars_baseball import statcast_single_game
+
+
+async def main() -> None:
+    game = await statcast_single_game(529429)
+    print(game.head())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
 
 ## Example
 

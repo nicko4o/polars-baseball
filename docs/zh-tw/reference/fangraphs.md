@@ -3,20 +3,23 @@
 
 # FanGraphs 資料擷取
 
-FanGraphs 資料可以透過直接 helper 函式取得，例如 `fg_batting(...)`，也可以透過 `fangraphs` namespace（`fangraphs.batting(...)`）呼叫。進階使用者仍可建立 `FanGraphsRequest` 並傳給 `fg_data(request)`。
+適用情境：查 FanGraphs 球員或球隊排行榜。
+不適用情境：需要 pitch-level Statcast rows 或官方 MLB game endpoints。
+回傳粒度：每列是一位球員、一支球隊或 FanGraphs 回傳的 split。
+資料來源：FanGraphs。
 
-## 直接 Helper
+FanGraphs 資料應透過 `fangraphs` namespace 呼叫，例如 `pb.fangraphs.batting(...)`。進階使用者仍可建立 `FanGraphsRequest` 並傳給 `fg_data(request)`。
+
+## Namespace Helper
 
 | 函式 | 說明 |
 | --- | --- |
-| `fg_batting(start_season, ...)` | 球員打擊排行榜。 |
-| `fg_pitching(start_season, ...)` | 球員投球排行榜。 |
-| `fg_fielding(start_season, ...)` | 球員守備排行榜。 |
-| `fg_team_batting(start_season, ...)` | 球隊打擊排行榜。 |
-| `fg_team_pitching(start_season, ...)` | 球隊投球排行榜。 |
-| `fg_team_fielding(start_season, ...)` | 球隊守備排行榜。 |
-
-同一組 helper 也可從 `polars_baseball.fangraphs` 使用，名稱不帶 `fg_` 前綴。
+| `fangraphs.batting(start_season, ...)` | 球員打擊排行榜。 |
+| `fangraphs.pitching(start_season, ...)` | 球員投球排行榜。 |
+| `fangraphs.fielding(start_season, ...)` | 球員守備排行榜。 |
+| `fangraphs.team_batting(start_season, ...)` | 球隊打擊排行榜。 |
+| `fangraphs.team_pitching(start_season, ...)` | 球隊投球排行榜。 |
+| `fangraphs.team_fielding(start_season, ...)` | 球隊守備排行榜。 |
 
 ## `FanGraphsRequest`
 
@@ -45,11 +48,11 @@ import asyncio
 import polars_baseball as bp
 
 async def main() -> None:
-    batting = await bp.fg_batting(start_season=2019)
-    pitching = await bp.fg_pitching(start_season=2019)
-    team_batting = await bp.fg_team_batting(start_season=2019)
-    team_fielding = await bp.fg_team_fielding(start_season=2019)
-    team_pitching = await bp.fg_team_pitching(start_season=2019)
+    batting = await bp.fangraphs.batting(start_season=2019)
+    pitching = await bp.fangraphs.pitching(start_season=2019)
+    team_batting = await bp.fangraphs.team_batting(start_season=2019)
+    team_fielding = await bp.fangraphs.team_fielding(start_season=2019)
+    team_pitching = await bp.fangraphs.team_pitching(start_season=2019)
     print(batting.head())
     print(pitching.head())
     print(team_batting.head())

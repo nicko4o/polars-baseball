@@ -3,6 +3,11 @@
 
 # Statcast Batter Leaderboards
 
+Use this when: you need pitch-level data or Baseball Savant batter leaderboards for hitters.
+Do not use this when: you need pitcher-facing leaderboard metrics; use the pitcher APIs instead.
+Output grain: pitch-level rows for `statcast_batter`, leaderboard rows for Savant batter helpers.
+Source: Baseball Savant.
+
 These functions retrieve Baseball Savant player leaderboards and pitch-level data as `polars.DataFrame` objects.
 
 ## Functions
