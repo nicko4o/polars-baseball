@@ -11,6 +11,9 @@
 
 ## 參數
 
+- `top_prospects(team_name: str | None = None, player_type: str | None = None)`：查詢指定球隊或全聯盟的 MLB top prospects。
+  - `team_name`：不含空白的球隊名稱，例如 `bluejays` 或 `padres`。省略時回傳全聯盟 prospects。
+  - `player_type`：`pitchers` 或 `batters`。省略時回傳兩者。
 - `list_type`：要擷取的新秀榜單類型。預設為 `"top100"`。支援的選項包括：
   - `"top100"`：百大新秀總排名。
   - `"draft"`：選秀新秀排行。
@@ -38,7 +41,26 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 2. 查詢特定球隊的前 30 大新秀
+### 2. 查詢球隊或全聯盟 Top Prospects
+
+```python
+import asyncio
+
+from polars_baseball import top_prospects
+
+
+async def main() -> None:
+    blue_jays_pitchers = await top_prospects("bluejays", "pitchers")
+    leaguewide = await top_prospects()
+    print(blue_jays_pitchers.head())
+    print(leaguewide.head())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### 3. 查詢特定球隊的前 30 大新秀
 
 ```python
 import asyncio

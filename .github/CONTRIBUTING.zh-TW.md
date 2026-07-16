@@ -130,7 +130,7 @@ uv sync --all-extras
 ### 2. 一般範圍 (General Scope)
 * 保持 PR 範圍高度聚焦，請勿將無關的重構與功能開發混在一起。
 * 確保新功能均有 `tests/polars_baseball/` 下的單元測試覆蓋。
-* 若 API 簽章或行為有變更，必須同步更新 `docs/` 下的文件。
+* 若 API 簽章或行為有變更，必須同步更新 `docs/` 下的文件。請遵守 `docs/MAINTAINING.md`，把內容放到正確層級，不要新增重複頁面。
 
 ### 3. 超出範圍的貢獻 (Out-of-Scope Contributions)
 以下變更通常不屬於專案接受的範圍，在嘗試前請先開 Issue 或進行討論：

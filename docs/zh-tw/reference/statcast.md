@@ -3,6 +3,11 @@
 
 # Statcast
 
+適用情境：查日期區間內的 pitch-level Statcast rows。
+不適用情境：只需要官方賽程、名冊、boxscore 或戰績排名。
+回傳粒度：每列一球。
+資料來源：Baseball Savant。
+
 `statcast(start_date: str | None = None, end_date: str | None = None, team: str | None = None, verbose: bool = True, parallel: bool = True) -> pl.DataFrame`
 
 從 Baseball Savant 查詢指定日期區間的 pitch-level Statcast 資料。
@@ -24,6 +29,29 @@
 ## 資料可用性
 
 Pitch-tracking Statcast 資料自 2008 年起可用。Launch speed 與 launch angle 類指標自 2015 年起可用。
+
+## 單場比賽
+
+`statcast_single_game(game_pk: str | int) -> pl.DataFrame`
+
+查詢單場 MLB 比賽的 Statcast 資料。
+
+- `game_pk`：MLB Advanced Media game identifier。
+
+```python
+import asyncio
+
+from polars_baseball import statcast_single_game
+
+
+async def main() -> None:
+    game = await statcast_single_game(529429)
+    print(game.head())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
 
 ## 範例
 
