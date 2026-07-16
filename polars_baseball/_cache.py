@@ -8,6 +8,7 @@ import threading
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import ParamSpec, Protocol, TypeVar, cast
@@ -33,6 +34,14 @@ _CONTEXT_PARAM_NAMES = ("context", "ctx", "_ctx")
 
 class CacheContext(Protocol):
     cache: "CacheAdapter"
+
+
+@dataclass(frozen=True)
+class CacheCall:
+    context: CacheContext
+    key: str
+    max_age: timedelta | None
+    force_update: bool
 
 
 def generate_cache_key(
@@ -228,18 +237,79 @@ def configure_cache(cache_dir: Path) -> None:
 
 
 def _get_context(fn: Callable[P, object], args: tuple[object, ...], kwargs: Mapping[str, object]) -> CacheContext:
+    arguments = _bind_call_arguments(fn, args, kwargs)
+    return _resolve_context_from_arguments(arguments)
+
+
+def _resolve_context_from_arguments(arguments: Mapping[str, object]) -> CacheContext:
+    ctx = _context_from_arguments(arguments)
+    if ctx is not None:
+        return ctx
+    if _default_context_resolver is None:
+        raise RuntimeError("Default cache context resolver has not been configured.")
+    return _default_context_resolver()
+
+
+def _bind_call_arguments(
+    fn: Callable[..., object],
+    args: tuple[object, ...],
+    kwargs: Mapping[str, object],
+) -> dict[str, object]:
     sig = inspect.signature(fn)
     bound = sig.bind_partial(*args, **kwargs)
+    bound.apply_defaults()
+    return dict(bound.arguments)
+
+
+def _context_from_arguments(arguments: Mapping[str, object]) -> CacheContext | None:
     for param_name in _CONTEXT_PARAM_NAMES:
-        ctx = bound.arguments.get(param_name)
+        ctx = arguments.get(param_name)
         if ctx is None:
             continue
         if not hasattr(ctx, "cache"):
             raise TypeError(f"{param_name} must expose a cache attribute")
         return cast(CacheContext, ctx)
-    if _default_context_resolver is None:
-        raise RuntimeError("Default cache context resolver has not been configured.")
-    return _default_context_resolver()
+    return None
+
+
+def _select_context_argument(arguments: Mapping[str, object]) -> object | None:
+    return next((arguments[name] for name in _CONTEXT_PARAM_NAMES if name in arguments), None)
+
+
+def _build_callback_kwargs(
+    callback: Callable[..., object],
+    call_arguments: Mapping[str, object],
+) -> dict[str, object]:
+    sig = inspect.signature(callback)
+    callback_kwargs: dict[str, object] = {}
+    for param_name, param in sig.parameters.items():
+        if param.kind == param.VAR_KEYWORD:
+            for key, value in call_arguments.items():
+                if key not in _CONTEXT_PARAM_NAMES and key not in callback_kwargs:
+                    callback_kwargs[key] = value
+            continue
+        if param_name in _CONTEXT_PARAM_NAMES:
+            ctx_val = _select_context_argument(call_arguments)
+            if ctx_val is not None:
+                callback_kwargs[param_name] = ctx_val
+            continue
+        if param_name in call_arguments:
+            callback_kwargs[param_name] = call_arguments[param_name]
+    return callback_kwargs
+
+
+def _call_with_resolved_arguments(
+    callback: Callable[..., R],
+    callback_kwargs: Mapping[str, object],
+    args: tuple[object, ...],
+    kwargs: Mapping[str, object],
+) -> R:
+    sig = inspect.signature(callback)
+    try:
+        bound = sig.bind(**callback_kwargs)
+        return callback(*bound.args, **bound.kwargs)
+    except TypeError:
+        return callback(*args, **kwargs)
 
 
 def _resolve_key(
@@ -248,35 +318,21 @@ def _resolve_key(
     args: tuple[object, ...],
     kwargs: Mapping[str, object],
 ) -> str:
+    call_arguments = _bind_call_arguments(fn, args, kwargs)
+    return _resolve_key_from_arguments(key_fn, call_arguments, args, kwargs)
+
+
+def _resolve_key_from_arguments(
+    key_fn: Callable[..., str] | str,
+    call_arguments: Mapping[str, object],
+    args: tuple[object, ...],
+    kwargs: Mapping[str, object],
+) -> str:
     if isinstance(key_fn, str):
         return key_fn
 
-    sig_fn = inspect.signature(fn)
-    bound_fn = sig_fn.bind_partial(*args, **kwargs)
-    bound_fn.apply_defaults()
-    all_params = bound_fn.arguments
-
-    sig_key = inspect.signature(key_fn)
-    key_kwargs: dict[str, object] = {}
-    for param_name, param in sig_key.parameters.items():
-        if param.kind == param.VAR_KEYWORD:
-            for k, v in all_params.items():
-                if k not in _CONTEXT_PARAM_NAMES and k not in key_kwargs:
-                    key_kwargs[k] = v
-            continue
-        if param_name in _CONTEXT_PARAM_NAMES:
-            ctx_val = next((all_params[name] for name in _CONTEXT_PARAM_NAMES if name in all_params), None)
-            if ctx_val is not None:
-                key_kwargs[param_name] = ctx_val
-            continue
-        if param_name in all_params:
-            key_kwargs[param_name] = all_params[param_name]
-
-    try:
-        bound_key = sig_key.bind(**key_kwargs)
-        return key_fn(*bound_key.args, **bound_key.kwargs)
-    except TypeError:
-        return key_fn(*args, **kwargs)
+    key_kwargs = _build_callback_kwargs(key_fn, call_arguments)
+    return _call_with_resolved_arguments(key_fn, key_kwargs, args, kwargs)
 
 
 def _resolve_max_age(
@@ -285,35 +341,37 @@ def _resolve_max_age(
     args: tuple[object, ...],
     kwargs: Mapping[str, object],
 ) -> timedelta | None:
+    call_arguments = _bind_call_arguments(fn, args, kwargs)
+    return _resolve_max_age_from_arguments(max_age_fn, call_arguments, args, kwargs)
+
+
+def _resolve_max_age_from_arguments(
+    max_age_fn: timedelta | None | Callable[..., timedelta | None],
+    call_arguments: Mapping[str, object],
+    args: tuple[object, ...],
+    kwargs: Mapping[str, object],
+) -> timedelta | None:
     if not callable(max_age_fn):
         return max_age_fn
 
-    sig_fn = inspect.signature(fn)
-    bound_fn = sig_fn.bind_partial(*args, **kwargs)
-    bound_fn.apply_defaults()
-    all_params = bound_fn.arguments
+    max_age_kwargs = _build_callback_kwargs(max_age_fn, call_arguments)
+    return _call_with_resolved_arguments(max_age_fn, max_age_kwargs, args, kwargs)
 
-    sig_max_age = inspect.signature(max_age_fn)
-    max_age_kwargs: dict[str, object] = {}
-    for param_name, param in sig_max_age.parameters.items():
-        if param.kind == param.VAR_KEYWORD:
-            for k, v in all_params.items():
-                if k not in _CONTEXT_PARAM_NAMES and k not in max_age_kwargs:
-                    max_age_kwargs[k] = v
-            continue
-        if param_name in _CONTEXT_PARAM_NAMES:
-            ctx_val = next((all_params[name] for name in _CONTEXT_PARAM_NAMES if name in all_params), None)
-            if ctx_val is not None:
-                max_age_kwargs[param_name] = ctx_val
-            continue
-        if param_name in all_params:
-            max_age_kwargs[param_name] = all_params[param_name]
 
-    try:
-        bound_max_age = sig_max_age.bind(**max_age_kwargs)
-        return max_age_fn(*bound_max_age.args, **bound_max_age.kwargs)
-    except TypeError:
-        return max_age_fn(*args, **kwargs)
+def resolve_cache_call(
+    fn: Callable[P, object],
+    key: str | Callable[..., str],
+    max_age: timedelta | None | Callable[..., timedelta | None],
+    args: tuple[object, ...],
+    kwargs: Mapping[str, object],
+) -> CacheCall:
+    call_arguments = _bind_call_arguments(fn, args, kwargs)
+    return CacheCall(
+        context=_resolve_context_from_arguments(call_arguments),
+        key=_resolve_key_from_arguments(key, call_arguments, args, kwargs),
+        max_age=_resolve_max_age_from_arguments(max_age, call_arguments, args, kwargs),
+        force_update=bool(call_arguments.get("force_update", False)),
+    )
 
 
 def _cached_execute(
@@ -325,23 +383,16 @@ def _cached_execute(
     cache_get: Callable[[CacheAdapter, str, timedelta | None], R | None],
     cache_set: Callable[[CacheAdapter, str, R], None],
 ) -> Awaitable[R]:
-    ctx = _get_context(fn, args, kwargs)
-    resolved_key = _resolve_key(fn, key, args, kwargs)
-    resolved_max_age = _resolve_max_age(fn, max_age, args, kwargs)
-
-    sig = inspect.signature(fn)
-    bound = sig.bind_partial(*args, **kwargs)
-    bound.apply_defaults()
-    force_update = bound.arguments.get("force_update", False)
+    cache_call = resolve_cache_call(fn, key, max_age, args, kwargs)
 
     async def run() -> R:
-        async with _in_flight_lock_for(ctx.cache, resolved_key):
-            if not force_update:
-                cached_val = cache_get(ctx.cache, resolved_key, resolved_max_age)
+        async with _in_flight_lock_for(cache_call.context.cache, cache_call.key):
+            if not cache_call.force_update:
+                cached_val = cache_get(cache_call.context.cache, cache_call.key, cache_call.max_age)
                 if cached_val is not None:
                     return cached_val
             val = await fn(*args, **kwargs)
-            cache_set(ctx.cache, resolved_key, val)
+            cache_set(cache_call.context.cache, cache_call.key, val)
             return val
 
     return run()
