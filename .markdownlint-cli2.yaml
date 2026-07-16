@@ -1,0 +1,13 @@
+globs:
+  - "README.md"
+  - "README.zh-TW.md"
+  - "docs/**/*.md"
+  - "CHANGELOG.md"
+
+config:
+  default: false
+  MD001: true
+  MD009: true
+  MD010: true
+  MD040: true
+  MD047: true

@@ -52,6 +52,8 @@ jobs:
           restore-keys: |
             mypy-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml', 'mypy.ini') }}-
             mypy-${{ runner.os }}-${{ matrix.python-version }}-
+      - name: Run Markdown Lint
+        uses: DavidAnson/markdownlint-cli2-action@v19
       - name: Run Ruff Linter
         run: uv run ruff check .
       - name: Run Ruff Formatter Check
