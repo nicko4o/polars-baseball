@@ -60,24 +60,6 @@ from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext
 from polars_baseball.context import cleanup as _cleanup
 from polars_baseball.enums import ArsenalType, KeyType
-from polars_baseball.fangraphs import (
-    batting as fg_batting,
-)
-from polars_baseball.fangraphs import (
-    fielding as fg_fielding,
-)
-from polars_baseball.fangraphs import (
-    pitching as fg_pitching,
-)
-from polars_baseball.fangraphs import (
-    team_batting as fg_team_batting,
-)
-from polars_baseball.fangraphs import (
-    team_fielding as fg_team_fielding,
-)
-from polars_baseball.fangraphs import (
-    team_pitching as fg_team_pitching,
-)
 
 __version__ = "0.4.0"
 
@@ -165,3 +147,34 @@ for _implementation_namespace in ("apis", "context", "enums", "exceptions", "gat
     globals().pop(_implementation_namespace, None)
 
 del _implementation_namespace
+
+
+_DEPRECATED_FG_ALIASES = {
+    "fg_batting": "batting",
+    "fg_fielding": "fielding",
+    "fg_pitching": "pitching",
+    "fg_team_batting": "team_batting",
+    "fg_team_fielding": "team_fielding",
+    "fg_team_pitching": "team_pitching",
+}
+
+
+def __getattr__(name: str) -> object:
+    if name in _DEPRECATED_FG_ALIASES:
+        import warnings
+
+        from polars_baseball import fangraphs
+
+        target = _DEPRECATED_FG_ALIASES[name]
+        warnings.warn(
+            f"pb.{name} is deprecated and will be removed in a future release. Use pb.fangraphs.{target} instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return getattr(fangraphs, target)
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(globals().keys() | __all__)
