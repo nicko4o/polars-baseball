@@ -99,13 +99,7 @@ __all__ = [
     "fielding_of_split",
     "fielding_post",
     "fangraphs",
-    "fg_batting",
     "fg_data",
-    "fg_fielding",
-    "fg_pitching",
-    "fg_team_batting",
-    "fg_team_fielding",
-    "fg_team_pitching",
     "get_lookup_table",
     "hall_of_fame",
     "home_games",
@@ -147,34 +141,3 @@ for _implementation_namespace in ("apis", "context", "enums", "exceptions", "gat
     globals().pop(_implementation_namespace, None)
 
 del _implementation_namespace
-
-
-_DEPRECATED_FG_ALIASES = {
-    "fg_batting": "batting",
-    "fg_fielding": "fielding",
-    "fg_pitching": "pitching",
-    "fg_team_batting": "team_batting",
-    "fg_team_fielding": "team_fielding",
-    "fg_team_pitching": "team_pitching",
-}
-
-
-def __getattr__(name: str) -> object:
-    if name in _DEPRECATED_FG_ALIASES:
-        import warnings
-
-        from polars_baseball import fangraphs
-
-        target = _DEPRECATED_FG_ALIASES[name]
-        warnings.warn(
-            f"pb.{name} is deprecated and will be removed in a future release. Use pb.fangraphs.{target} instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return getattr(fangraphs, target)
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-def __dir__() -> list[str]:
-    return sorted(globals().keys() | __all__)
