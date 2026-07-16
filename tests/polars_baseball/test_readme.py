@@ -10,7 +10,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _PYTHON_FENCE_RE = re.compile(r"```python\n(.*?)\n```", re.DOTALL)
 _INLINE_SIGNATURE_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)\((.*?)\)\s*->")
 _PARAMETER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:")
-_DOCUMENTED_ROOT_API_EXEMPTIONS = {"ArsenalType", "KeyType", "__version__"}
+_DOCUMENTED_ROOT_API_EXEMPTIONS = {"ArsenalType", "KeyType"}
 _DOCUMENTED_MODULES = (
     "polars_baseball.apis.bref",
     "polars_baseball.apis.fangraphs",
