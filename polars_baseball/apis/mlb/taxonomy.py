@@ -2,20 +2,10 @@ import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_DIVISIONS_REQUIRED,
-    MLB_DIVISIONS_TYPES,
-    MLB_LEAGUES_REQUIRED,
-    MLB_LEAGUES_TYPES,
-    MLB_TEAMS_REQUIRED,
-    MLB_TEAMS_TYPES,
-)
 from polars_baseball._season import most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
-    JsonObject,
     divisions_cache_key,
     divisions_url,
     leagues_cache_key,
@@ -27,38 +17,10 @@ from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
-    parse_division,
-    parse_league,
-    parse_team,
+    parse_mlb_divisions,
+    parse_mlb_leagues,
+    parse_mlb_teams,
 )
-
-
-def _parse_mlb_teams(data: JsonObject, season: int | None) -> pl.DataFrame:
-    teams = data.get("teams", [])
-    if not teams:
-        return pl.DataFrame()
-    rows = [parse_team(t, season) for t in teams]
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TEAMS_REQUIRED, MLB_TEAMS_TYPES)
-
-
-def _parse_mlb_divisions(data: JsonObject) -> pl.DataFrame:
-    divisions = data.get("divisions", [])
-    if not divisions:
-        return pl.DataFrame()
-    rows = [parse_division(d) for d in divisions if isinstance(d, dict)]
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_DIVISIONS_REQUIRED, MLB_DIVISIONS_TYPES)
-
-
-def _parse_mlb_leagues(data: JsonObject) -> pl.DataFrame:
-    leagues = data.get("leagues", [])
-    if not leagues:
-        return pl.DataFrame()
-    rows = [parse_league(league) for league in leagues if isinstance(league, dict)]
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LEAGUES_REQUIRED, MLB_LEAGUES_TYPES)
 
 
 @cached(key=teams_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -77,7 +39,7 @@ async def _fetch_mlb_teams(
         params["leagueId"] = league_id
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, params, "Failed to fetch or parse MLB teams data", lambda d: _parse_mlb_teams(d, season)
+        url, params, "Failed to fetch or parse MLB teams data", lambda d: parse_mlb_teams(d, season)
     )
 
 
@@ -92,7 +54,7 @@ async def _fetch_mlb_divisions(
         divisions_url(),
         {"sportId": sport_id},
         "Failed to fetch or parse MLB divisions data",
-        _parse_mlb_divisions,
+        parse_mlb_divisions,
     )
 
 
@@ -107,7 +69,7 @@ async def _fetch_mlb_leagues(
         leagues_url(),
         {"sportId": sport_id},
         "Failed to fetch or parse MLB leagues data",
-        _parse_mlb_leagues,
+        parse_mlb_leagues,
     )
 
 

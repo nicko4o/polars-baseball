@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import Any
@@ -103,7 +104,7 @@ async def test_get_dataset_parser_failure_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_dataset_auto_chain_fails_and_falls_back_to_legacy_parser() -> None:
+async def test_get_dataset_auto_chain_fails_and_falls_back_to_legacy_parser(caplog: pytest.LogCaptureFixture) -> None:
     """4. Auto-chain fallback to legacy parser when execution fails."""
     mock_parser = MagicMock(spec=BRefHTMLParser)
     mock_parser.parse.return_value = pl.DataFrame({"fallback": [1]})
@@ -114,10 +115,13 @@ async def test_get_dataset_auto_chain_fails_and_falls_back_to_legacy_parser() ->
     # Passing garbage_text that does not conform to the BRef HTML structure
     # will cause the auto-chain strategy to throw an exception,
     # triggering a fallback to mock_parser.parse.
-    df = gateway._parse_response("garbage_text", parser=mock_parser, chain=None)
+    with caplog.at_level(logging.WARNING, logger="polars_baseball.gateways.bref"):
+        df = gateway._parse_response("garbage_text", parser=mock_parser, chain=None)
+
     assert isinstance(df, pl.DataFrame)
     assert df.equals(pl.DataFrame({"fallback": [1]}))
     mock_parser.parse.assert_called_once_with("garbage_text")
+    assert "BRef auto-chain failed; falling back to legacy parser" in caplog.text
 
 
 @pytest.mark.asyncio

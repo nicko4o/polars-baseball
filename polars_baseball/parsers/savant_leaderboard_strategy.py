@@ -17,6 +17,7 @@ import lxml.etree
 import polars as pl
 from lxml.etree import _Element
 
+from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers._strategy import ProbeResult, StructureFingerprint
 from polars_baseball.parsers.savant import SavantCSVParser
 
@@ -100,8 +101,8 @@ class SavantHTMLTableStrategy:
                     rows.append(row)
 
             return pl.DataFrame(rows)
-        except Exception:
-            return pl.DataFrame()
+        except Exception as exc:
+            raise UpstreamParseError("Savant HTML leaderboard parsing failed.") from exc
 
     @staticmethod
     def _cell_text(cell: _Element) -> str:

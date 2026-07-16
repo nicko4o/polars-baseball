@@ -41,48 +41,44 @@ def _parse_scouting_grades(bio_text: str) -> dict[str, int]:
     return grades
 
 
-def _resolve_player_row(item: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
-    p_entity = item.get("playerEntity", {})
-    player_ref = p_entity.get("player", {}).get("__ref")
-    player_data: dict[str, Any] = payload.get(player_ref, {}) if player_ref else {}
+def _payload_ref(payload: dict[str, Any], ref: str | None) -> dict[str, Any]:
+    value = payload.get(ref, {}) if ref else {}
+    return value if isinstance(value, dict) else {}
 
-    first_name = player_data.get("useName", "")
-    last_name = player_data.get("useLastName", "")
 
+def _birthplace(player_data: dict[str, Any]) -> str:
     birth_city = player_data.get("birthCity", "")
     birth_country = player_data.get("birthCountry", "")
-    birthplace = f"{birth_city}, {birth_country}".strip(", ")
+    return f"{birth_city}, {birth_country}".strip(", ")
 
-    team_ref = player_data.get("activeRoster", {}).get("__ref")
-    team_data: dict[str, Any] = payload.get(team_ref, {}) if team_ref else {}
 
-    sport_ref = team_data.get("sport", {}).get("__ref")
-    sport_data: dict[str, Any] = payload.get(sport_ref, {}) if sport_ref else {}
+def _latest_grades(player_entity: dict[str, Any]) -> dict[str, int]:
+    bio_list = player_entity.get("prospectBio", [])
+    if not bio_list:
+        return {}
+    latest_bio = bio_list[-1]
+    scouting_report = latest_bio.get("contentText", "")
+    return _parse_scouting_grades(scouting_report)
 
-    bio_list = p_entity.get("prospectBio", [])
-    grades: dict[str, int] = {}
-    if bio_list:
-        latest_bio = bio_list[-1]
-        scouting_report = latest_bio.get("contentText", "")
-        grades = _parse_scouting_grades(scouting_report)
 
+def _player_identity_fields(player_data: dict[str, Any]) -> dict[str, Any]:
+    first_name = player_data.get("useName", "")
+    last_name = player_data.get("useLastName", "")
     return {
-        "rank": item.get("rank"),
         "player_id": player_data.get("id"),
         "name": f"{first_name} {last_name}".strip(),
-        "position": p_entity.get("position"),
-        "team": team_data.get("name"),
-        "organization": team_data.get("parentOrgName"),
-        "level": sport_data.get("abbreviation"),
         "age": player_data.get("currentAge"),
         "height": player_data.get("height"),
         "weight": player_data.get("weight"),
         "bats": player_data.get("batSideCode"),
         "throws": player_data.get("pitchHandCode"),
-        "eta": p_entity.get("eta"),
-        "signed": p_entity.get("signed"),
         "birth_date": player_data.get("birthDate"),
-        "birthplace": birthplace,
+        "birthplace": _birthplace(player_data),
+    }
+
+
+def _grade_fields(grades: dict[str, int]) -> dict[str, int | None]:
+    return {
         "grade_overall": grades.get("overall"),
         "grade_hit": grades.get("hit"),
         "grade_power": grades.get("power"),
@@ -96,6 +92,31 @@ def _resolve_player_row(item: dict[str, Any], payload: dict[str, Any]) -> dict[s
         "grade_cutter": grades.get("cutter"),
         "grade_splitter": grades.get("splitter"),
         "grade_control": grades.get("control"),
+    }
+
+
+def _resolve_player_row(item: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    p_entity = item.get("playerEntity", {})
+    player_ref = p_entity.get("player", {}).get("__ref")
+    player_data = _payload_ref(payload, player_ref)
+
+    team_ref = player_data.get("activeRoster", {}).get("__ref")
+    team_data = _payload_ref(payload, team_ref)
+
+    sport_ref = team_data.get("sport", {}).get("__ref")
+    sport_data = _payload_ref(payload, sport_ref)
+    grades = _latest_grades(p_entity)
+
+    return {
+        "rank": item.get("rank"),
+        **_player_identity_fields(player_data),
+        "position": p_entity.get("position"),
+        "team": team_data.get("name"),
+        "organization": team_data.get("parentOrgName"),
+        "level": sport_data.get("abbreviation"),
+        "eta": p_entity.get("eta"),
+        "signed": p_entity.get("signed"),
+        **_grade_fields(grades),
     }
 
 

@@ -1,5 +1,16 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import (
+    MLB_DIVISIONS_REQUIRED,
+    MLB_DIVISIONS_TYPES,
+    MLB_LEAGUES_REQUIRED,
+    MLB_LEAGUES_TYPES,
+    MLB_TEAMS_REQUIRED,
+    MLB_TEAMS_TYPES,
+)
 from polars_baseball.parsers.mlb.types import DivisionDict, LeagueDict, TeamDict
 
 
@@ -65,3 +76,31 @@ def parse_league(league_data: dict[str, Any]) -> LeagueDict:
         "divisionsInUse": league_data.get("divisionsInUse"),
         "sortOrder": league_data.get("sortOrder"),
     }
+
+
+def parse_mlb_teams(data: dict[str, Any], season: int | None) -> pl.DataFrame:
+    teams = data.get("teams", [])
+    if not teams:
+        return pl.DataFrame()
+    rows = [parse_team(team, season) for team in teams]
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TEAMS_REQUIRED, MLB_TEAMS_TYPES)
+
+
+def parse_mlb_divisions(data: dict[str, Any]) -> pl.DataFrame:
+    divisions = data.get("divisions", [])
+    if not divisions:
+        return pl.DataFrame()
+    rows = [parse_division(division) for division in divisions if isinstance(division, dict)]
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_DIVISIONS_REQUIRED, MLB_DIVISIONS_TYPES)
+
+
+def parse_mlb_leagues(data: dict[str, Any]) -> pl.DataFrame:
+    leagues = data.get("leagues", [])
+    if not leagues:
+        return pl.DataFrame()
+    rows = [parse_league(league) for league in leagues if isinstance(league, dict)]
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LEAGUES_REQUIRED, MLB_LEAGUES_TYPES)

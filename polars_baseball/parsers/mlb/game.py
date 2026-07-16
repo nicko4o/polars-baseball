@@ -1,5 +1,19 @@
 from typing import Any, cast
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import (
+    MLB_BOXSCORE_REQUIRED,
+    MLB_BOXSCORE_STATS_TYPES,
+    MLB_BOXSCORE_TYPES,
+    MLB_LINESCORE_REQUIRED,
+    MLB_LINESCORE_TYPES,
+    MLB_LIVE_FEED_REQUIRED,
+    MLB_LIVE_FEED_TYPES,
+    MLB_PBP_REQUIRED,
+    MLB_PBP_TYPES,
+)
 from polars_baseball.parsers.mlb.types import BoxscorePlayerDict, LinescoreDict, LiveFeedPitchDict, PlayByPlayDict
 
 
@@ -145,3 +159,55 @@ def parse_linescore(data: dict[str, Any], game_pk: int) -> list[LinescoreDict]:
             }
         )
     return rows
+
+
+def parse_mlb_boxscore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    rows = parse_boxscore(data, game_pk)
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_TYPES)
+
+
+def parse_mlb_boxscore_stats(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    rows = parse_boxscore(data, game_pk)
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_STATS_TYPES)
+
+
+def parse_mlb_play_by_play(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    plays = data.get("allPlays", [])
+    if not plays:
+        return pl.DataFrame()
+    rows = [parse_play(play, game_pk) for play in plays]
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PBP_REQUIRED, MLB_PBP_TYPES)
+
+
+def parse_mlb_win_probability(data: object, game_pk: int) -> pl.DataFrame:
+    if not isinstance(data, list):
+        return pl.DataFrame()
+    rows = [parse_play(play, game_pk) for play in data if isinstance(play, dict)]
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PBP_REQUIRED, MLB_PBP_TYPES)
+
+
+def parse_mlb_game_feed_live(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    live_data = data.get("liveData", {})
+    plays = live_data.get("plays", {}) if isinstance(live_data, dict) else {}
+    all_plays = plays.get("allPlays", []) if isinstance(plays, dict) else []
+    rows: list[LiveFeedPitchDict] = []
+    for play in all_plays:
+        for event in play.get("playEvents", []):
+            if event.get("isPitch"):
+                rows.append(parse_live_feed_pitch(event, play, game_pk))
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LIVE_FEED_REQUIRED, MLB_LIVE_FEED_TYPES)
+
+
+def parse_mlb_game_linescore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    rows = parse_linescore(data, game_pk)
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LINESCORE_REQUIRED, MLB_LINESCORE_TYPES)

@@ -59,6 +59,22 @@ def _validate_list_of_enum(value: object, enum_type: type, field_name: str) -> N
         raise TypeError(f"{field_name} must be a list of {enum_type.__name__}, got {type(value)}")
 
 
+def _resolve_stats_category(value: str | FangraphsStatsCategory) -> FangraphsStatsCategory:
+    return FangraphsStatsCategory.parse(value.upper()) if isinstance(value, str) else value
+
+
+def _resolve_league(value: str | FangraphsLeague) -> FangraphsLeague:
+    return FangraphsLeague.parse(value.upper()) if isinstance(value, str) else value
+
+
+def _resolve_month(value: str | FangraphsMonth) -> FangraphsMonth:
+    return FangraphsMonth.parse(value.upper()) if isinstance(value, str) else value
+
+
+def _resolve_position(value: str | FangraphsPositions) -> FangraphsPositions:
+    return FangraphsPositions.parse(value.upper()) if isinstance(value, str) else value
+
+
 @dataclass(frozen=True)
 class FanGraphsRequest:
     start_season: int
@@ -118,37 +134,17 @@ class FanGraphsRequest:
         max_results: int = FG_MAX_RESULTS,
         is_team_data: bool = False,
     ) -> FanGraphsRequest:
-        """Create a FanGraphsRequest from raw string or enum inputs.
-
-        This is the canonical entry point for callers using plain strings.
-        String values for ``league``, ``month``, ``position``, and
-        ``stats_category`` are parsed to their enum equivalents before
-        constructing the request.  The convenience factory methods
-        (``batting``, ``pitching``, ``fielding``, ``team_*``) all delegate
-        here.
-
-        .. note::
-            Pass raw strings **only** through this method or the factory
-            classmethods.  Passing a plain string directly to
-            ``FanGraphsRequest(league="AL", ...)`` will raise ``TypeError``
-            at runtime because the dataclass constructor requires enum
-            instances.
-        """
-        resolved_category = (
-            FangraphsStatsCategory.parse(stats_category.upper()) if isinstance(stats_category, str) else stats_category
-        )
-        resolved_league = FangraphsLeague.parse(league.upper()) if isinstance(league, str) else league
-        resolved_month = FangraphsMonth.parse(month.upper()) if isinstance(month, str) else month
-        resolved_position = FangraphsPositions.parse(position.upper()) if isinstance(position, str) else position
+        """Create a FanGraphsRequest from raw string or enum inputs."""
+        resolved_category = _resolve_stats_category(stats_category)
         resolved_columns = stat_list_from_str(resolved_category, stat_columns)
 
         return cls(
             start_season=start_season,
             end_season=end_season,
             stats_category=resolved_category,
-            league=resolved_league,
-            month=resolved_month,
-            position=resolved_position,
+            league=_resolve_league(league),
+            month=_resolve_month(month),
+            position=_resolve_position(position),
             stat_columns=resolved_columns,
             qual=qual,
             split_seasons=split_seasons,

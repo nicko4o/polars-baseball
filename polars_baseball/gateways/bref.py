@@ -1,4 +1,5 @@
 import io
+import logging
 from collections.abc import Mapping
 from datetime import timedelta
 
@@ -11,6 +12,8 @@ from polars_baseball.parsers._strategy import ProviderChain
 from polars_baseball.parsers.base import BaseParser
 from polars_baseball.parsers.bref import BRefHTMLParser, BRefSplitsParser
 from polars_baseball.parsers.bref_standard_strategy import BRefCSVExportStrategy, BRefStandardStrategy
+
+logger = logging.getLogger(__name__)
 
 
 def _build_default_chain(parser: BaseParser) -> ProviderChain | None:
@@ -77,7 +80,7 @@ class BRefGateway:
                     return result.df
                 except Exception:
                     # Auto-chain failed; fall through to the legacy parser path.
-                    pass
+                    logger.warning("BRef auto-chain failed; falling back to legacy parser.", exc_info=True)
             return parser.parse(raw_text)
 
         return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
