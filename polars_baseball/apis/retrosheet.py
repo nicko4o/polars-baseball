@@ -3,7 +3,7 @@ import os
 
 import polars as pl
 
-from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import (
     RETROSHEET_CONTENTS_URL_TEMPLATE,
     RETROSHEET_EVENT_URL,
@@ -83,7 +83,8 @@ async def events(
     return events_frame(rows)
 
 
-def _rosters_cache_key(season: int, **kwargs: object) -> str:
+def _rosters_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
     return generate_cache_key("retrosheet/rosters", {"season": season})
 
 
@@ -118,7 +119,7 @@ async def rosters(season: int, context: BaseballContext | None = None) -> pl.Dat
     return pl.concat(valid_dfs)
 
 
-def _park_codes_cache_key(**kwargs: object) -> str:
+def _park_codes_cache_key(_call: CacheCallArgs) -> str:
     return generate_cache_key("retrosheet/park_codes", {})
 
 
@@ -136,7 +137,8 @@ async def park_codes(context: BaseballContext | None = None) -> pl.DataFrame:
     return parse_park_codes_csv(raw_bytes)
 
 
-def _schedules_cache_key(season: int, **kwargs: object) -> str:
+def _schedules_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
     return generate_cache_key("retrosheet/schedules", {"season": season})
 
 
@@ -160,7 +162,8 @@ async def schedules(season: int, context: BaseballContext | None = None) -> pl.D
     return parse_schedule_csv(raw_bytes)
 
 
-def _season_game_logs_cache_key(season: int, **kwargs: object) -> str:
+def _season_game_logs_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
     return generate_cache_key("retrosheet/season_game_logs", {"season": season})
 
 
@@ -184,7 +187,8 @@ async def season_game_logs(season: int, context: BaseballContext | None = None) 
     return parse_gamelog_csv(raw_bytes)
 
 
-def _gamelog_cache_key(suffix: str, **kwargs: object) -> str:
+def _gamelog_cache_key(call: CacheCallArgs) -> str:
+    suffix = call.argument("suffix", str)
     return generate_cache_key(f"retrosheet/gamelog/{suffix}", {})
 
 

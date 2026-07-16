@@ -3,7 +3,7 @@ from typing import Final
 
 import polars as pl
 
-from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import MILB_ROOT, MLB_ROOT
 from polars_baseball.apis.mlb.team_lookup import resolve_team_id
 from polars_baseball.context import BaseballContext, default_context
@@ -52,7 +52,9 @@ def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
     ]
 
 
-def _top_prospects_cache_key(team_name: str | None = None, player_type: str | None = None, **kwargs: object) -> str:
+def _top_prospects_cache_key(call: CacheCallArgs) -> str:
+    team_name = call.argument("team_name", str, None)
+    player_type = call.argument("player_type", str, None)
     clean_team = "league" if team_name is None else team_name.lower().strip()
     clean_type = "all" if player_type is None else player_type.lower().strip()
     return generate_cache_key("mlb/top_prospects", {"team": clean_team, "type": clean_type})
@@ -110,12 +112,15 @@ async def top_prospects(
     return _postprocess(df)
 
 
-def _prospect_rankings_cache_key(list_type: str = "top100", year: int | None = None, **kwargs: object) -> str:
+def _prospect_rankings_cache_key(call: CacheCallArgs) -> str:
+    list_type = call.argument("list_type", str, "top100")
+    year = call.argument("year", int, None)
     str_year = "current" if year is None else str(year)
     return generate_cache_key("milb/prospect_rankings", {"list_type": list_type.lower().strip(), "year": str_year})
 
 
-def _prospect_rankings_max_age(year: int | None = None, **kwargs: object) -> timedelta | None:
+def _prospect_rankings_max_age(call: CacheCallArgs) -> timedelta | None:
+    year = call.argument("year", int, None)
     if year is None:
         return timedelta(days=1)
     from polars_baseball._season import most_recent_season

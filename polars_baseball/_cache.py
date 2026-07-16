@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import ParamSpec, Protocol, TypeVar, cast
+from typing import ParamSpec, Protocol, TypeVar, cast, overload
 
 import polars as pl
 
@@ -29,11 +29,42 @@ logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")
-_CONTEXT_PARAM_NAMES = ("context", "ctx", "_ctx")
+T = TypeVar("T")
+_CONTEXT_PARAM_NAME = "context"
+_FORCE_UPDATE_PARAM_NAME = "force_update"
+_MISSING_ARGUMENT = object()
 
 
 class CacheContext(Protocol):
     cache: "CacheAdapter"
+
+
+@dataclass(frozen=True)
+class CacheCallArgs:
+    context: CacheContext
+    arguments: Mapping[str, object]
+    force_update: bool
+
+    @overload
+    def argument(self, name: str, expected_type: type[T]) -> T: ...
+
+    @overload
+    def argument(self, name: str, expected_type: type[T], default: None) -> T | None: ...
+
+    @overload
+    def argument(self, name: str, expected_type: type[T], default: T) -> T: ...
+
+    def argument(self, name: str, expected_type: type[T], default: object = _MISSING_ARGUMENT) -> T | None:
+        value = self.arguments.get(name, _MISSING_ARGUMENT)
+        if value is _MISSING_ARGUMENT:
+            if default is _MISSING_ARGUMENT:
+                raise TypeError(f"{name} is required")
+            return cast(T | None, default)
+        if value is None and default is not _MISSING_ARGUMENT:
+            return None
+        if not isinstance(value, expected_type):
+            raise TypeError(f"{name} must be {expected_type.__name__}, got {type(value).__name__}")
+        return value
 
 
 @dataclass(frozen=True)
@@ -42,6 +73,10 @@ class CacheCall:
     key: str
     max_age: timedelta | None
     force_update: bool
+
+
+CacheKeyBuilder = Callable[[CacheCallArgs], str]
+CacheMaxAgeResolver = Callable[[CacheCallArgs], timedelta | None]
 
 
 def generate_cache_key(
@@ -236,15 +271,12 @@ def configure_cache(cache_dir: Path) -> None:
     global_cache.configure(cache_dir)
 
 
-def _get_context(fn: Callable[P, object], args: tuple[object, ...], kwargs: Mapping[str, object]) -> CacheContext:
-    arguments = _bind_call_arguments(fn, args, kwargs)
-    return _resolve_context_from_arguments(arguments)
-
-
 def _resolve_context_from_arguments(arguments: Mapping[str, object]) -> CacheContext:
-    ctx = _context_from_arguments(arguments)
+    ctx = arguments.get(_CONTEXT_PARAM_NAME)
     if ctx is not None:
-        return ctx
+        if not hasattr(ctx, "cache"):
+            raise TypeError("context must expose a cache attribute")
+        return cast(CacheContext, ctx)
     if _default_context_resolver is None:
         raise RuntimeError("Default cache context resolver has not been configured.")
     return _default_context_resolver()
@@ -261,116 +293,43 @@ def _bind_call_arguments(
     return dict(bound.arguments)
 
 
-def _context_from_arguments(arguments: Mapping[str, object]) -> CacheContext | None:
-    for param_name in _CONTEXT_PARAM_NAMES:
-        ctx = arguments.get(param_name)
-        if ctx is None:
-            continue
-        if not hasattr(ctx, "cache"):
-            raise TypeError(f"{param_name} must expose a cache attribute")
-        return cast(CacheContext, ctx)
-    return None
-
-
-def _select_context_argument(arguments: Mapping[str, object]) -> object | None:
-    return next((arguments[name] for name in _CONTEXT_PARAM_NAMES if name in arguments), None)
-
-
-def _build_callback_kwargs(
-    callback: Callable[..., object],
-    call_arguments: Mapping[str, object],
-) -> dict[str, object]:
-    sig = inspect.signature(callback)
-    callback_kwargs: dict[str, object] = {}
-    for param_name, param in sig.parameters.items():
-        if param.kind == param.VAR_KEYWORD:
-            for key, value in call_arguments.items():
-                if key not in _CONTEXT_PARAM_NAMES and key not in callback_kwargs:
-                    callback_kwargs[key] = value
-            continue
-        if param_name in _CONTEXT_PARAM_NAMES:
-            ctx_val = _select_context_argument(call_arguments)
-            if ctx_val is not None:
-                callback_kwargs[param_name] = ctx_val
-            continue
-        if param_name in call_arguments:
-            callback_kwargs[param_name] = call_arguments[param_name]
-    return callback_kwargs
-
-
-def _call_with_resolved_arguments(
-    callback: Callable[..., R],
-    callback_kwargs: Mapping[str, object],
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
-) -> R:
-    sig = inspect.signature(callback)
-    try:
-        bound = sig.bind(**callback_kwargs)
-        return callback(*bound.args, **bound.kwargs)
-    except TypeError:
-        return callback(*args, **kwargs)
-
-
-def _resolve_key(
-    fn: Callable[P, object],
-    key_fn: Callable[..., str] | str,
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
-) -> str:
-    call_arguments = _bind_call_arguments(fn, args, kwargs)
-    return _resolve_key_from_arguments(key_fn, call_arguments, args, kwargs)
-
-
 def _resolve_key_from_arguments(
-    key_fn: Callable[..., str] | str,
-    call_arguments: Mapping[str, object],
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
+    key_fn: CacheKeyBuilder | str,
+    call_args: CacheCallArgs,
 ) -> str:
     if isinstance(key_fn, str):
         return key_fn
-
-    key_kwargs = _build_callback_kwargs(key_fn, call_arguments)
-    return _call_with_resolved_arguments(key_fn, key_kwargs, args, kwargs)
-
-
-def _resolve_max_age(
-    fn: Callable[P, object],
-    max_age_fn: timedelta | None | Callable[..., timedelta | None],
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
-) -> timedelta | None:
-    call_arguments = _bind_call_arguments(fn, args, kwargs)
-    return _resolve_max_age_from_arguments(max_age_fn, call_arguments, args, kwargs)
+    return key_fn(call_args)
 
 
 def _resolve_max_age_from_arguments(
-    max_age_fn: timedelta | None | Callable[..., timedelta | None],
-    call_arguments: Mapping[str, object],
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
+    max_age_fn: timedelta | None | CacheMaxAgeResolver,
+    call_args: CacheCallArgs,
 ) -> timedelta | None:
     if not callable(max_age_fn):
         return max_age_fn
-
-    max_age_kwargs = _build_callback_kwargs(max_age_fn, call_arguments)
-    return _call_with_resolved_arguments(max_age_fn, max_age_kwargs, args, kwargs)
+    return max_age_fn(call_args)
 
 
 def resolve_cache_call(
     fn: Callable[P, object],
-    key: str | Callable[..., str],
-    max_age: timedelta | None | Callable[..., timedelta | None],
+    key: str | CacheKeyBuilder,
+    max_age: timedelta | None | CacheMaxAgeResolver,
     args: tuple[object, ...],
     kwargs: Mapping[str, object],
 ) -> CacheCall:
     call_arguments = _bind_call_arguments(fn, args, kwargs)
+    context = _resolve_context_from_arguments(call_arguments)
+    call_args = CacheCallArgs(
+        context=context,
+        arguments=call_arguments,
+        force_update=bool(call_arguments.get(_FORCE_UPDATE_PARAM_NAME, False)),
+    )
     return CacheCall(
-        context=_resolve_context_from_arguments(call_arguments),
-        key=_resolve_key_from_arguments(key, call_arguments, args, kwargs),
-        max_age=_resolve_max_age_from_arguments(max_age, call_arguments, args, kwargs),
-        force_update=bool(call_arguments.get("force_update", False)),
+        context=context,
+        key=_resolve_key_from_arguments(key, call_args),
+        max_age=_resolve_max_age_from_arguments(max_age, call_args),
+        force_update=call_args.force_update,
     )
 
 
@@ -378,8 +337,8 @@ def _cached_execute(
     fn: Callable[..., Awaitable[R]],
     args: tuple[object, ...],
     kwargs: dict[str, object],
-    key: str | Callable[..., str],
-    max_age: timedelta | None | Callable[..., timedelta | None],
+    key: str | CacheKeyBuilder,
+    max_age: timedelta | None | CacheMaxAgeResolver,
     cache_get: Callable[[CacheAdapter, str, timedelta | None], R | None],
     cache_set: Callable[[CacheAdapter, str, R], None],
 ) -> Awaitable[R]:
@@ -399,8 +358,8 @@ def _cached_execute(
 
 
 def cached(
-    key: str | Callable[..., str],
-    max_age: timedelta | None | Callable[..., timedelta | None] = None,
+    key: str | CacheKeyBuilder,
+    max_age: timedelta | None | CacheMaxAgeResolver = None,
 ) -> Callable[[Callable[P, Awaitable[pl.DataFrame]]], Callable[P, Awaitable[pl.DataFrame]]]:
     def decorator(fn: Callable[P, Awaitable[pl.DataFrame]]) -> Callable[P, Awaitable[pl.DataFrame]]:
         @functools.wraps(fn)
@@ -421,8 +380,8 @@ def cached(
 
 
 def cached_list(
-    key: str | Callable[..., str],
-    max_age: timedelta | None | Callable[..., timedelta | None] = None,
+    key: str | CacheKeyBuilder,
+    max_age: timedelta | None | CacheMaxAgeResolver = None,
 ) -> Callable[[Callable[P, Awaitable[list[pl.DataFrame]]]], Callable[P, Awaitable[list[pl.DataFrame]]]]:
     def decorator(fn: Callable[P, Awaitable[list[pl.DataFrame]]]) -> Callable[P, Awaitable[list[pl.DataFrame]]]:
         @functools.wraps(fn)
