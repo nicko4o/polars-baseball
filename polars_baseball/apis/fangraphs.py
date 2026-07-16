@@ -6,7 +6,7 @@ from typing import TypedDict
 import polars as pl
 from typing_extensions import Unpack
 
-from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import FG_LEADERS_URL, FG_MAX_RESULTS
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.enums.fangraphs import (
@@ -221,14 +221,15 @@ def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
     }
 
 
-def _fg_cache_key(request: FanGraphsRequest, _ctx: BaseballContext) -> str:
+def _fg_cache_key(call: CacheCallArgs) -> str:
+    request = call.argument("request", FanGraphsRequest)
     return generate_cache_key(FG_LEADERS_URL, _build_fg_url_options(request))
 
 
 @cached(key=_fg_cache_key)
-async def _fetch_fangraphs(request: FanGraphsRequest, ctx: BaseballContext) -> pl.DataFrame:
+async def _fetch_fangraphs(request: FanGraphsRequest, context: BaseballContext) -> pl.DataFrame:
     url_options = _build_fg_url_options(request)
-    html = await ctx.http.get_text(FG_LEADERS_URL, params=url_options)
+    html = await context.http.get_text(FG_LEADERS_URL, params=url_options)
     return _fg_parser.parse(html)
 
 

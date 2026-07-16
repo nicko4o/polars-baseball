@@ -2,7 +2,7 @@ import json
 
 import polars as pl
 
-from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
 from polars_baseball._season import most_recent_season
 from polars_baseball.context import BaseballContext, default_context
@@ -12,7 +12,8 @@ from polars_baseball.parsers.standings import parse_standings_payload
 _PRE_DEAD_BALL_START = MLB_FIRST_YEAR
 
 
-def _standings_cache_key(season: int) -> str:
+def _standings_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
     url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
     return generate_cache_key(url, {})
 
