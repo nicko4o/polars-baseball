@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING CHANGE**: Remove provider-prefixed root aliases for MLB Stats API and Baseball Savant APIs. Use `polars_baseball.mlb.*` and `polars_baseball.savant.*` instead.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added
