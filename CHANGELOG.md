@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING CHANGE**: Remove provider-prefixed root aliases for MLB Stats API and Baseball Savant APIs. Use `polars_baseball.mlb.*` and `polars_baseball.savant.*` instead.
 
+### Fixed
+
+- Fix assertion type check in `test_live_mlb_standings` to match the single DataFrame return contract.
+- Refactor `scripts/verify_all_apis.py` to use the new namespaces (`mlb.*` and `savant.*`) rather than legacy internal functions.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added
