@@ -66,3 +66,18 @@ export POLARS_BASEBALL_CACHE_DIR="/path/to/your/custom/cache"
 - **No subset matching**: A cached query for `statcast("2024-05-01", "2024-05-10")` is not reused for `statcast("2024-05-05", "2024-05-06")`.
 - **Compiled datasets**: Lahman and Chadwick Register tables are cached as per-table Parquet files under `compiled-datasets/`.
 - **Compiled dataset CDN**: Set `POLARS_BASEBALL_DATASETS_URL` to a hosted compiled dataset root. The client then downloads `dataset/table.parquet` files instead of compiling from upstream ZIP archives.
+
+## Maintainer Notes
+
+Internal `@cached` and `@cached_list` key builders use `CacheCallArgs`:
+
+```python
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
+
+
+def standings_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
+    return generate_cache_key("standings", {"season": season})
+```
+
+The decorator resolves only the standard `context` and `force_update` argument names. Key and max-age callbacks must accept one `CacheCallArgs` parameter; old callback forms such as `lambda season: ...`, `**kwargs`, or `ctx` / `_ctx` context aliases are not supported.

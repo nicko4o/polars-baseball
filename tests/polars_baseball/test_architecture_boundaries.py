@@ -3,8 +3,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from polars_baseball._cache import generate_cache_key
+from polars_baseball._cache import CacheCallArgs, generate_cache_key, global_cache
 from polars_baseball.apis.mlb._contracts import venues_cache_key, venues_url
+from polars_baseball.context import BaseballContext
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = PROJECT_ROOT / "polars_baseball"
@@ -69,8 +70,11 @@ def test_cache_module_does_not_depend_on_context_module() -> None:
 def test_venue_list_cache_key_matches_fetch_contract() -> None:
     venue_ids = [10, 20]
     expected_key = generate_cache_key(venues_url(), {"venueIds": "10,20"})
+    call = CacheCallArgs(
+        context=BaseballContext(cache=global_cache), arguments={"venue_ids": venue_ids}, force_update=False
+    )
 
-    assert venues_cache_key(venue_ids) == expected_key
+    assert venues_cache_key(call) == expected_key
 
 
 def test_mlb_api_layer_does_not_own_parser_schema_casting() -> None:

@@ -65,3 +65,18 @@ export POLARS_BASEBALL_CACHE_DIR="/path/to/your/custom/cache"
 - **參數層級匹配**：快取鍵由函式與完整參數組成。完全相同的呼叫會重用快取。
 - **不做子區間匹配**：`statcast("2024-05-01", "2024-05-10")` 的快取不會被 `statcast("2024-05-05", "2024-05-06")` 重用。
 - **Lahman database**：下載的 Lahman 壓縮檔與解出的表格會存放在同一個快取目錄。
+
+## 維護者注意事項
+
+內部 `@cached` 與 `@cached_list` 的 key builder 使用 `CacheCallArgs`：
+
+```python
+from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
+
+
+def standings_cache_key(call: CacheCallArgs) -> str:
+    season = call.argument("season", int)
+    return generate_cache_key("standings", {"season": season})
+```
+
+decorator 只解析標準 `context` 與 `force_update` 參數名稱。key 與 max-age callback 必須接收單一 `CacheCallArgs` 參數；舊式 callback 形式，例如 `lambda season: ...`、`**kwargs`，或 `ctx` / `_ctx` context alias，皆不再支援。

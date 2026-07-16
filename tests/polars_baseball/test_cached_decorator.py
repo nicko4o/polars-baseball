@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import polars as pl
 import pytest
 
-from polars_baseball._cache import cached
+from polars_baseball._cache import CacheCallArgs, cached
 from polars_baseball.context import BaseballContext
 
 _CACHE_MISS_TIMEOUT_SECONDS = 1
@@ -18,7 +18,6 @@ async def test_cached_hit_returns_cached_data_and_skips_fetch() -> None:
     mock_cache = MagicMock()
     cached_df = pl.DataFrame({"x": [1]})
     mock_cache.get.return_value = cached_df
-
     fetch_called = False
 
     async def fetch() -> pl.DataFrame:
@@ -60,7 +59,12 @@ async def test_cached_with_dynamic_key() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    @cached(key=lambda year, team: f"standings-{year}-{team}")
+    def cache_key(call: CacheCallArgs) -> str:
+        year = call.argument("year", int)
+        team = call.argument("team", str)
+        return f"standings-{year}-{team}"
+
+    @cached(key=cache_key)
     async def query(year: int, team: str, context: BaseballContext | None = None) -> pl.DataFrame:
         return pl.DataFrame({"year": [year], "team": [team]})
 
@@ -74,7 +78,7 @@ async def test_cached_with_dynamic_key() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_returns_empty_df_on_miss() -> None:
+async def test_cached_stores_empty_dataframe() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
@@ -93,7 +97,7 @@ async def test_cached_returns_empty_df_on_miss() -> None:
 async def test_cached_key_function_error_is_not_swallowed() -> None:
     mock_cache = MagicMock()
 
-    def broken_key() -> str:
+    def broken_key(_call: CacheCallArgs) -> str:
         raise RuntimeError("broken cache key")
 
     @cached(key=broken_key)
@@ -113,7 +117,8 @@ async def test_cached_dynamic_max_age() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    def max_age_resolver(year: int, **kwargs: object) -> timedelta | None:
+    def max_age_resolver(call: CacheCallArgs) -> timedelta | None:
+        year = call.argument("year", int)
         return timedelta(days=1) if year == 2026 else None
 
     @cached(key="test-key", max_age=max_age_resolver)
@@ -122,11 +127,9 @@ async def test_cached_dynamic_max_age() -> None:
 
     mock_ctx = BaseballContext(cache=mock_cache)
 
-    # 2026 should resolve max_age to 1 day
     await query(2026, context=mock_ctx)
     mock_cache.get.assert_called_with("test-key", max_age=timedelta(days=1))
 
-    # 2025 should resolve max_age to None
     await query(2025, context=mock_ctx)
     mock_cache.get.assert_called_with("test-key", max_age=None)
 
@@ -135,7 +138,6 @@ async def test_cached_dynamic_max_age() -> None:
 async def test_cached_force_update() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = pl.DataFrame({"x": [10]})
-
     fetch_calls = 0
 
     @cached(key="force-key")
@@ -146,12 +148,10 @@ async def test_cached_force_update() -> None:
 
     mock_ctx = BaseballContext(cache=mock_cache)
 
-    # Normal fetch: cache hit, bypass underlying call
     res1 = await query(force_update=False, context=mock_ctx)
     assert res1["x"][0] == 10
     assert fetch_calls == 0
 
-    # Forced update: ignore cache hit, invoke fetch and refresh cache
     res2 = await query(force_update=True, context=mock_ctx)
     assert res2["x"][0] == 20
     assert fetch_calls == 1
@@ -159,36 +159,14 @@ async def test_cached_force_update() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("context_name", ["ctx", "_ctx"])
-async def test_cached_resolves_context_aliases(context_name: str) -> None:
-    mock_cache = MagicMock()
-    mock_cache.get.return_value = pl.DataFrame({"x": [3]})
-
-    if context_name == "ctx":
-
-        @cached(key="alias-key")
-        async def query(ctx: BaseballContext | None = None) -> pl.DataFrame:
-            return pl.DataFrame({"x": [4]})
-
-        result = await query(ctx=BaseballContext(cache=mock_cache))
-    else:
-
-        @cached(key="alias-key")
-        async def query(_ctx: BaseballContext | None = None) -> pl.DataFrame:
-            return pl.DataFrame({"x": [4]})
-
-        result = await query(_ctx=BaseballContext(cache=mock_cache))
-
-    assert result["x"][0] == 3
-    mock_cache.get.assert_called_once_with("alias-key", max_age=None)
-
-
-@pytest.mark.asyncio
-async def test_cached_dynamic_key_accepts_partial_function_parameters() -> None:
+async def test_cached_dynamic_key_receives_cache_call_args() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    def key_for_year(year: int) -> str:
+    def key_for_year(call: CacheCallArgs) -> str:
+        assert call.context.cache is mock_cache
+        assert not call.force_update
+        year = call.argument("year", int)
         return f"year-{year}"
 
     @cached(key=key_for_year)
@@ -201,12 +179,14 @@ async def test_cached_dynamic_key_accepts_partial_function_parameters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_dynamic_key_accepts_var_keyword_parameters() -> None:
+async def test_cached_dynamic_key_reads_named_arguments() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    def key_for_call(**kwargs: object) -> str:
-        return f"{kwargs['year']}-{kwargs['team']}"
+    def key_for_call(call: CacheCallArgs) -> str:
+        year = call.argument("year", int)
+        team = call.argument("team", str)
+        return f"{year}-{team}"
 
     @cached(key=key_for_call)
     async def query(year: int, team: str, context: BaseballContext | None = None) -> pl.DataFrame:
@@ -218,12 +198,13 @@ async def test_cached_dynamic_key_accepts_var_keyword_parameters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_dynamic_key_can_receive_context_parameter() -> None:
+async def test_cached_dynamic_key_uses_context_from_cache_call_args() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    def key_for_context(year: int, context: BaseballContext) -> str:
-        assert context.cache is mock_cache
+    def key_for_context(call: CacheCallArgs) -> str:
+        assert call.context.cache is mock_cache
+        year = call.argument("year", int)
         return f"context-{year}"
 
     @cached(key=key_for_context)
@@ -236,12 +217,12 @@ async def test_cached_dynamic_key_can_receive_context_parameter() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_dynamic_max_age_can_receive_context_parameter() -> None:
+async def test_cached_dynamic_max_age_uses_context_from_cache_call_args() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
-    def max_age_for_context(context: BaseballContext) -> timedelta:
-        assert context.cache is mock_cache
+    def max_age_for_context(call: CacheCallArgs) -> timedelta:
+        assert call.context.cache is mock_cache
         return timedelta(minutes=5)
 
     @cached(key="context-max-age", max_age=max_age_for_context)
@@ -261,3 +242,18 @@ async def test_cached_rejects_context_parameter_without_cache_attribute() -> Non
 
     with pytest.raises(TypeError, match="context must expose a cache attribute"):
         await query(context=object())
+
+
+@pytest.mark.asyncio
+async def test_cached_no_longer_treats_ctx_alias_as_cache_context() -> None:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = pl.DataFrame({"x": [3]})
+
+    @cached(key="alias-key")
+    async def query(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        return pl.DataFrame({"x": [4]})
+
+    result = await query(ctx=BaseballContext(cache=mock_cache))
+
+    assert result["x"][0] == 4
+    mock_cache.get.assert_not_called()
