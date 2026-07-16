@@ -196,10 +196,9 @@ async def get_statcast() -> dict[str, int]:
 
 ## API 命名空間政策
 
-套件根目錄（`import polars_baseball as pb`）公開穩定 public API，包含 Lahman、Retrosheet、
-Baseball Reference 與 player ID workflows 等 provider-specific 資料函式。
-`pb.fangraphs`、`pb.savant`、`pb.mlb` 等 provider namespace 提供較短、任務導向的新程式碼入口；
-既有 root 函式仍會保留支援。
+套件根目錄（`import polars_baseball as pb`）公開核心 convenience API 與 provider namespace。
+Provider-specific 工作流請使用 `pb.fangraphs`、`pb.savant`、`pb.mlb`。
+Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 package root 使用。
 
 以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 

@@ -5,11 +5,10 @@
 
 Provides access to official MLB Stats API endpoints (`statsapi.mlb.com`) for player bios, schedules, teams, rosters, game data, and leaderboards.
 New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.schedule(...)`.
-The existing `mlb_*` root functions remain supported.
 
-## 1. Player Bios (`mlb_people`)
+## 1. Player Bios (`mlb.people`)
 
-`mlb_people(person_ids: list[int] | int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.people(person_ids: list[int] | int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves biographical information for one or more players.
 
@@ -26,9 +25,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 2. Roster (`mlb_roster`)
+## 2. Roster (`mlb.roster`)
 
-`mlb_roster(team_id: int, season: int | None = None, roster_type: str = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.roster(team_id: int, season: int | None = None, roster_type: str = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves the roster for a team-season.
 
@@ -45,9 +44,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 3. Schedule (`mlb_schedule`)
+## 3. Schedule (`mlb.schedule`)
 
-`mlb_schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves MLB game schedules filtered by season, date, or team.
 
@@ -64,315 +63,315 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 4. Player Stats (`mlb_player_stats`)
+## 4. Player Stats (`mlb.player_stats`)
 
-`mlb_player_stats(person_id: int, group: str, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.player_stats(person_id: int, group: str, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves hitting, pitching, or fielding statistics for a player.
 
 ```python
 import asyncio
-from polars_baseball import mlb_player_stats
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_player_stats(660271, group="hitting", stats_type="gameLog", season=2024)
+    df = await pb.mlb.player_stats(660271, group="hitting", stats_type="gameLog", season=2024)
     print(df.select(["season", "group", "statType", "gamesPlayed", "homeRuns"]))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 5. Game Boxscore (`mlb_game_boxscore`)
+## 5. Game Boxscore (`mlb.game_boxscore`)
 
-`mlb_game_boxscore(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_boxscore(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves player boxscore rows for a single game.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_boxscore
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_boxscore(745585)
+    df = await pb.mlb.game_boxscore(745585)
     print(df.select(["gamePk", "teamId", "personId", "fullName"]))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 6. Teams (`mlb_teams`)
+## 6. Teams (`mlb.teams`)
 
-`mlb_teams(season: int | None = None, league_id: int | None = None, sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.teams(season: int | None = None, league_id: int | None = None, sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves official MLB team metadata.
 
 ```python
 import asyncio
-from polars_baseball import mlb_teams
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_teams(season=2024)
+    df = await pb.mlb.teams(season=2024)
     print(df.select(["id", "name", "abbreviation", "leagueId"]))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 7. Team Stats (`mlb_team_stats`)
+## 7. Team Stats (`mlb.team_stats`)
 
-`mlb_team_stats(team_id: int, season: int | None = None, group: str = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.team_stats(team_id: int, season: int | None = None, group: str = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves team-level hitting, pitching, or fielding statistics.
 
 ```python
 import asyncio
-from polars_baseball import mlb_team_stats
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_team_stats(121, season=2024, group="hitting")
+    df = await pb.mlb.team_stats(121, season=2024, group="hitting")
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 8. Stat Leaders (`mlb_stat_leaders`)
+## 8. Stat Leaders (`mlb.stat_leaders`)
 
-`mlb_stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves league leaders for one or more stat categories.
 
 ```python
 import asyncio
-from polars_baseball import mlb_stat_leaders
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_stat_leaders(2024, ["homeRuns"], stat_group="hitting")
+    df = await pb.mlb.stat_leaders(2024, ["homeRuns"], stat_group="hitting")
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 9. Postseason Schedule (`mlb_postseason_schedule`)
+## 9. Postseason Schedule (`mlb.postseason_schedule`)
 
-`mlb_postseason_schedule(season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.postseason_schedule(season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves postseason games for a season.
 
 Current live checks return an empty DataFrame for recent completed seasons, so this reference intentionally does not provide a guaranteed non-empty example.
 
-## 10. Game Boxscore Stats (`mlb_game_boxscore_stats`)
+## 10. Game Boxscore Stats (`mlb.game_boxscore_stats`)
 
-`mlb_game_boxscore_stats(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_boxscore_stats(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves flattened batting, pitching, and fielding stats from a single game boxscore.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_boxscore_stats
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_boxscore_stats(745585)
+    df = await pb.mlb.game_boxscore_stats(745585)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 11. Play-by-Play (`mlb_game_play_by_play`)
+## 11. Play-by-Play (`mlb.game_play_by_play`)
 
-`mlb_game_play_by_play(game_pk: int, win_probability: bool = False, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_play_by_play(game_pk: int, win_probability: bool = False, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves play-level data for a single game. Set `win_probability=True` to use the win probability endpoint.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_play_by_play
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_play_by_play(745585)
+    df = await pb.mlb.game_play_by_play(745585)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 12. Win Probability (`mlb_game_win_probability`)
+## 12. Win Probability (`mlb.game_win_probability`)
 
-`mlb_game_win_probability(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_win_probability(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves per-play win probability, WPA, leverage, and drama index fields for a single game.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_win_probability
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_win_probability(745585)
+    df = await pb.mlb.game_win_probability(745585)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 13. Draft (`mlb_draft`)
+## 13. Draft (`mlb.draft`)
 
-`mlb_draft(year: int, draft_round: int | None = None, team_id: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.draft(year: int, draft_round: int | None = None, team_id: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves amateur draft details for a specific year, with optional round and team filtering.
 
 ```python
 import asyncio
-from polars_baseball import mlb_draft
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_draft(year=2024)
+    df = await pb.mlb.draft(year=2024)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 14. Pitch Arsenal (`mlb_pitch_arsenal`)
+## 14. Pitch Arsenal (`mlb.pitch_arsenal`)
 
-`mlb_pitch_arsenal(person_id: int, season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.pitch_arsenal(person_id: int, season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves a player's pitch arsenal stats (average speed, percentage, etc.) for a season.
 
 ```python
 import asyncio
-from polars_baseball import mlb_pitch_arsenal
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_pitch_arsenal(person_id=545361, season=2024)
+    df = await pb.mlb.pitch_arsenal(person_id=545361, season=2024)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 15. Transactions (`mlb_transactions`)
+## 15. Transactions (`mlb.transactions`)
 
-`mlb_transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves transaction records for a specific date or date range.
 
 ```python
 import asyncio
-from polars_baseball import mlb_transactions
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_transactions(date="2024-05-01")
+    df = await pb.mlb.transactions(date="2024-05-01")
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 16. Venues (`mlb_venues`)
+## 16. Venues (`mlb.venues`)
 
-`mlb_venues(venue_ids: int | list[int] | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.venues(venue_ids: int | list[int] | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves stadium and venue metadata.
 
 ```python
 import asyncio
-from polars_baseball import mlb_venues
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_venues(venue_ids=[10, 20])
+    df = await pb.mlb.venues(venue_ids=[10, 20])
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 17. Game Feed Live (`mlb_game_feed_live`)
+## 17. Game Feed Live (`mlb.game_feed_live`)
 
-`mlb_game_feed_live(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_feed_live(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves granular, real-time live feed events and pitch Statcast measurements for a game.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_feed_live
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_feed_live(game_pk=745585)
+    df = await pb.mlb.game_feed_live(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 18. Game Linescore (`mlb_game_linescore`)
+## 18. Game Linescore (`mlb.game_linescore`)
 
-`mlb_game_linescore(game_pk: int, force_update: bool = False, cache_max_age: timedelta | None = timedelta(seconds=10), context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_linescore(game_pk: int, force_update: bool = False, cache_max_age: timedelta | None = timedelta(seconds=10), context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves inning-by-inning linescore data (runs, hits, errors) for a game.
 Use `cache_max_age` to tune freshness for polling or completed games; `force_update=True` bypasses the cache.
 
 ```python
 import asyncio
-from polars_baseball import mlb_game_linescore
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_game_linescore(game_pk=745585)
+    df = await pb.mlb.game_linescore(game_pk=745585)
     print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 19. Divisions (`mlb_divisions`)
+## 19. Divisions (`mlb.divisions`)
 
-`mlb_divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves official division dimension metadata.
 
 ```python
 import asyncio
-from polars_baseball import mlb_divisions
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_divisions()
+    df = await pb.mlb.divisions()
     print(df.select(["id", "name", "leagueId", "active"]))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 20. Leagues (`mlb_leagues`)
+## 20. Leagues (`mlb.leagues`)
 
-`mlb_leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves official league dimension metadata.
 
 ```python
 import asyncio
-from polars_baseball import mlb_leagues
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_leagues()
+    df = await pb.mlb.leagues()
     print(df.select(["id", "name", "abbreviation", "active"]))
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 21. People Awards (`mlb_people_awards`)
+## 21. People Awards (`mlb.people_awards`)
 
-`mlb_people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves official person-centric MLB award timeline rows. This does not replace Lahman award or award vote-share tables.
 
 ```python
 import asyncio
-from polars_baseball import mlb_people_awards
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await mlb_people_awards(person_id=660271)
+    df = await pb.mlb.people_awards(person_id=660271)
     print(df.select(["personId", "awardId", "awardName", "season"]))
 
 if __name__ == "__main__":

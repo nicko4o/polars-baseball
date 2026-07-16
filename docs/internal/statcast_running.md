@@ -8,9 +8,9 @@ New code can call these through `polars_baseball.savant`, such as `pb.savant.spr
 
 ## Functions
 
-- `statcast_sprint_speed(year: int, min_opp: int = 10) -> pl.DataFrame`
-- `statcast_running_splits(year: int, min_opp: int = 5, raw_splits: bool = True) -> pl.DataFrame`
-- `statcast_baserunning_run_value(year: int, min_opp: int = 5) -> pl.DataFrame`
+- `savant.sprint_speed(year: int, min_opp: int = 10) -> pl.DataFrame`
+- `savant.running_splits(year: int, min_opp: int = 5, raw_splits: bool = True) -> pl.DataFrame`
+- `savant.baserunning_run_value(year: int, min_opp: int = 5) -> pl.DataFrame`
 
 ## Arguments
 

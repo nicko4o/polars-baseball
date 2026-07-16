@@ -203,10 +203,9 @@ async def get_statcast() -> dict[str, int]:
 
 ## API Namespace Policy
 
-The package root (`import polars_baseball as pb`) exposes stable public APIs, including provider
-specific data functions such as Lahman, Retrosheet, Baseball Reference, and player ID workflows.
-Provider namespaces such as `pb.fangraphs`, `pb.savant`, and `pb.mlb` expose shorter task-oriented
-aliases for new code while the existing root functions remain supported.
+The package root (`import polars_baseball as pb`) exposes core convenience APIs and provider
+namespaces. Use `pb.fangraphs`, `pb.savant`, and `pb.mlb` for provider-specific workflows.
+Lahman, Retrosheet, Baseball Reference, and player ID workflows remain available from the package root.
 
 Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part
 of the compatibility contract.

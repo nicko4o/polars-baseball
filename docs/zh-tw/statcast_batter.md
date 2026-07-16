@@ -10,12 +10,12 @@
 | 函式 | 資料 |
 | --- | --- |
 | `statcast_batter` | 指定打者與日期區間的 pitch-level Statcast 資料。 |
-| `statcast_batter_exitvelo_barrels` | 擊球初速與 barrel 相關指標。 |
-| `statcast_batter_expected_stats` | 基於擊球品質的 expected stats。 |
-| `statcast_batter_percentile_ranks` | 合格打者的百分位排名。 |
-| `statcast_batter_pitch_arsenal` | 打者面對的球種 arsenal 資料。 |
-| `statcast_batter_run_value` | Run value 排行榜資料。 |
-| `statcast_batter_bat_tracking` | Bat-tracking 排行榜資料。 |
+| `savant.batter_exitvelo_barrels` | 擊球初速與 barrel 相關指標。 |
+| `savant.batter_expected_stats` | 基於擊球品質的 expected stats。 |
+| `savant.batter_percentile_ranks` | 合格打者的百分位排名。 |
+| `savant.batter_pitch_arsenal` | 打者面對的球種 arsenal 資料。 |
+| `savant.batter_run_value` | Run value 排行榜資料。 |
+| `savant.batter_bat_tracking` | Bat-tracking 排行榜資料。 |
 
 ## 常用參數
 
@@ -32,14 +32,16 @@ Pitch-level Statcast 自 2008 年起可用。擊球初速與 launch angle 等擊
 
 ```python
 import asyncio
-from polars_baseball import statcast_batter
-from polars_baseball.apis.savant_leaderboards import statcast_batter_expected_stats
+
+import polars_baseball as pb
+
 
 async def main() -> None:
-    pitches = await statcast_batter(start_date="2024-05-06", end_date="2024-05-06", player_id=660271)
-    expected = await statcast_batter_expected_stats(2024, minPA=100)
+    pitches = await pb.statcast_batter(start_date="2024-05-06", end_date="2024-05-06", player_id=660271)
+    expected = await pb.savant.batter_expected_stats(2024, minPA=100)
     print(pitches.head())
     print(expected.head())
+
 
 if __name__ == "__main__":
     asyncio.run(main())
