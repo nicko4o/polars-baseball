@@ -133,7 +133,7 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.fg_batting(
+    df = await pb.fangraphs.batting(
         start_season=2024,
         end_season=2024,
         qual=100,
@@ -212,16 +212,9 @@ of the compatibility contract.
 
 ## Documentation
 
-- [English documentation](docs/)
+- [Documentation](docs/index.md)
+- [API Use-Case Index](docs/api_index.md): choose the right API by task.
 - [Traditional Chinese documentation](docs/zh-tw/)
-- [Caching Guide](docs/caching.md)
-- [Jupyter Notebook Usage](docs/jupyter.md)
-- [Data Visualization Guide](docs/plotting.md)
-- [Statcast API](docs/statcast.md)
-- [Player ID Lookup](docs/playerid_lookup.md)
-- [MLB Stats API](docs/mlb_api.md)
-- [Savant Gamefeed API](docs/savant_gamefeed.md)
-- [Prospect Rankings](docs/prospect_rankings.md)
 
 ## Showcase
 

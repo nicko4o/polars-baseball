@@ -128,7 +128,7 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.fg_batting(
+    df = await pb.fangraphs.batting(
         start_season=2024,
         end_season=2024,
         qual=100,
@@ -204,16 +204,9 @@ Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 packa
 
 ## 文件
 
-- [English documentation](docs/)
+- [Documentation](docs/index.md)
+- [API 用途索引](docs/zh-tw/api_index.md)：依任務選擇正確 API。
 - [繁體中文文件](docs/zh-tw/)
-- [快取指南](docs/zh-tw/caching.md)
-- [Jupyter Notebook 使用方式](docs/zh-tw/jupyter.md)
-- [資料視覺化指南](docs/zh-tw/plotting.md)
-- [Statcast API](docs/zh-tw/statcast.md)
-- [Player ID Lookup](docs/zh-tw/playerid_lookup.md)
-- [MLB Stats API](docs/zh-tw/mlb_api.md)
-- [Savant Gamefeed API](docs/zh-tw/savant_gamefeed.md)
-- [Prospect Rankings](docs/zh-tw/prospect_rankings.md)
 
 ## Showcase
 

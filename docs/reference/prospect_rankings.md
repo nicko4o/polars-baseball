@@ -11,6 +11,9 @@ Retrieves the MLB Pipeline prospect rankings for a given list type and year.
 
 ## Arguments
 
+- `top_prospects(team_name: str | None = None, player_type: str | None = None)`: Retrieves MLB top-prospect data for one team or leaguewide.
+  - `team_name`: Team name without whitespace, such as `bluejays` or `padres`. If omitted, leaguewide prospects are returned.
+  - `player_type`: `pitchers` or `batters`. If omitted, both groups are returned.
 - `list_type`: The type of prospect list to retrieve. Defaults to `"top100"`. Supported options:
   - `"top100"`: Top 100 prospects overall.
   - `"draft"`: Top draft prospects.
@@ -38,7 +41,26 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 2. Fetch Team Specific Top 30 Rankings
+### 2. Fetch Team-Specific Top Prospects
+
+```python
+import asyncio
+
+from polars_baseball import top_prospects
+
+
+async def main() -> None:
+    blue_jays_pitchers = await top_prospects("bluejays", "pitchers")
+    leaguewide = await top_prospects()
+    print(blue_jays_pitchers.head())
+    print(leaguewide.head())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### 3. Fetch Team Specific Top 30 Rankings
 
 ```python
 import asyncio
