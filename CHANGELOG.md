@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING CHANGE**: Removed legacy FanGraphs root aliases (`fg_batting`, `fg_pitching`, `fg_fielding`, `fg_team_batting`, `fg_team_pitching`, `fg_team_fielding`). Use `polars_baseball.fangraphs.*` instead.
 - Simplify documentation structure: reorganize documents into `guides/` and `reference/` directories, introduce `api_index.md` for task-based API selection, and establish `MAINTAINING.md` rules.
-- Update documentation tests to exempt legacy FanGraphs root convenience aliases from markdown coverage checks, encouraging namespace APIs.
 
 ## [0.4.0] - 2026-07-16
 
