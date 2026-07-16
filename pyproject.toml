@@ -10,10 +10,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-    {name = "Nick"}
+    {name = "Nick", email = "nick009965@gmail.com"}
 ]
 maintainers = [
-    {name = "Nick"}
+    {name = "Nick", email = "nick009965@gmail.com"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
