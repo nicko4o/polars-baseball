@@ -1,6 +1,4 @@
 import asyncio
-import io
-import json
 import os
 
 import polars as pl
@@ -15,18 +13,20 @@ from polars_baseball._config import (
     RETROSHEET_SCHEDULE_URL,
     RETROSHEET_SEASON_GAMELOG_URL,
 )
-from polars_baseball._encoding import ensure_bytes
-from polars_baseball._schemas.retrosheet import (
-    GAMELOG_COLUMNS,
-    PARK_CODE_COLUMNS,
-    ROSTER_COLUMNS,
-    SCHEDULE_COLUMNS,
-)
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import (
     InvalidParameterError,
     ServerError,
-    UpstreamParseError,
+)
+from polars_baseball.parsers.retrosheet import (
+    empty_rosters_frame,
+    event_content_row,
+    events_frame,
+    parse_gamelog_csv,
+    parse_park_codes_csv,
+    parse_roster_csv,
+    parse_schedule_csv,
+    parse_season_contents,
 )
 
 
@@ -40,14 +40,7 @@ async def _get_season_contents(season: int, ctx: BaseballContext) -> list[str]:
     raw_bytes = await ctx.http.get_text(url, headers=headers)
     if not raw_bytes:
         raise ServerError(f"Season {season} directory not found or empty.")
-
-    try:
-        data = json.loads(raw_bytes)
-        if not isinstance(data, list):
-            raise ServerError(f"Season {season} not available")
-        return [f["name"] for f in data]
-    except (json.JSONDecodeError, KeyError, TypeError) as err:
-        raise UpstreamParseError(f"Season {season} not available") from err
+    return parse_season_contents(raw_bytes, season)
 
 
 async def events(
@@ -83,24 +76,11 @@ async def events(
         raw = await ctx.http.get_text(url)
         if not raw:
             return None
-        return {
-            "season": season,
-            "event_type": type,
-            "filename": filename,
-            "content": ensure_bytes(raw),
-        }
+        return event_content_row(season, type, filename, raw)
 
     results = await asyncio.gather(*[_fetch_event(f) for f in season_events])
     rows = [row for row in results if row is not None]
-    return pl.DataFrame(
-        rows,
-        schema={
-            "season": pl.Int64,
-            "event_type": pl.Utf8,
-            "filename": pl.Utf8,
-            "content": pl.Binary,
-        },
-    )
+    return events_frame(rows)
 
 
 def _rosters_cache_key(season: int, **kwargs: object) -> str:
@@ -127,20 +107,13 @@ async def rosters(season: int, context: BaseballContext | None = None) -> pl.Dat
         raw_bytes = await ctx.http.get_text(url)
         if not raw_bytes:
             return None
-        raw_bin = ensure_bytes(raw_bytes)
-        df = pl.read_csv(
-            io.BytesIO(raw_bin),
-            has_header=False,
-            new_columns=list(ROSTER_COLUMNS),
-            quote_char='"',
-        )
-        return df
+        return parse_roster_csv(raw_bytes)
 
     tasks = [_fetch_one_roster(f) for f in ros_files]
     dfs = await asyncio.gather(*tasks)
     valid_dfs = [df for df in dfs if df is not None and df.height > 0]
     if not valid_dfs:
-        return pl.DataFrame(schema={c: pl.Utf8 for c in ROSTER_COLUMNS})
+        return empty_rosters_frame()
 
     return pl.concat(valid_dfs)
 
@@ -160,10 +133,7 @@ async def park_codes(context: BaseballContext | None = None) -> pl.DataFrame:
     raw_bytes = await ctx.http.get_text(RETROSHEET_PARKID_URL)
     if not raw_bytes:
         return pl.DataFrame()
-    raw_bin = ensure_bytes(raw_bytes)
-    df = pl.read_csv(io.BytesIO(raw_bin), quote_char='"')
-    df = df.rename(dict(zip(df.columns[: len(PARK_CODE_COLUMNS)], PARK_CODE_COLUMNS, strict=False)))
-    return df
+    return parse_park_codes_csv(raw_bytes)
 
 
 def _schedules_cache_key(season: int, **kwargs: object) -> str:
@@ -187,14 +157,7 @@ async def schedules(season: int, context: BaseballContext | None = None) -> pl.D
     raw_bytes = await ctx.http.get_text(url)
     if not raw_bytes:
         return pl.DataFrame()
-    raw_bin = ensure_bytes(raw_bytes)
-    df = pl.read_csv(
-        io.BytesIO(raw_bin),
-        has_header=False,
-        new_columns=list(SCHEDULE_COLUMNS),
-        quote_char='"',
-    )
-    return df
+    return parse_schedule_csv(raw_bytes)
 
 
 def _season_game_logs_cache_key(season: int, **kwargs: object) -> str:
@@ -218,15 +181,7 @@ async def season_game_logs(season: int, context: BaseballContext | None = None) 
     raw_bytes = await ctx.http.get_text(url)
     if not raw_bytes:
         return pl.DataFrame()
-    raw_bin = ensure_bytes(raw_bytes)
-    df = pl.read_csv(
-        io.BytesIO(raw_bin),
-        has_header=False,
-        new_columns=list(GAMELOG_COLUMNS),
-        quote_char='"',
-        truncate_ragged_lines=True,
-    )
-    return df
+    return parse_gamelog_csv(raw_bytes)
 
 
 def _gamelog_cache_key(suffix: str, **kwargs: object) -> str:
@@ -240,15 +195,7 @@ async def _get_gamelog_generic(suffix: str, context: BaseballContext | None = No
     raw_bytes = await ctx.http.get_text(url)
     if not raw_bytes:
         return pl.DataFrame()
-    raw_bin = ensure_bytes(raw_bytes)
-    df = pl.read_csv(
-        io.BytesIO(raw_bin),
-        has_header=False,
-        new_columns=list(GAMELOG_COLUMNS),
-        quote_char='"',
-        truncate_ragged_lines=True,
-    )
-    return df
+    return parse_gamelog_csv(raw_bytes)
 
 
 async def world_series_logs(context: BaseballContext | None = None) -> pl.DataFrame:

@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.standings import _parse_team_record, standings
+from polars_baseball.apis.standings import standings
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 
@@ -48,42 +48,6 @@ _MOCK_STANDINGS_JSON = {
         },
     ]
 }
-
-
-# ── Unit Tests ─────────────────────────────────────────────────────────
-
-
-def test_parse_team_record_basic() -> None:
-    rec_tied = {
-        "team": {"name": "Orioles"},
-        "gamesBack": "-",
-        "leagueRecord": {"wins": 101, "losses": 61, "pct": ".623"},
-    }
-    parsed_tied = _parse_team_record(rec_tied)
-    assert parsed_tied["teamId"] is None
-    assert parsed_tied["Tm"] == "Orioles"
-    assert parsed_tied["W"] == 101
-    assert parsed_tied["L"] == 61
-    assert parsed_tied["W-L%"] == 0.623
-    assert parsed_tied["GB"] is None
-
-    rec_gb = {
-        "team": {"name": "Red Sox"},
-        "gamesBack": "1.5",
-        "leagueRecord": {"wins": 90, "losses": 72, "pct": ".556"},
-    }
-    parsed_gb = _parse_team_record(rec_gb)
-    assert parsed_gb["teamId"] is None
-    assert parsed_gb["Tm"] == "Red Sox"
-    assert parsed_gb["GB"] == 1.5
-
-    rec_with_team_id = {
-        "team": {"id": 110, "name": "Orioles"},
-        "gamesBack": "-",
-        "leagueRecord": {"wins": 101, "losses": 61, "pct": ".623"},
-    }
-    parsed_with_team_id = _parse_team_record(rec_with_team_id)
-    assert parsed_with_team_id["teamId"] == 110
 
 
 @pytest.mark.asyncio

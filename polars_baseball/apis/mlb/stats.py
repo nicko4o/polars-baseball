@@ -4,17 +4,6 @@ import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_PITCH_ARSENAL_REQUIRED,
-    MLB_PITCH_ARSENAL_TYPES,
-    MLB_PLAYER_STATS_REQUIRED,
-    MLB_PLAYER_STATS_TYPES,
-    MLB_STAT_LEADERS_REQUIRED,
-    MLB_STAT_LEADERS_TYPES,
-    MLB_TEAM_STATS_REQUIRED,
-    MLB_TEAM_STATS_TYPES,
-)
 from polars_baseball._season import most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
@@ -22,7 +11,6 @@ from polars_baseball.apis.mlb._contracts import (
     MLB_DEFAULT_STATS_GROUP,
     MLB_DEFAULT_STATS_TYPE,
     MLB_PITCH_ARSENAL_STATS,
-    JsonObject,
     people_stats_url,
     pitch_arsenal_cache_key,
     player_stats_cache_key,
@@ -35,19 +23,11 @@ from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
-    StatLeaderDict,
-    parse_leader,
-    parse_pitch_arsenal,
-    parse_player_stats,
-    parse_team_stats,
+    parse_mlb_pitch_arsenal,
+    parse_mlb_player_stats,
+    parse_mlb_stat_leaders,
+    parse_mlb_team_stats,
 )
-
-
-def _parse_mlb_player_stats(data: JsonObject, person_id: int, group: str, stats_type: str) -> pl.DataFrame:
-    rows = parse_player_stats(data, person_id, group, stats_type)
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PLAYER_STATS_REQUIRED, MLB_PLAYER_STATS_TYPES)
 
 
 @cached(key=player_stats_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -74,7 +54,7 @@ async def _fetch_mlb_player_stats(
         url,
         params,
         "Failed to fetch or parse MLB player stats",
-        lambda d: _parse_mlb_player_stats(d, person_id, group, stats_type),
+        lambda d: parse_mlb_player_stats(d, person_id, group, stats_type),
     )
 
 
@@ -114,13 +94,6 @@ async def mlb_player_stats(
     )
 
 
-def _parse_mlb_team_stats(data: JsonObject, team_id: int, group: str) -> pl.DataFrame:
-    rows = parse_team_stats(data, team_id, group)
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TEAM_STATS_REQUIRED, MLB_TEAM_STATS_TYPES)
-
-
 @cached(key=team_stats_cache_key, max_age=MLB_CACHE_MAX_AGE)
 async def _fetch_mlb_team_stats(
     team_id: int,
@@ -136,22 +109,8 @@ async def _fetch_mlb_team_stats(
         params["season"] = season
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, params, "Failed to fetch or parse MLB team stats", lambda d: _parse_mlb_team_stats(d, team_id, group)
+        url, params, "Failed to fetch or parse MLB team stats", lambda d: parse_mlb_team_stats(d, team_id, group)
     )
-
-
-def _parse_mlb_stat_leaders(data: JsonObject, season: int, stat_group: str | None) -> pl.DataFrame:
-    league_leaders = data.get("leagueLeaders", [])
-    if not league_leaders:
-        return pl.DataFrame()
-    rows: list[StatLeaderDict] = []
-    for leader_group in league_leaders:
-        cat = leader_group.get("leaderCategory", "unknown")
-        for entry in leader_group.get("leaders", []):
-            rows.append(parse_leader(entry, cat, season, stat_group))
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES)
 
 
 @cached(key=stat_leaders_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -176,7 +135,7 @@ async def _fetch_mlb_stat_leaders(
         url,
         params,
         "Failed to fetch or parse MLB stat leaders",
-        lambda d: _parse_mlb_stat_leaders(d, season, stat_group),
+        lambda d: parse_mlb_stat_leaders(d, season, stat_group),
     )
 
 
@@ -252,19 +211,6 @@ async def mlb_team_stats(
     )
 
 
-def _parse_mlb_pitch_arsenal(data: JsonObject, person_id: int, season: int) -> pl.DataFrame:
-    stats = data.get("stats", [])
-    rows = []
-    for s in stats:
-        if s.get("type", {}).get("displayName") == MLB_PITCH_ARSENAL_STATS:
-            splits = s.get("splits", [])
-            for split in splits:
-                rows.append(parse_pitch_arsenal(split, person_id, season))
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES)
-
-
 @cached(key=pitch_arsenal_cache_key, max_age=MLB_CACHE_MAX_AGE)
 async def _fetch_mlb_pitch_arsenal(
     person_id: int,
@@ -279,7 +225,7 @@ async def _fetch_mlb_pitch_arsenal(
         url,
         params,
         "Failed to fetch or parse MLB pitch arsenal data",
-        lambda d: _parse_mlb_pitch_arsenal(d, person_id, season),
+        lambda d: parse_mlb_pitch_arsenal(d, person_id, season),
     )
 
 

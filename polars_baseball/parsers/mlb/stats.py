@@ -1,7 +1,22 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import (
+    MLB_PITCH_ARSENAL_REQUIRED,
+    MLB_PITCH_ARSENAL_TYPES,
+    MLB_PLAYER_STATS_REQUIRED,
+    MLB_PLAYER_STATS_TYPES,
+    MLB_STAT_LEADERS_REQUIRED,
+    MLB_STAT_LEADERS_TYPES,
+    MLB_TEAM_STATS_REQUIRED,
+    MLB_TEAM_STATS_TYPES,
+)
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.mlb.types import PitchArsenalDict, StatLeaderDict
+
+_PITCH_ARSENAL_STATS_DISPLAY_NAME = "pitchArsenal"
 
 
 def parse_player_stat_split(split: dict[str, Any], person_id: int, group: str, stat_type: str) -> dict[str, Any]:
@@ -105,3 +120,45 @@ def parse_pitch_arsenal(split: dict[str, Any], person_id: int, season: int) -> P
         "percentage": float(percentage),
         "averageSpeed": float(average_speed),
     }
+
+
+def parse_mlb_player_stats(data: dict[str, Any], person_id: int, group: str, stats_type: str) -> pl.DataFrame:
+    rows = parse_player_stats(data, person_id, group, stats_type)
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PLAYER_STATS_REQUIRED, MLB_PLAYER_STATS_TYPES)
+
+
+def parse_mlb_team_stats(data: dict[str, Any], team_id: int, group: str) -> pl.DataFrame:
+    rows = parse_team_stats(data, team_id, group)
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TEAM_STATS_REQUIRED, MLB_TEAM_STATS_TYPES)
+
+
+def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | None) -> pl.DataFrame:
+    league_leaders = data.get("leagueLeaders", [])
+    if not league_leaders:
+        return pl.DataFrame()
+    rows: list[StatLeaderDict] = []
+    for leader_group in league_leaders:
+        category = leader_group.get("leaderCategory", "unknown")
+        for entry in leader_group.get("leaders", []):
+            rows.append(parse_leader(entry, category, season, stat_group))
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES)
+
+
+def parse_mlb_pitch_arsenal(data: dict[str, Any], person_id: int, season: int) -> pl.DataFrame:
+    stats = data.get("stats", [])
+    rows: list[PitchArsenalDict] = []
+    for stat in stats:
+        if stat.get("type", {}).get("displayName") != _PITCH_ARSENAL_STATS_DISPLAY_NAME:
+            continue
+        splits = stat.get("splits", [])
+        for split in splits:
+            rows.append(parse_pitch_arsenal(split, person_id, season))
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES)

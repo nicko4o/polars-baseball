@@ -2,32 +2,12 @@ import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_DRAFT_REQUIRED,
-    MLB_DRAFT_TYPES,
-)
 from polars_baseball._season import most_recent_season
-from polars_baseball.apis.mlb._contracts import MLB_CACHE_MAX_AGE, JsonObject, draft_cache_key, draft_url
+from polars_baseball.apis.mlb._contracts import MLB_CACHE_MAX_AGE, draft_cache_key, draft_url
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
-from polars_baseball.parsers.mlb import (
-    parse_draft_pick,
-)
-
-
-def _parse_mlb_draft(data: JsonObject, year: int) -> pl.DataFrame:
-    drafts = data.get("drafts", {})
-    rounds = drafts.get("rounds", []) if isinstance(drafts, dict) else []
-    rows = []
-    for r in rounds:
-        picks = r.get("picks", [])
-        for p in picks:
-            rows.append(parse_draft_pick(p, year))
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_DRAFT_REQUIRED, MLB_DRAFT_TYPES)
+from polars_baseball.parsers.mlb import parse_mlb_draft
 
 
 @cached(key=draft_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -42,7 +22,7 @@ async def _fetch_mlb_draft(
         url,
         None,
         "Failed to fetch or parse MLB draft data",
-        lambda d: _parse_mlb_draft(d, year),
+        lambda d: parse_mlb_draft(d, year),
     )
 
 

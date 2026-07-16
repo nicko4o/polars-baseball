@@ -4,17 +4,11 @@ import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_SCHEDULE_REQUIRED,
-    MLB_SCHEDULE_TYPES,
-)
 from polars_baseball._season import most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
     MLB_POSTSEASON_GAME_TYPE,
-    JsonObject,
     postseason_cache_key,
     schedule_cache_key,
     schedule_url,
@@ -22,23 +16,7 @@ from polars_baseball.apis.mlb._contracts import (
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
-from polars_baseball.parsers.mlb import (
-    GameDict,
-    parse_game,
-)
-
-
-def _parse_mlb_schedule(data: JsonObject) -> pl.DataFrame:
-    dates = data.get("dates", [])
-    if not dates:
-        return pl.DataFrame()
-    rows: list[GameDict] = []
-    for d in dates:
-        for g in d.get("games", []):
-            rows.append(parse_game(g))
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES)
+from polars_baseball.parsers.mlb import parse_mlb_schedule
 
 
 @cached(key=schedule_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -61,7 +39,7 @@ async def _fetch_mlb_schedule(
         params["hydrate"] = hydrate
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        schedule_url(), params, "Failed to fetch or parse MLB schedule data", _parse_mlb_schedule
+        schedule_url(), params, "Failed to fetch or parse MLB schedule data", parse_mlb_schedule
     )
 
 
@@ -78,7 +56,7 @@ async def _fetch_mlb_postseason_schedule(
     }
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        schedule_url(), params, "Failed to fetch or parse MLB postseason schedule", _parse_mlb_schedule
+        schedule_url(), params, "Failed to fetch or parse MLB postseason schedule", parse_mlb_schedule
     )
 
 

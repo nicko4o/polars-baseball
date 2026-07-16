@@ -1,5 +1,14 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import (
+    MLB_PEOPLE_AWARDS_REQUIRED,
+    MLB_PEOPLE_AWARDS_TYPES,
+    MLB_PEOPLE_REQUIRED,
+    MLB_PEOPLE_TYPES,
+)
 from polars_baseball.parsers.mlb.types import PeopleAwardDict, PersonDict
 
 
@@ -56,3 +65,21 @@ def parse_people_award(award_data: dict[str, Any], person_id: int) -> PeopleAwar
         "positionType": position_data.get("type"),
         "positionAbbreviation": position_data.get("abbreviation"),
     }
+
+
+def parse_mlb_people(data: dict[str, Any]) -> pl.DataFrame:
+    people = data.get("people", [])
+    if not people:
+        return pl.DataFrame()
+    rows = [parse_person(person) for person in people]
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_REQUIRED, MLB_PEOPLE_TYPES)
+
+
+def parse_mlb_people_awards(data: dict[str, Any], person_id: int) -> pl.DataFrame:
+    awards = data.get("awards", [])
+    if not awards:
+        return pl.DataFrame()
+    rows = [parse_people_award(award, person_id) for award in awards if isinstance(award, dict)]
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_AWARDS_REQUIRED, MLB_PEOPLE_AWARDS_TYPES)

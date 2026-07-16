@@ -1,5 +1,9 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import MLB_ROSTER_REQUIRED, MLB_ROSTER_TYPES
 from polars_baseball.parsers.mlb.types import RosterMemberDict
 
 
@@ -19,3 +23,11 @@ def parse_roster_member(roster_data: dict[str, Any], team_id: int) -> RosterMemb
         "statusCode": status.get("code"),
         "statusDesc": status.get("description"),
     }
+
+
+def parse_mlb_roster(data: dict[str, Any], team_id: int) -> pl.DataFrame:
+    roster = data.get("roster", [])
+    if not roster:
+        return pl.DataFrame()
+    rows = [parse_roster_member(member, team_id) for member in roster]
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_ROSTER_REQUIRED, MLB_ROSTER_TYPES)

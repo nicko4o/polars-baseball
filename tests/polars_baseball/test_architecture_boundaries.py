@@ -9,6 +9,7 @@ from polars_baseball.apis.mlb._contracts import venues_cache_key, venues_url
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = PROJECT_ROOT / "polars_baseball"
 MLB_API_ROOT = PACKAGE_ROOT / "apis" / "mlb"
+RETROSHEET_API = PACKAGE_ROOT / "apis" / "retrosheet.py"
 
 MLB_SHARED_ENDPOINT_CONSTANTS = {
     "_BOXSCORE_URL_TEMPLATE",
@@ -70,3 +71,39 @@ def test_venue_list_cache_key_matches_fetch_contract() -> None:
     expected_key = generate_cache_key(venues_url(), {"venueIds": "10,20"})
 
     assert venues_cache_key(venue_ids) == expected_key
+
+
+def test_mlb_api_layer_does_not_own_parser_schema_casting() -> None:
+    offenders: list[str] = []
+    for path in _python_files(MLB_API_ROOT):
+        if path == ALLOWED_MLB_CONTRACT_MODULE:
+            continue
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball._schema_utils":
+                imported_names = {alias.name for alias in node.names}
+                if "validate_and_cast_schema" in imported_names:
+                    offenders.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} imports schema casting")
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("_parse_mlb"):
+                offenders.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} defines {node.name}")
+
+    assert offenders == []
+
+
+def test_retrosheet_api_layer_does_not_own_csv_or_json_parsing() -> None:
+    tree = ast.parse(RETROSHEET_API.read_text())
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in {"io", "json"}:
+                    offenders.append(f"line {node.lineno}: import {alias.name}")
+        if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball._schemas.retrosheet":
+            offenders.append(f"line {node.lineno}: imports retrosheet schemas")
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Attribute) and func.attr in {"read_csv", "loads"}:
+            offenders.append(f"line {node.lineno}: calls {func.attr}")
+
+    assert offenders == []
