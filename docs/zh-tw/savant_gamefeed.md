@@ -5,29 +5,28 @@
 
 擷取 Baseball Savant 單場比賽 JSON 資料集，並回傳 `polars.DataFrame`。
 新程式碼可使用較短的 `polars_baseball.savant` namespace，例如 `pb.savant.gamefeed_pitch_data(...)`。
-既有 `savant_gamefeed_*` root 函式仍會保留支援。
 
-## Exit Velocity (`savant_gamefeed_exit_velocity`)
+## Exit Velocity (`savant.gamefeed_exit_velocity`)
 
-`savant_gamefeed_exit_velocity(game_pk: int | str, context: BaseballContext | None = None) -> pl.DataFrame`
+`savant.gamefeed_exit_velocity(game_pk: int | str, context: BaseballContext | None = None) -> pl.DataFrame`
 
 擷取單場 MLB 比賽的 exit velocity rows。
 
-## Exit Velocity Batch (`savant_gamefeed_exit_velocity_many`)
+## Exit Velocity Batch (`savant.gamefeed_exit_velocity_many`)
 
-`savant_gamefeed_exit_velocity_many(game_pks: Sequence[int | str], context: BaseballContext | None = None, parallel: bool = True) -> pl.DataFrame`
+`savant.gamefeed_exit_velocity_many(game_pks: Sequence[int | str], context: BaseballContext | None = None, parallel: bool = True) -> pl.DataFrame`
 
 擷取多場比賽的 exit velocity rows 並合併。
 
-## Pitch Data (`savant_gamefeed_pitch_data`)
+## Pitch Data (`savant.gamefeed_pitch_data`)
 
-`savant_gamefeed_pitch_data(game_pk: int | str, context: BaseballContext | None = None) -> pl.DataFrame`
+`savant.gamefeed_pitch_data(game_pk: int | str, context: BaseballContext | None = None) -> pl.DataFrame`
 
 擷取單場 MLB 比賽的 pitch-level gamefeed rows。
 
-## Pitch Data Batch (`savant_gamefeed_pitch_data_many`)
+## Pitch Data Batch (`savant.gamefeed_pitch_data_many`)
 
-`savant_gamefeed_pitch_data_many(game_pks: Sequence[int | str], context: BaseballContext | None = None, parallel: bool = True) -> pl.DataFrame`
+`savant.gamefeed_pitch_data_many(game_pks: Sequence[int | str], context: BaseballContext | None = None, parallel: bool = True) -> pl.DataFrame`
 
 擷取多場比賽的 pitch-level gamefeed rows 並合併。
 
