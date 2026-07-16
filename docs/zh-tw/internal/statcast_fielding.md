@@ -20,8 +20,6 @@ Statcast fielding 函式會查詢 Baseball Savant 守備排行榜。新程式碼
 | `savant.catcher_throwing(year, min_att=5)` | Catcher throwing run value。 |
 | `savant.catcher_stance(year)` | Catcher stance setup metrics。 |
 
-既有 `statcast_*` root 函式仍會保留支援。
-
 ## 範例
 
 ```python

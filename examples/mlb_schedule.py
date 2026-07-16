@@ -17,7 +17,7 @@ def _parse_args() -> argparse.Namespace:
 
 async def _main() -> None:
     args = _parse_args()
-    df = await pb.mlb_schedule(date=args.date, team_id=args.team_id)
+    df = await pb.mlb.schedule(date=args.date, team_id=args.team_id)
     print(df)
 
 
