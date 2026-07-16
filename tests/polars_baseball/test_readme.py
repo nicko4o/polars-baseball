@@ -13,12 +13,6 @@ _PARAMETER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:")
 _DOCUMENTED_ROOT_API_EXEMPTIONS = {
     "ArsenalType",
     "KeyType",
-    "fg_batting",
-    "fg_fielding",
-    "fg_pitching",
-    "fg_team_batting",
-    "fg_team_fielding",
-    "fg_team_pitching",
 }
 _DOCUMENTED_MODULES = (
     "polars_baseball.apis.bref",

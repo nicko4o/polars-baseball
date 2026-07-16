@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import FanGraphsRequest, fg_batting, fg_data
+from polars_baseball import FanGraphsRequest, fg_data
 from polars_baseball import fangraphs as fg
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
@@ -120,7 +120,7 @@ async def test_fangraphs_batting_wrapper(
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
 @patch("polars_baseball.apis.fangraphs.default_context")
-async def test_root_fg_batting_wrapper(
+async def test_namespace_batting_wrapper(
     mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
@@ -129,7 +129,7 @@ async def test_root_fg_batting_wrapper(
     mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    df = await fg_batting(start_season=2019)
+    df = await fg.batting(start_season=2019)
 
     assert df.height == 2
     mock_http.get_text.assert_called_once()
