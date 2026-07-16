@@ -36,12 +36,12 @@ Pitch-level Statcast starts in 2008. Batted-ball quality metrics such as exit ve
 
 ```python
 import asyncio
-from polars_baseball import statcast_pitcher
-from polars_baseball.apis.savant_leaderboards import statcast_pitcher_pitch_arsenal
+
+import polars_baseball as pb
 
 async def main() -> None:
-    pitches = await statcast_pitcher(start_date="2024-05-06", end_date="2024-05-06", player_id=506433)
-    arsenal = await statcast_pitcher_pitch_arsenal(2024, minP=250)
+    pitches = await pb.statcast_pitcher(start_date="2024-05-06", end_date="2024-05-06", player_id=506433)
+    arsenal = await pb.savant.pitcher_pitch_arsenal(2024, minP=250)
     print(pitches.head())
     print(arsenal.head())
 
