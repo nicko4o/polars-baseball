@@ -72,6 +72,7 @@ ROOT_PUBLIC_API = {
     "top_prospects",
     "wild_card_logs",
     "world_series_logs",
+    "__version__",
 }
 
 IMPLEMENTATION_NAMESPACE_LEAKS = {
@@ -86,7 +87,7 @@ IMPLEMENTATION_NAMESPACE_LEAKS = {
 
 
 def test_public_api_symbols_exist() -> None:
-    public_symbols = {name for name in dir(pb) if not name.startswith("_")}
+    public_symbols = {name for name in dir(pb) if not name.startswith("_") or name == "__version__"}
     missing = ROOT_PUBLIC_API - public_symbols
     assert not missing, f"Missing public symbols: {missing}"
 
@@ -96,13 +97,13 @@ def test_root_all_is_stable_public_api() -> None:
 
 
 def test_root_namespace_hides_implementation_packages() -> None:
-    public_symbols = {name for name in dir(pb) if not name.startswith("_")}
+    public_symbols = {name for name in dir(pb) if not name.startswith("_") or name == "__version__"}
     leaks = public_symbols & IMPLEMENTATION_NAMESPACE_LEAKS
     assert not leaks, f"Implementation namespaces leaked at package root: {leaks}"
 
 
 def test_root_namespace_has_no_unlisted_user_facing_symbols() -> None:
-    public_symbols = {name for name in dir(pb) if not name.startswith("_")}
+    public_symbols = {name for name in dir(pb) if not name.startswith("_") or name == "__version__"}
     assert public_symbols == ROOT_PUBLIC_API, (
         f"Unexpected symbols in public namespace: {public_symbols - ROOT_PUBLIC_API}"
     )
