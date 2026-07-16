@@ -4,22 +4,9 @@ from datetime import timedelta
 import polars as pl
 
 from polars_baseball._cache import cached
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_BOXSCORE_REQUIRED,
-    MLB_BOXSCORE_STATS_TYPES,
-    MLB_BOXSCORE_TYPES,
-    MLB_LINESCORE_REQUIRED,
-    MLB_LINESCORE_TYPES,
-    MLB_LIVE_FEED_REQUIRED,
-    MLB_LIVE_FEED_TYPES,
-    MLB_PBP_REQUIRED,
-    MLB_PBP_TYPES,
-)
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_LIVE_ENDPOINT_CACHE_MAX_AGE,
-    JsonObject,
     boxscore_cache_key,
     boxscore_stats_cache_key,
     boxscore_url,
@@ -36,25 +23,13 @@ from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
-    parse_boxscore,
-    parse_linescore,
-    parse_live_feed_pitch,
-    parse_play,
+    parse_mlb_boxscore,
+    parse_mlb_boxscore_stats,
+    parse_mlb_game_feed_live,
+    parse_mlb_game_linescore,
+    parse_mlb_play_by_play,
+    parse_mlb_win_probability,
 )
-
-
-def _parse_mlb_boxscore(data: JsonObject, game_pk: int) -> pl.DataFrame:
-    rows = parse_boxscore(data, game_pk)
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_TYPES)
-
-
-def _parse_mlb_boxscore_stats(data: JsonObject, game_pk: int) -> pl.DataFrame:
-    rows = parse_boxscore(data, game_pk)
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_STATS_TYPES)
 
 
 @cached(key=boxscore_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -66,7 +41,7 @@ async def _fetch_mlb_game_boxscore(
     url = boxscore_url(game_pk)
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, None, "Failed to fetch or parse MLB game boxscore", lambda d: _parse_mlb_boxscore(d, game_pk)
+        url, None, "Failed to fetch or parse MLB game boxscore", lambda d: parse_mlb_boxscore(d, game_pk)
     )
 
 
@@ -79,7 +54,7 @@ async def _fetch_mlb_game_boxscore_stats(
     url = boxscore_url(game_pk)
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, None, "Failed to fetch or parse MLB game boxscore stats", lambda d: _parse_mlb_boxscore_stats(d, game_pk)
+        url, None, "Failed to fetch or parse MLB game boxscore stats", lambda d: parse_mlb_boxscore_stats(d, game_pk)
     )
 
 
@@ -115,14 +90,6 @@ async def mlb_game_boxscore_stats(
     )
 
 
-def _parse_mlb_play_by_play(data: JsonObject, game_pk: int) -> pl.DataFrame:
-    all_plays = data.get("allPlays", [])
-    if not all_plays:
-        return pl.DataFrame()
-    rows = [parse_play(p, game_pk) for p in all_plays]
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PBP_REQUIRED, MLB_PBP_TYPES)
-
-
 @cached(key=play_by_play_cache_key, max_age=MLB_CACHE_MAX_AGE)
 async def _fetch_mlb_game_play_by_play(
     game_pk: int,
@@ -132,7 +99,7 @@ async def _fetch_mlb_game_play_by_play(
     url = play_by_play_url(game_pk)
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, None, "Failed to fetch or parse MLB play-by-play data", lambda d: _parse_mlb_play_by_play(d, game_pk)
+        url, None, "Failed to fetch or parse MLB play-by-play data", lambda d: parse_mlb_play_by_play(d, game_pk)
     )
 
 
@@ -150,15 +117,7 @@ async def _fetch_mlb_game_win_probability(
     except Exception as e:
         raise UpstreamParseError(f"Failed to fetch or parse MLB win probability data: {e}") from e
 
-    if not isinstance(data, list):
-        return pl.DataFrame()
-
-    rows = [parse_play(p, game_pk) for p in data]
-    if not rows:
-        return pl.DataFrame()
-
-    df = pl.DataFrame(rows)
-    return validate_and_cast_schema(df, MLB_PBP_REQUIRED, MLB_PBP_TYPES)
+    return parse_mlb_win_probability(data, game_pk)
 
 
 async def mlb_game_play_by_play(
@@ -210,23 +169,6 @@ async def mlb_game_win_probability(
     )
 
 
-def _parse_mlb_game_feed_live(data: JsonObject, game_pk: int) -> pl.DataFrame:
-    live_data = data.get("liveData", {})
-    plays = live_data.get("plays", {})
-    all_plays = plays.get("allPlays", [])
-
-    rows = []
-    for play in all_plays:
-        play_events = play.get("playEvents", [])
-        for event in play_events:
-            if event.get("isPitch", False):
-                rows.append(parse_live_feed_pitch(event, play, game_pk))
-
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LIVE_FEED_REQUIRED, MLB_LIVE_FEED_TYPES)
-
-
 @cached(key=live_feed_cache_key, max_age=MLB_CACHE_MAX_AGE)
 async def _fetch_mlb_game_feed_live(
     game_pk: int,
@@ -239,7 +181,7 @@ async def _fetch_mlb_game_feed_live(
         url,
         {},
         "Failed to fetch or parse MLB game feed live data",
-        lambda d: _parse_mlb_game_feed_live(d, game_pk),
+        lambda d: parse_mlb_game_feed_live(d, game_pk),
     )
 
 
@@ -272,13 +214,6 @@ def _mlb_game_linescore_max_age(
     return cache_max_age
 
 
-def _parse_mlb_game_linescore(data: JsonObject, game_pk: int) -> pl.DataFrame:
-    rows = parse_linescore(data, game_pk)
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_LINESCORE_REQUIRED, MLB_LINESCORE_TYPES)
-
-
 @cached(key=linescore_cache_key, max_age=_mlb_game_linescore_max_age)
 async def _fetch_mlb_game_linescore(
     game_pk: int,
@@ -292,7 +227,7 @@ async def _fetch_mlb_game_linescore(
         url,
         None,
         "Failed to fetch or parse MLB game linescore",
-        lambda d: _parse_mlb_game_linescore(d, game_pk),
+        lambda d: parse_mlb_game_linescore(d, game_pk),
     )
 
 

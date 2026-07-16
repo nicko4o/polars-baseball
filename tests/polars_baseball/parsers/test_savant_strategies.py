@@ -3,7 +3,7 @@
 import polars as pl
 import pytest
 
-from polars_baseball.exceptions import UpstreamStructureChangedError
+from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
 from polars_baseball.parsers._strategy import ExtractionStrategy, ProviderChain
 
 _SAVANT_CSV = (
@@ -154,6 +154,21 @@ def test_html_strategy_extracts_player_names() -> None:
     names = df["player_name"].to_list()
     assert "Ohtani, Shohei" in names
     assert "Trout, Mike" in names
+
+
+def test_html_strategy_raises_on_parser_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    import lxml.etree
+
+    from polars_baseball.parsers.savant_leaderboard_strategy import SavantHTMLTableStrategy
+
+    def broken_html_parser(_raw: str) -> None:
+        raise ValueError("broken html parser")
+
+    monkeypatch.setattr(lxml.etree, "HTML", broken_html_parser)
+    strategy = SavantHTMLTableStrategy()
+
+    with pytest.raises(UpstreamParseError, match="Savant HTML leaderboard parsing failed"):
+        strategy.extract(_SAVANT_HTML.decode("utf-8"))
 
 
 def test_html_strategy_fingerprint_source() -> None:

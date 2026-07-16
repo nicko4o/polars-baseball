@@ -1,5 +1,9 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import MLB_TRANSACTIONS_REQUIRED, MLB_TRANSACTIONS_TYPES
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.mlb.types import TransactionDict
 
@@ -34,3 +38,11 @@ def parse_transaction(tx: dict[str, Any]) -> TransactionDict:
         "toTeamId": to_team.get("id"),
         "toTeamName": to_team.get("name"),
     }
+
+
+def parse_mlb_transactions(data: dict[str, Any]) -> pl.DataFrame:
+    transactions = data.get("transactions", [])
+    rows = [parse_transaction(transaction) for transaction in transactions]
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TRANSACTIONS_REQUIRED, MLB_TRANSACTIONS_TYPES)

@@ -1,5 +1,9 @@
 from typing import Any
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import MLB_DRAFT_REQUIRED, MLB_DRAFT_TYPES
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.mlb.types import DraftPickDict
 
@@ -30,3 +34,16 @@ def parse_draft_pick(pick: dict[str, Any], year: int) -> DraftPickDict:
         "signingBonus": pick.get("signingBonus"),
         "homeSchool": school.get("name"),
     }
+
+
+def parse_mlb_draft(data: dict[str, Any], year: int) -> pl.DataFrame:
+    drafts = data.get("drafts", {})
+    rounds = drafts.get("rounds", []) if isinstance(drafts, dict) else []
+    rows: list[DraftPickDict] = []
+    for draft_round in rounds:
+        picks = draft_round.get("picks", [])
+        for pick in picks:
+            rows.append(parse_draft_pick(pick, year))
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_DRAFT_REQUIRED, MLB_DRAFT_TYPES)

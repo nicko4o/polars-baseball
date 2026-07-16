@@ -3,32 +3,16 @@ import re
 import polars as pl
 
 from polars_baseball._cache import cached
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_TRANSACTIONS_REQUIRED,
-    MLB_TRANSACTIONS_TYPES,
-)
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
-    JsonObject,
     transactions_cache_key,
     transactions_url,
 )
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
-from polars_baseball.parsers.mlb import (
-    parse_transaction,
-)
-
-
-def _parse_mlb_transactions(data: JsonObject) -> pl.DataFrame:
-    tx_list = data.get("transactions", [])
-    rows = [parse_transaction(tx) for tx in tx_list]
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TRANSACTIONS_REQUIRED, MLB_TRANSACTIONS_TYPES)
+from polars_baseball.parsers.mlb import parse_mlb_transactions
 
 
 @cached(key=transactions_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -53,7 +37,7 @@ async def _fetch_mlb_transactions(
         url,
         params,
         "Failed to fetch or parse MLB transactions data",
-        _parse_mlb_transactions,
+        parse_mlb_transactions,
     )
 
 

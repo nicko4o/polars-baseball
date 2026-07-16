@@ -2,33 +2,17 @@ import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_ROSTER_REQUIRED,
-    MLB_ROSTER_TYPES,
-)
 from polars_baseball._season import most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_ACTIVE_ROSTER_TYPE,
     MLB_CACHE_MAX_AGE,
-    JsonObject,
     roster_cache_key,
     roster_url,
 )
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
-from polars_baseball.parsers.mlb import (
-    parse_roster_member,
-)
-
-
-def _parse_mlb_roster(data: JsonObject, team_id: int) -> pl.DataFrame:
-    roster = data.get("roster", [])
-    if not roster:
-        return pl.DataFrame()
-    rows = [parse_roster_member(r, team_id) for r in roster]
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_ROSTER_REQUIRED, MLB_ROSTER_TYPES)
+from polars_baseball.parsers.mlb import parse_mlb_roster
 
 
 @cached(key=roster_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -45,7 +29,7 @@ async def _fetch_mlb_roster(
         params["season"] = season
     ctx = context or default_context()
     return await MlbStatsGateway(ctx).fetch(
-        url, params, "Failed to fetch or parse MLB roster data", lambda d: _parse_mlb_roster(d, team_id)
+        url, params, "Failed to fetch or parse MLB roster data", lambda d: parse_mlb_roster(d, team_id)
     )
 
 

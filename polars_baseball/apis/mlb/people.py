@@ -1,16 +1,8 @@
 import polars as pl
 
 from polars_baseball._cache import cached
-from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball._schemas.mlb import (
-    MLB_PEOPLE_AWARDS_REQUIRED,
-    MLB_PEOPLE_AWARDS_TYPES,
-    MLB_PEOPLE_REQUIRED,
-    MLB_PEOPLE_TYPES,
-)
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
-    JsonObject,
     people_awards_cache_key,
     people_awards_url,
     people_cache_key,
@@ -19,28 +11,7 @@ from polars_baseball.apis.mlb._contracts import (
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
-from polars_baseball.parsers.mlb import (
-    parse_people_award,
-    parse_person,
-)
-
-
-def _parse_mlb_people(data: JsonObject) -> pl.DataFrame:
-    people = data.get("people", [])
-    if not people:
-        return pl.DataFrame()
-    rows = [parse_person(p) for p in people]
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_REQUIRED, MLB_PEOPLE_TYPES)
-
-
-def _parse_mlb_people_awards(data: JsonObject, person_id: int) -> pl.DataFrame:
-    awards = data.get("awards", [])
-    if not awards:
-        return pl.DataFrame()
-    rows = [parse_people_award(a, person_id) for a in awards if isinstance(a, dict)]
-    if not rows:
-        return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_AWARDS_REQUIRED, MLB_PEOPLE_AWARDS_TYPES)
+from polars_baseball.parsers.mlb import parse_mlb_people, parse_mlb_people_awards
 
 
 @cached(key=people_cache_key, max_age=MLB_CACHE_MAX_AGE)
@@ -53,7 +24,7 @@ async def _fetch_mlb_people(
     ctx = context or default_context()
     params = {"personIds": ids_str}
     return await MlbStatsGateway(ctx).fetch(
-        people_url(), params, "Failed to fetch or parse MLB people data", _parse_mlb_people
+        people_url(), params, "Failed to fetch or parse MLB people data", parse_mlb_people
     )
 
 
@@ -69,7 +40,7 @@ async def _fetch_mlb_people_awards(
         url,
         None,
         "Failed to fetch or parse MLB people awards data",
-        lambda d: _parse_mlb_people_awards(d, person_id),
+        lambda d: parse_mlb_people_awards(d, person_id),
     )
 
 

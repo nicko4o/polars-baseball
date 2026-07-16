@@ -1,97 +1,15 @@
 import json
-from collections.abc import Mapping
 
 import polars as pl
 
 from polars_baseball._cache import cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
-from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball._season import most_recent_season
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.parsers.standings import parse_standings_payload
 
-# Standings schema
-STANDINGS_REQUIRED: list[str] = ["Tm", "W", "L"]
-STANDINGS_TYPES: dict[str, pl.DataType | type[pl.DataType]] = {
-    "season": pl.Int64,
-    "division_id": pl.Int64,
-    "division_name": pl.String,
-    "teamId": pl.Int64,
-    "Tm": pl.String,
-    "W": pl.Int64,
-    "L": pl.Int64,
-    "W-L%": pl.Float64,
-    "GB": pl.Float64,
-}
-
-_STANDINGS_GB_NULL_VALUES: frozenset[str] = frozenset({"--", "-", "Tied"})
 _PRE_DEAD_BALL_START = MLB_FIRST_YEAR
-
-
-def _parse_team_record(rec: Mapping[str, object]) -> dict[str, object]:
-    team = rec.get("team")
-    team_name = team.get("name") if isinstance(team, Mapping) else None
-    team_id = team.get("id") if isinstance(team, Mapping) else None
-
-    league_record = rec.get("leagueRecord")
-    wins = None
-    losses = None
-    pct_str = None
-    if isinstance(league_record, Mapping):
-        wins = league_record.get("wins")
-        losses = league_record.get("losses")
-        pct_str = league_record.get("pct")
-
-    pct = None
-    if isinstance(pct_str, (str, float, int)):
-        try:
-            pct = float(pct_str)
-        except ValueError:
-            pass
-
-    gb_str = rec.get("gamesBack")
-    gb = None
-    if isinstance(gb_str, (str, float, int)) and str(gb_str) not in _STANDINGS_GB_NULL_VALUES:
-        try:
-            gb = float(gb_str)
-        except ValueError:
-            pass
-
-    return {
-        "teamId": team_id,
-        "Tm": team_name,
-        "W": wins,
-        "L": losses,
-        "W-L%": pct,
-        "GB": gb,
-    }
-
-
-def _division_metadata(division_record: Mapping[str, object]) -> dict[str, object]:
-    division = division_record.get("division")
-    if not isinstance(division, Mapping):
-        return {"division_id": None, "division_name": None}
-    return {
-        "division_id": division.get("id"),
-        "division_name": division.get("name"),
-    }
-
-
-def _parse_division_records(division_record: Mapping[str, object], season: int) -> pl.DataFrame:
-    team_records = division_record.get("teamRecords")
-    metadata = _division_metadata(division_record)
-    parsed_records = []
-    if isinstance(team_records, list):
-        for r in team_records:
-            if isinstance(r, Mapping):
-                typed_r = {str(k): v for k, v in r.items()}
-                parsed_records.append({"season": season, **metadata, **_parse_team_record(typed_r)})
-
-    if not parsed_records:
-        return pl.DataFrame(schema=STANDINGS_TYPES)
-
-    df = pl.DataFrame(parsed_records, schema=STANDINGS_TYPES)
-    return validate_and_cast_schema(df, STANDINGS_REQUIRED, STANDINGS_TYPES)
 
 
 def _standings_cache_key(season: int) -> str:
@@ -110,14 +28,7 @@ async def _fetch_standings(season: int, context: BaseballContext | None = None) 
     except Exception as e:
         raise UpstreamParseError(f"Failed to fetch or parse standings from MLB Stats API: {e}") from e
 
-    records = data.get("records", [])
-    if not isinstance(records, list):
-        return pl.DataFrame(schema=STANDINGS_TYPES)
-
-    divisions = [_parse_division_records(rec, season) for rec in records if isinstance(rec, Mapping)]
-    if not divisions:
-        return pl.DataFrame(schema=STANDINGS_TYPES)
-    return pl.concat(divisions)
+    return parse_standings_payload(data, season)
 
 
 async def standings(season: int | None = None, context: BaseballContext | None = None) -> pl.DataFrame:

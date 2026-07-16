@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import warnings
+from collections.abc import Iterable
 from datetime import date
 from typing import Literal
 
@@ -123,6 +124,37 @@ async def _player_request(
     )
 
 
+async def _run_statcast_parallel(
+    date_range: list[tuple[date, date]],
+    team: str | None,
+    verbose: bool,
+    context: BaseballContext | None,
+) -> list[pl.DataFrame]:
+    tasks = [_small_request(start, end, team, context=context) for start, end in date_range]
+    if verbose and len(date_range) > 1:
+        from tqdm.asyncio import tqdm as async_tqdm
+
+        return await async_tqdm.gather(*tasks)
+    return await asyncio.gather(*tasks)
+
+
+async def _run_statcast_sequential(
+    date_range: list[tuple[date, date]],
+    team: str | None,
+    verbose: bool,
+    context: BaseballContext | None,
+) -> list[pl.DataFrame]:
+    dataframe_list: list[pl.DataFrame] = []
+    iterable: Iterable[tuple[date, date]] = date_range
+    if verbose and len(date_range) > 1:
+        from tqdm import tqdm
+
+        iterable = tqdm(date_range)
+    for start, end in iterable:
+        dataframe_list.append(await _small_request(start, end, team, context=context))
+    return dataframe_list
+
+
 async def statcast(
     start_dt: str | None = None,
     end_dt: str | None = None,
@@ -155,25 +187,10 @@ async def statcast(
 
     date_range = list(statcast_date_range(start_dt_date, end_dt_date, step=1, verbose=verbose))
 
-    dataframe_list = []
     if parallel:
-        if verbose and len(date_range) > 1:
-            from tqdm.asyncio import tqdm as async_tqdm
-
-            tasks = [_small_request(start, end, team, context=context) for start, end in date_range]
-            dataframe_list = await async_tqdm.gather(*tasks)
-        else:
-            tasks = [_small_request(start, end, team, context=context) for start, end in date_range]
-            dataframe_list = await asyncio.gather(*tasks)
+        dataframe_list = await _run_statcast_parallel(date_range, team, verbose, context)
     else:
-        if verbose and len(date_range) > 1:
-            from tqdm import tqdm
-
-            for start, end in tqdm(date_range):
-                dataframe_list.append(await _small_request(start, end, team, context=context))
-        else:
-            for start, end in date_range:
-                dataframe_list.append(await _small_request(start, end, team, context=context))
+        dataframe_list = await _run_statcast_sequential(date_range, team, verbose, context)
 
     dfs = [df for df in dataframe_list if df is not None and not df.is_empty()]
     if not dfs:

@@ -1,28 +1,47 @@
-from typing import Any
+from typing import Any, cast
 
+import polars as pl
+
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.mlb import MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
 from polars_baseball.parsers.mlb.types import GameDict
 
 
-def parse_game(game_data: dict[str, Any]) -> GameDict:
-    status = game_data.get("status", {})
+def _team_info(game_data: dict[str, Any], team_type: str) -> tuple[Any, Any, Any, Any, Any]:
     teams = game_data.get("teams", {})
-    away = teams.get("away", {})
-    home = teams.get("home", {})
-    venue = game_data.get("venue", {})
-    away_probable_pitcher = away.get("probablePitcher", {})
-    home_probable_pitcher = home.get("probablePitcher", {})
+    team_side = teams.get(team_type, {}) if isinstance(teams, dict) else {}
+    team = team_side.get("team", {}) if isinstance(team_side, dict) else {}
+    probable_pitcher = team_side.get("probablePitcher", {}) if isinstance(team_side, dict) else {}
+    return (
+        team.get("id"),
+        team.get("name"),
+        team_side.get("score") if isinstance(team_side, dict) else None,
+        probable_pitcher.get("id"),
+        probable_pitcher.get("fullName"),
+    )
 
+
+def _line_score(game_data: dict[str, Any], team_type: str) -> tuple[Any, Any]:
     linescore = game_data.get("linescore", {})
     linescore_teams = linescore.get("teams", {}) if isinstance(linescore, dict) else {}
-    ls_away = linescore_teams.get("away", {}) if isinstance(linescore_teams, dict) else {}
-    ls_home = linescore_teams.get("home", {}) if isinstance(linescore_teams, dict) else {}
+    team_line = linescore_teams.get(team_type, {}) if isinstance(linescore_teams, dict) else {}
+    if not isinstance(team_line, dict):
+        return None, None
+    return team_line.get("hits"), team_line.get("errors")
 
+
+def _decision_pitcher(game_data: dict[str, Any], decision_type: str) -> tuple[Any, Any]:
     decisions = game_data.get("decisions", {})
     decisions = decisions if isinstance(decisions, dict) else {}
-    winner = decisions.get("winner", {}) if isinstance(decisions, dict) else {}
-    loser = decisions.get("loser", {}) if isinstance(decisions, dict) else {}
-    save_pitcher = decisions.get("save", {}) if isinstance(decisions, dict) else {}
+    pitcher = decisions.get(decision_type, {})
+    if not isinstance(pitcher, dict):
+        return None, None
+    return pitcher.get("id"), pitcher.get("fullName")
 
+
+def _game_metadata(game_data: dict[str, Any]) -> dict[str, Any]:
+    status = game_data.get("status", {})
+    venue = game_data.get("venue", {})
     return {
         "gamePk": game_data.get("gamePk"),
         "gameType": game_data.get("gameType"),
@@ -32,16 +51,6 @@ def parse_game(game_data: dict[str, Any]) -> GameDict:
         "statusAbstract": status.get("abstractGameState"),
         "statusCode": status.get("statusCode"),
         "statusDetailed": status.get("detailedState"),
-        "awayTeamId": away.get("team", {}).get("id"),
-        "awayTeamName": away.get("team", {}).get("name"),
-        "awayScore": away.get("score"),
-        "awayProbablePitcherId": away_probable_pitcher.get("id"),
-        "awayProbablePitcherName": away_probable_pitcher.get("fullName"),
-        "homeTeamId": home.get("team", {}).get("id"),
-        "homeTeamName": home.get("team", {}).get("name"),
-        "homeScore": home.get("score"),
-        "homeProbablePitcherId": home_probable_pitcher.get("id"),
-        "homeProbablePitcherName": home_probable_pitcher.get("fullName"),
         "venueId": venue.get("id"),
         "venueName": venue.get("name"),
         "doubleHeader": game_data.get("doubleHeader"),
@@ -55,14 +64,53 @@ def parse_game(game_data: dict[str, Any]) -> GameDict:
         "gamesInSeries": game_data.get("gamesInSeries"),
         "seriesGameNumber": game_data.get("seriesGameNumber"),
         "seriesDescription": game_data.get("seriesDescription"),
-        "awayHits": ls_away.get("hits") if ls_away else None,
-        "awayErrors": ls_away.get("errors") if ls_away else None,
-        "homeHits": ls_home.get("hits") if ls_home else None,
-        "homeErrors": ls_home.get("errors") if ls_home else None,
-        "winnerPitcherId": winner.get("id") if winner else None,
-        "winnerPitcherName": winner.get("fullName") if winner else None,
-        "loserPitcherId": loser.get("id") if loser else None,
-        "loserPitcherName": loser.get("fullName") if loser else None,
-        "savePitcherId": save_pitcher.get("id") if save_pitcher else None,
-        "savePitcherName": save_pitcher.get("fullName") if save_pitcher else None,
     }
+
+
+def parse_game(game_data: dict[str, Any]) -> GameDict:
+    away_id, away_name, away_score, away_pitcher_id, away_pitcher_name = _team_info(game_data, "away")
+    home_id, home_name, home_score, home_pitcher_id, home_pitcher_name = _team_info(game_data, "home")
+    away_hits, away_errors = _line_score(game_data, "away")
+    home_hits, home_errors = _line_score(game_data, "home")
+    winner_id, winner_name = _decision_pitcher(game_data, "winner")
+    loser_id, loser_name = _decision_pitcher(game_data, "loser")
+    save_id, save_name = _decision_pitcher(game_data, "save")
+    return cast(
+        GameDict,
+        {
+            **_game_metadata(game_data),
+            "awayTeamId": away_id,
+            "awayTeamName": away_name,
+            "awayScore": away_score,
+            "awayProbablePitcherId": away_pitcher_id,
+            "awayProbablePitcherName": away_pitcher_name,
+            "homeTeamId": home_id,
+            "homeTeamName": home_name,
+            "homeScore": home_score,
+            "homeProbablePitcherId": home_pitcher_id,
+            "homeProbablePitcherName": home_pitcher_name,
+            "awayHits": away_hits,
+            "awayErrors": away_errors,
+            "homeHits": home_hits,
+            "homeErrors": home_errors,
+            "winnerPitcherId": winner_id,
+            "winnerPitcherName": winner_name,
+            "loserPitcherId": loser_id,
+            "loserPitcherName": loser_name,
+            "savePitcherId": save_id,
+            "savePitcherName": save_name,
+        },
+    )
+
+
+def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
+    dates = data.get("dates", [])
+    if not dates:
+        return pl.DataFrame()
+    rows: list[GameDict] = []
+    for schedule_date in dates:
+        for game in schedule_date.get("games", []):
+            rows.append(parse_game(game))
+    if not rows:
+        return pl.DataFrame()
+    return validate_and_cast_schema(pl.DataFrame(rows), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES)
