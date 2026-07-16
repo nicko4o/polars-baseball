@@ -159,7 +159,6 @@ __all__ = [
     "prospect_rankings",
     "wild_card_logs",
     "world_series_logs",
-    "__version__",
 ]
 
 for _implementation_namespace in ("apis", "context", "enums", "exceptions", "gateways", "parsers"):
