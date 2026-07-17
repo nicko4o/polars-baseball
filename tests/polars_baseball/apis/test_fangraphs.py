@@ -88,7 +88,7 @@ async def test_fg_data_with_batting_request(
     assert df["playerid"][0] == 19755
 
     mock_http.get_text.assert_called_once()
-    mock_cache_get.assert_called_once()
+    assert mock_cache_get.call_count == 2
     mock_cache_set.assert_called_once()
 
 
@@ -112,7 +112,7 @@ async def test_fangraphs_batting_wrapper(
     _, kwargs = mock_http.get_text.call_args
     assert kwargs["params"]["lg"] == "al"
     assert kwargs["params"]["pageitems"] == "20"
-    mock_cache_get.assert_called_once()
+    assert mock_cache_get.call_count == 2
     mock_cache_set.assert_called_once()
 
 
@@ -133,7 +133,7 @@ async def test_namespace_batting_wrapper(
 
     assert df.height == 2
     mock_http.get_text.assert_called_once()
-    mock_cache_get.assert_called_once()
+    assert mock_cache_get.call_count == 2
     mock_cache_set.assert_called_once()
 
 
