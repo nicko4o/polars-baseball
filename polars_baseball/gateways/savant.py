@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Callable
 
@@ -66,6 +67,23 @@ class SavantGateway:
             lambda: self._fetch_and_parse_leaderboard(url, params),
         )
 
+    async def get_optional_dataset(
+        self,
+        url: str,
+        params: dict[str, str] | None = None,
+    ) -> pl.DataFrame | None:
+        """Return a cached CSV dataset, or None when the endpoint is unavailable."""
+        key = generate_cache_key(url, params)
+        cached = await asyncio.to_thread(self._context.cache.get, key)
+        if cached is not None:
+            return cached
+
+        result = await self._fetch_optional_dataset(url, params)
+        if result is None:
+            return None
+        await asyncio.to_thread(self._context.cache.set, key, result)
+        return result
+
     async def get_gamefeed_dataset(
         self,
         url: str,
@@ -100,6 +118,19 @@ class SavantGateway:
 
         raw_text = ensure_str(raw)
         self._verify_error_response(raw_text)
+        return self._csv_parser.parse(raw_text)
+
+    async def _fetch_optional_dataset(
+        self,
+        url: str,
+        params: dict[str, str] | None,
+    ) -> pl.DataFrame | None:
+        raw = await self._context.http.get_text(url, params=params)
+        if not raw:
+            return None
+        raw_text = ensure_str(raw)
+        if "<html" in raw_text.lower():
+            return None
         return self._csv_parser.parse(raw_text)
 
     async def _fetch_and_parse_leaderboard(
