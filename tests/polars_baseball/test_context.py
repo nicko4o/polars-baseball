@@ -1,3 +1,4 @@
+import asyncio
 import threading
 from unittest.mock import AsyncMock, MagicMock
 
@@ -96,6 +97,30 @@ async def test_cleanup_with_singleton_resets_it() -> None:
 
     assert _ctx_module._default_ctx is None
     mock_http.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("isolated_default_ctx")
+async def test_cleanup_detaches_singleton_before_closing() -> None:
+    close_started = asyncio.Event()
+    allow_close = asyncio.Event()
+    mock_http = AsyncMock(spec=HttpClient)
+
+    async def delayed_close() -> None:
+        close_started.set()
+        await allow_close.wait()
+
+    mock_http.close.side_effect = delayed_close
+    singleton = BaseballContext(http=mock_http)
+    _ctx_module._default_ctx = singleton
+
+    cleanup_task = asyncio.create_task(cleanup(singleton))
+    await close_started.wait()
+
+    assert default_context() is not singleton
+
+    allow_close.set()
+    await cleanup_task
 
 
 @pytest.mark.asyncio

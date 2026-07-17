@@ -9,8 +9,10 @@ from polars_baseball.context import BaseballContext
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = PROJECT_ROOT / "polars_baseball"
+PARSERS_ROOT = PACKAGE_ROOT / "parsers"
 MLB_API_ROOT = PACKAGE_ROOT / "apis" / "mlb"
 RETROSHEET_API = PACKAGE_ROOT / "apis" / "retrosheet.py"
+STANDINGS_API = PACKAGE_ROOT / "apis" / "standings.py"
 
 MLB_SHARED_ENDPOINT_CONSTANTS = {
     "_BOXSCORE_URL_TEMPLATE",
@@ -67,6 +69,21 @@ def test_cache_module_does_not_depend_on_context_module() -> None:
     assert forbidden_imports == []
 
 
+def test_any_is_confined_to_parser_boundary() -> None:
+    offenders: list[str] = []
+    for path in _python_files(PACKAGE_ROOT):
+        if path.is_relative_to(PARSERS_ROOT):
+            continue
+        tree = ast.parse(path.read_text())
+        offenders.extend(
+            f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} uses Any outside parser boundary"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and node.id == "Any"
+        )
+
+    assert offenders == []
+
+
 def test_venue_list_cache_key_matches_fetch_contract() -> None:
     venue_ids = [10, 20]
     expected_key = generate_cache_key(venues_url(), {"venueIds": "10,20"})
@@ -111,3 +128,16 @@ def test_retrosheet_api_layer_does_not_own_csv_or_json_parsing() -> None:
             offenders.append(f"line {node.lineno}: calls {func.attr}")
 
     assert offenders == []
+
+
+def test_mlb_api_uses_mlb_gateway() -> None:
+    direct_http_calls: list[str] = []
+    for path in [*_python_files(MLB_API_ROOT), STANDINGS_API]:
+        tree = ast.parse(path.read_text())
+        direct_http_calls.extend(
+            f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute) and node.attr == "http"
+        )
+
+    assert direct_http_calls == []

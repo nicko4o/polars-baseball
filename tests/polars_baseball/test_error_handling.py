@@ -14,6 +14,7 @@ from polars_baseball.exceptions import (
     InvalidSchemaError,
     PolarsBaseballError,
     PolarsBaseballHttpError,
+    PolarsBaseballTransportError,
     ServerError,
     UpstreamDataCorruptedError,
     UpstreamParseError,
@@ -47,7 +48,7 @@ async def test_client_bref_get_wraps_curl_request_error() -> None:
     mock_session.get = AsyncMock(side_effect=CurlConnectionError("DNS failure"))
 
     with patch.object(client, "get_cffi_session", return_value=mock_session):
-        with pytest.raises(PolarsBaseballHttpError, match="BRef HTTP request failed"):
+        with pytest.raises(PolarsBaseballTransportError, match="BRef network request failed"):
             await client.get_text("https://www.baseball-reference.com/dummy")
 
 

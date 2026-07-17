@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import cast
 
 import polars as pl
 
@@ -17,9 +17,9 @@ def validate_critical_columns_present(
         raise AssertionError(f"Missing critical columns in {label}: {missing}. Available: {sorted(df.columns)}")
 
 
-def validate_next_data_structure(data: Any, label: str = "FanGraphs NEXT_DATA") -> list[Mapping[str, Any]]:
+def validate_next_data_structure(data: object, label: str = "FanGraphs NEXT_DATA") -> list[Mapping[str, object]]:
     expect_mapping(data, f"{label} root")
-    root = cast(Mapping[str, Any], data)
+    root = cast(Mapping[str, object], data)
     root = child_mapping(root, "props", "props")
     root = child_mapping(root, "pageProps", "props.pageProps")
     root = child_mapping(root, "dehydratedState", "props.pageProps.dehydratedState")
@@ -32,4 +32,4 @@ def validate_next_data_structure(data: Any, label: str = "FanGraphs NEXT_DATA") 
         raise UpstreamStructureChangedError(
             f"Expected {label}.props.pageProps.dehydratedState.queries entries to be JSON objects."
         )
-    return cast(list[Mapping[str, Any]], queries)
+    return cast(list[Mapping[str, object]], queries)

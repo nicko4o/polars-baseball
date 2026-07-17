@@ -22,22 +22,42 @@ class MlbStatsGateway:
         error_msg: str,
         parser: Callable[[JsonObject], pl.DataFrame],
     ) -> pl.DataFrame:
-        try:
-            raw_text = await self._context.http.get_text(url, params=params)
-        except PolarsBaseballHttpError:
-            raise
-        except Exception as exc:
-            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
-
-        try:
-            result = json.loads(raw_text)
-        except Exception as exc:
-            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
-
+        result = await self._fetch_json(url, params, error_msg)
         if not isinstance(result, dict):
             raise UpstreamParseError(f"Expected dict from API response, got {type(result)}")
 
         try:
             return parser(cast(JsonObject, result))
-        except Exception as exc:
+        except (KeyError, TypeError, ValueError, pl.exceptions.PolarsError) as exc:
+            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+
+    async def fetch_payload(
+        self,
+        url: str,
+        params: Mapping[str, object] | None,
+        error_msg: str,
+        parser: Callable[[object], pl.DataFrame],
+    ) -> pl.DataFrame:
+        result = await self._fetch_json(url, params, error_msg)
+        try:
+            return parser(result)
+        except (KeyError, TypeError, ValueError, pl.exceptions.PolarsError) as exc:
+            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+
+    async def _fetch_json(
+        self,
+        url: str,
+        params: Mapping[str, object] | None,
+        error_msg: str,
+    ) -> object:
+        try:
+            raw_text = await self._context.http.get_text(url, params=params)
+        except PolarsBaseballHttpError:
+            raise
+        except (TypeError, ValueError) as exc:
+            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+
+        try:
+            return json.loads(raw_text)
+        except json.JSONDecodeError as exc:
             raise UpstreamParseError(f"{error_msg}: {exc}") from exc

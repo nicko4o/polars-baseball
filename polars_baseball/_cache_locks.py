@@ -45,19 +45,22 @@ class SharedExclusiveLock:
                 self._cond.notify_all()
 
 
-_IN_FLIGHT_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
+_IN_FLIGHT_LOCKS: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, weakref.WeakValueDictionary[str, asyncio.Lock]
+] = weakref.WeakKeyDictionary()
 _IN_FLIGHT_LOCKS_GUARD = threading.Lock()
 
 
 def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
-    # Use id(cache) to avoid holding a strong reference to the cache object.
-    # id reuse after GC is safe: the WeakValueDictionary evicts the entry as soon
-    # as the lock has no remaining strong references (i.e. the operation finished),
-    # so a recycled id always starts with a fresh lock entry.
+    loop = asyncio.get_running_loop()
     composite_key = f"{id(cache)}:{key}"
     with _IN_FLIGHT_LOCKS_GUARD:
-        lock = _IN_FLIGHT_LOCKS.get(composite_key)
+        loop_locks = _IN_FLIGHT_LOCKS.get(loop)
+        if loop_locks is None:
+            loop_locks = weakref.WeakValueDictionary()
+            _IN_FLIGHT_LOCKS[loop] = loop_locks
+        lock = loop_locks.get(composite_key)
         if lock is None:
             lock = asyncio.Lock()
-            _IN_FLIGHT_LOCKS[composite_key] = lock
+            loop_locks[composite_key] = lock
         return lock

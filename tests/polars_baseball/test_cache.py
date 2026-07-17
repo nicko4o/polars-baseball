@@ -158,6 +158,31 @@ async def test_cache_get_or_fetch_miss(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_cache_get_or_fetch_runs_storage_off_event_loop(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    event_loop_thread = threading.get_ident()
+    storage_threads: list[int] = []
+    original_get = adapter.get
+    original_set = adapter.set
+
+    def tracked_get(key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+        storage_threads.append(threading.get_ident())
+        return original_get(key, max_age)
+
+    def tracked_set(key: str, value: pl.DataFrame) -> None:
+        storage_threads.append(threading.get_ident())
+        original_set(key, value)
+
+    adapter.get = tracked_get  # type: ignore[method-assign]
+    adapter.set = tracked_set  # type: ignore[method-assign]
+
+    await adapter.get_or_fetch("off-loop", _result_a1)
+
+    assert storage_threads
+    assert all(thread_id != event_loop_thread for thread_id in storage_threads)
+
+
+@pytest.mark.asyncio
 async def test_cache_get_or_fetch_hit(tmp_path: Path) -> None:
     adapter = FileCacheAdapter(cache_dir=tmp_path)
     adapter.set("k", pl.DataFrame({"a": [42]}))
@@ -216,8 +241,7 @@ async def _async_result(df: pl.DataFrame) -> pl.DataFrame:
 
 
 @pytest.mark.asyncio
-async def test_in_flight_lock_flat_structure() -> None:
-    """_IN_FLIGHT_LOCKS is a flat WeakValueDictionary[str, Lock] keyed by composite string."""
+async def test_in_flight_lock_is_scoped_to_event_loop() -> None:
     import gc
 
     from polars_baseball._cache import _IN_FLIGHT_LOCKS, FileCacheAdapter, _in_flight_lock_for
@@ -226,8 +250,9 @@ async def test_in_flight_lock_flat_structure() -> None:
     lock1 = _in_flight_lock_for(cache, "flat-key")
     assert isinstance(lock1, asyncio.Lock)
 
+    loop = asyncio.get_running_loop()
     composite = f"{id(cache)}:flat-key"
-    assert composite in _IN_FLIGHT_LOCKS
+    assert composite in _IN_FLIGHT_LOCKS[loop]
 
     # Same (cache, key) pair returns the identical lock object.
     lock2 = _in_flight_lock_for(cache, "flat-key")
@@ -236,21 +261,17 @@ async def test_in_flight_lock_flat_structure() -> None:
     # Once the last strong reference is dropped the WeakValueDictionary evicts the entry.
     del lock1, lock2
     gc.collect()
-    assert composite not in _IN_FLIGHT_LOCKS
+    assert composite not in _IN_FLIGHT_LOCKS[loop]
 
 
 @pytest.mark.asyncio
-async def test_in_flight_lock_no_event_loop_key() -> None:
-    """The in-flight registry must not use the event loop as a key (old 3-level design)."""
+async def test_in_flight_lock_registry_uses_weak_event_loop_keys() -> None:
     from polars_baseball._cache import _IN_FLIGHT_LOCKS, FileCacheAdapter, _in_flight_lock_for
 
     cache = FileCacheAdapter()
     _in_flight_lock_for(cache, "loop-free-key")
 
-    # _IN_FLIGHT_LOCKS is now a flat WeakValueDictionary, not WeakKeyDictionary.
-    # WeakKeyDictionary would store AbstractEventLoop objects as keys.
-    assert isinstance(_IN_FLIGHT_LOCKS, weakref.WeakValueDictionary)
-    assert not isinstance(_IN_FLIGHT_LOCKS, weakref.WeakKeyDictionary)
+    assert isinstance(_IN_FLIGHT_LOCKS, weakref.WeakKeyDictionary)
 
 
 def test_file_cache_adapter_clear_error(tmp_path: Path) -> None:
