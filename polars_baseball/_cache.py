@@ -57,12 +57,10 @@ class CacheCallArgs:
 
     def argument(self, name: str, expected_type: type[T], default: object = _MISSING_ARGUMENT) -> T | None:
         value = self.arguments.get(name, _MISSING_ARGUMENT)
-        if value is _MISSING_ARGUMENT:
+        if value is _MISSING_ARGUMENT or value is None:
             if default is _MISSING_ARGUMENT:
                 raise TypeError(f"{name} is required")
             return cast(T | None, default)
-        if value is None and default is not _MISSING_ARGUMENT:
-            return None
         if not isinstance(value, expected_type):
             raise TypeError(f"{name} must be {expected_type.__name__}, got {type(value).__name__}")
         return value

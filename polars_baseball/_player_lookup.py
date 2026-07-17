@@ -1,5 +1,8 @@
+import asyncio
 import logging
+import threading
 import unicodedata
+import weakref
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
 
@@ -17,6 +20,10 @@ from polars_baseball.exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 LookupTableLoader = Callable[[], Awaitable[pl.DataFrame]]
+PlayerId = int | str
+_NORMALIZED_LAST_COLUMN = "name_last_normalized"
+_NORMALIZED_FIRST_COLUMN = "name_first_normalized"
+_NORMALIZED_COLUMNS = (_NORMALIZED_LAST_COLUMN, _NORMALIZED_FIRST_COLUMN)
 
 
 def normalize_accents(value: str) -> str:
@@ -26,24 +33,33 @@ def normalize_accents(value: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", value) if unicodedata.category(c) != "Mn")
 
 
-def _fuzzy_candidates(last: str, table: pl.DataFrame) -> pl.DataFrame:
+def _without_normalized_names(table: pl.DataFrame) -> pl.DataFrame:
+    return table.drop(*_NORMALIZED_COLUMNS)
+
+
+def _fuzzy_candidates(last: str, table: pl.DataFrame, last_column: str = "name_last") -> pl.DataFrame:
     if table.height <= FUZZY_MIN_SIZE_FOR_FILTER:
         return table
     last_length = len(last)
     candidates = table.filter(
-        (pl.col("name_last").str.len_chars() >= max(1, last_length - FUZZY_NAME_LENGTH_TOLERANCE))
-        & (pl.col("name_last").str.len_chars() <= last_length + FUZZY_NAME_LENGTH_TOLERANCE)
+        (pl.col(last_column).str.len_chars() >= max(1, last_length - FUZZY_NAME_LENGTH_TOLERANCE))
+        & (pl.col(last_column).str.len_chars() <= last_length + FUZZY_NAME_LENGTH_TOLERANCE)
     )
     return table if candidates.height < FUZZY_FALLBACK_MIN_RESULTS else candidates
 
 
-def get_closest_names(last: str, first: str, table: pl.DataFrame) -> pl.DataFrame:
+def get_closest_names(
+    last: str,
+    first: str,
+    table: pl.DataFrame,
+    last_column: str = "name_last",
+    first_column: str = "name_first",
+) -> pl.DataFrame:
     """Return fuzzy name matches from a normalized player lookup table."""
     filled = table.with_columns(
-        name_first=pl.col("name_first").fill_null(""),
-        name_last=pl.col("name_last").fill_null(""),
-    ).with_columns(chadwick_name=pl.col("name_first") + " " + pl.col("name_last"))
-    candidates = _fuzzy_candidates(last, filled)
+        chadwick_name=pl.col(first_column).fill_null("") + " " + pl.col(last_column).fill_null("")
+    )
+    candidates = _fuzzy_candidates(last, filled, last_column)
     matches = get_close_matches(
         f"{first} {last}",
         candidates["chadwick_name"].to_list(),
@@ -57,26 +73,38 @@ class PlayerLookupService:
     def __init__(self, load_table: LookupTableLoader) -> None:
         self._load_table = load_table
         self.table: pl.DataFrame | None = None
+        self._load_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+            weakref.WeakKeyDictionary()
+        )
+        self._load_locks_guard = threading.Lock()
+
+    def _load_lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        with self._load_locks_guard:
+            lock = self._load_locks.get(loop)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._load_locks[loop] = lock
+            return lock
 
     async def _ensure_table(self) -> pl.DataFrame:
         if self.table is not None:
             return self.table
-        table = await self._load_table()
-        self.table = (
-            table.with_columns(
+        async with self._load_lock():
+            if self.table is not None:
+                return self.table
+            table = await self._load_table()
+            self.table = table.with_columns(
                 pl.col("name_last")
                 .str.normalize("NFD")
                 .str.replace_all(r"[\u0300-\u036f]", "")
-                .alias("name_last_normalized"),
+                .alias(_NORMALIZED_LAST_COLUMN),
                 pl.col("name_first")
                 .str.normalize("NFD")
                 .str.replace_all(r"[\u0300-\u036f]", "")
-                .alias("name_first_normalized"),
+                .alias(_NORMALIZED_FIRST_COLUMN),
             )
-            if not table.is_empty()
-            else table
-        )
-        return self.table
+            return self.table
 
     async def search(
         self, last: str, first: str | None = None, fuzzy: bool = False, ignore_accents: bool = False
@@ -84,31 +112,33 @@ class PlayerLookupService:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
         table = await self._ensure_table()
+        last_column = "name_last"
+        first_column = "name_first"
         if ignore_accents:
             last_clean = normalize_accents(last_clean)
             first_clean = normalize_accents(first_clean) if first_clean else None
-            table = table.with_columns(
-                pl.col("name_last_normalized").alias("name_last"),
-                pl.col("name_first_normalized").alias("name_first"),
-            )
-        predicate = pl.col("name_last") == last_clean
+            last_column = _NORMALIZED_LAST_COLUMN
+            first_column = _NORMALIZED_FIRST_COLUMN
+        predicate = pl.col(last_column) == last_clean
         if first_clean is not None:
-            predicate &= pl.col("name_first") == first_clean
+            predicate &= pl.col(first_column) == first_clean
         results = table.filter(predicate)
         if not results.is_empty() or not fuzzy:
-            return results
+            return _without_normalized_names(results)
         logger.warning("No names found. Returning closest Chadwick register matches.")
-        return get_closest_names(last_clean, first_clean or "", table)
+        matches = get_closest_names(last_clean, first_clean or "", table, last_column, first_column)
+        return _without_normalized_names(matches)
 
     async def search_list(self, players: list[tuple[str, str]]) -> pl.DataFrame:
         results = [await self.search(last, first) for last, first in players]
         return pl.concat(results, how="diagonal") if results else pl.DataFrame()
 
-    async def reverse_lookup(self, player_ids: list[int], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
+    async def reverse_lookup(self, player_ids: list[PlayerId], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
         if not isinstance(key_type, KeyType):
             raise InvalidParameterError("key_type must be a KeyType enum value.")
         key = f"key_{key_type.value}"
-        ids: list[int] | list[str] = player_ids
+        ids: list[PlayerId] = player_ids
         if key_type not in (KeyType.MLBAM, KeyType.FANGRAPHS):
             ids = [str(player_id) for player_id in player_ids]
-        return (await self._ensure_table()).filter(pl.col(key).is_in(ids))
+        results = (await self._ensure_table()).filter(pl.col(key).is_in(ids))
+        return _without_normalized_names(results)

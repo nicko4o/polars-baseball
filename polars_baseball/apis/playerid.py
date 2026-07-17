@@ -6,7 +6,7 @@ import polars as pl
 from polars_baseball._config import (
     CHADWICK_REGISTER_ARCHIVE_URL,
 )
-from polars_baseball._player_lookup import PlayerLookupService
+from polars_baseball._player_lookup import PlayerId, PlayerLookupService
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import UpstreamParseError
@@ -138,7 +138,7 @@ async def player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame
     return await _module_client.search_list(player_list)
 
 
-async def playerid_reverse_lookup(player_ids: list[int], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
+async def playerid_reverse_lookup(player_ids: list[PlayerId], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
     """Reverse lookup players by their IDs in a given key system.
 
     Use ``key_type`` to select the ID namespace (MLBAM, FanGraphs, BRef, or Retrosheet).

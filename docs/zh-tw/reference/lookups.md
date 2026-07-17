@@ -34,11 +34,11 @@
 
 ### 函式
 
-- `playerid_reverse_lookup(player_ids: list[int], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame`
+- `playerid_reverse_lookup(player_ids: list[int | str], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame`
 
 ### 參數
 
-- `player_ids`：要查詢的整數 ID 列表。
+- `player_ids`：要查詢的 ID；MLBAM／FanGraphs 使用整數，BRef／Retrosheet 使用字串。
 - `key_type`：輸入 ID 的資料庫命名空間。必須是 `KeyType` 列舉值：
   - `KeyType.MLBAM` (MLB Advanced Media / Statcast ID)
   - `KeyType.RETROSHEET` (Retrosheet ID)
