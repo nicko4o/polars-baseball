@@ -8,6 +8,7 @@ import polars as pl
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import BREF_ROOT
 from polars_baseball.context import BaseballContext
+from polars_baseball.exceptions import UpstreamStructureChangedError
 from polars_baseball.parsers._strategy import ProviderChain
 from polars_baseball.parsers.base import BaseParser
 from polars_baseball.parsers.bref import BRefHTMLParser, BRefSplitsParser
@@ -78,7 +79,7 @@ class BRefGateway:
                 try:
                     result = auto_chain.execute(raw_text)
                     return result.df
-                except Exception:
+                except UpstreamStructureChangedError:
                     # Auto-chain failed; fall through to the legacy parser path.
                     logger.warning("BRef auto-chain failed; falling back to legacy parser.", exc_info=True)
             return parser.parse(raw_text)

@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import polars as pl
@@ -20,7 +19,7 @@ from polars_baseball.apis.mlb._contracts import (
     win_probability_url,
 )
 from polars_baseball.context import BaseballContext, default_context
-from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
     parse_mlb_boxscore,
@@ -111,13 +110,12 @@ async def _fetch_mlb_game_win_probability(
 ) -> pl.DataFrame:
     url = win_probability_url(game_pk)
     ctx = context or default_context()
-    try:
-        raw_text = await ctx.http.get_text(url)
-        data = json.loads(raw_text)
-    except Exception as e:
-        raise UpstreamParseError(f"Failed to fetch or parse MLB win probability data: {e}") from e
-
-    return parse_mlb_win_probability(data, game_pk)
+    return await MlbStatsGateway(ctx).fetch_payload(
+        url,
+        None,
+        "Failed to fetch or parse MLB win probability data",
+        lambda payload: parse_mlb_win_probability(payload, game_pk),
+    )
 
 
 async def mlb_game_play_by_play(

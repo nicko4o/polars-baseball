@@ -18,6 +18,10 @@ class PolarsBaseballHttpError(ServerError):
         self.status_code = status_code
 
 
+class PolarsBaseballTransportError(ServerError):
+    """Exception raised when no HTTP response was received."""
+
+
 class InvalidParameterError(ClientError, ValueError):
     """Exception raised when query parameters are invalid (4xx equivalent)."""
 

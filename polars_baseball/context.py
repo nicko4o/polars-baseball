@@ -74,11 +74,10 @@ async def cleanup(ctx: BaseballContext | None = None) -> None:
     """
     global _default_ctx
     if ctx is not None:
-        await ctx.http.close()
-        # Reset singleton only if the caller passed the singleton itself.
         with _default_ctx_lock:
             if _default_ctx is ctx:
                 _default_ctx = None
+        await ctx.http.close()
     else:
         # Atomically grab and clear the singleton before closing so concurrent
         # callers cannot observe a dead client via default_context().

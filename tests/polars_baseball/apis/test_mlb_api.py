@@ -30,7 +30,7 @@ from polars_baseball.apis.mlb import (
     mlb_venues,
 )
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.exceptions import InvalidParameterError, PolarsBaseballTransportError, UpstreamParseError
 
 # ── Mock Data ──────────────────────────────────────────────────────────
 _MOCK_PEOPLE_JSON = {
@@ -379,10 +379,10 @@ async def test_mlb_roster_invalid_parameters() -> None:
 @patch("polars_baseball.apis.mlb.people.default_context")
 async def test_mlb_api_upstream_error(mock_default_ctx: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=Exception("Connection reset"))
+    mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Connection reset"))
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    with pytest.raises(UpstreamParseError, match="Connection reset"):
+    with pytest.raises(PolarsBaseballTransportError, match="Connection reset"):
         await mlb_people(person_ids=545361)
 
 
@@ -574,10 +574,10 @@ async def test_mlb_teams_empty(mock_default_ctx: MagicMock) -> None:
 @patch("polars_baseball.apis.mlb.taxonomy.default_context")
 async def test_mlb_teams_upstream_error(mock_default_ctx: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=Exception("API timeout"))
+    mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("API timeout"))
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    with pytest.raises(UpstreamParseError, match="API timeout"):
+    with pytest.raises(PolarsBaseballTransportError, match="API timeout"):
         await mlb_teams(season=2025)
 
 
@@ -766,10 +766,10 @@ async def test_mlb_game_play_by_play_empty(mock_default_ctx: MagicMock) -> None:
 @patch("polars_baseball.apis.mlb.game.default_context")
 async def test_mlb_game_play_by_play_upstream_error(mock_default_ctx: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=Exception("Bad Gateway"))
+    mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Bad Gateway"))
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    with pytest.raises(UpstreamParseError, match="Bad Gateway"):
+    with pytest.raises(PolarsBaseballTransportError, match="Bad Gateway"):
         await mlb_game_play_by_play(game_pk=715789)
 
 
@@ -913,10 +913,10 @@ async def test_mlb_stat_leaders_empty(mock_default_ctx: MagicMock) -> None:
 @patch("polars_baseball.apis.mlb.stats.default_context")
 async def test_mlb_stat_leaders_upstream_error(mock_default_ctx: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=Exception("Server Error"))
+    mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Server Error"))
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    with pytest.raises(UpstreamParseError, match="Server Error"):
+    with pytest.raises(PolarsBaseballTransportError, match="Server Error"):
         await mlb_stat_leaders(season=2025, categories=["homeRuns"])
 
 

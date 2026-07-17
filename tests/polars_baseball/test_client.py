@@ -7,7 +7,7 @@ import pytest
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from polars_baseball._client import HttpClient
-from polars_baseball.exceptions import PolarsBaseballHttpError
+from polars_baseball.exceptions import PolarsBaseballHttpError, PolarsBaseballTransportError
 
 
 @pytest.fixture
@@ -232,14 +232,13 @@ async def test_get_unknown_url_defaults_to_httpx(client: HttpClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_text_httpx_connect_timeout(client: HttpClient) -> None:
-    """HTTPX connection timeout should be wrapped in PolarsBaseballHttpError with status 500."""
+    """Transport failures must not masquerade as HTTP status responses."""
     mock_httpx = MagicMock(spec=httpx.AsyncClient)
     mock_httpx.get = AsyncMock(side_effect=httpx.ConnectTimeout("Connect timeout"))
 
     with patch.object(client, "_httpx_client", mock_httpx):
-        with pytest.raises(PolarsBaseballHttpError) as exc_info:
+        with pytest.raises(PolarsBaseballTransportError) as exc_info:
             await client.get_text("https://baseballsavant.mlb.com/api")
-    assert exc_info.value.status_code == 500
     assert "Network request failed" in str(exc_info.value)
 
 

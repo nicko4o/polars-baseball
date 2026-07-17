@@ -8,7 +8,7 @@ import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
 import polars as pl
 
@@ -136,7 +136,7 @@ def _validate_zip(path: Path) -> None:
         return None
 
 
-def _write_atomic(path: Path, write_func: Callable[[Path], Any]) -> None:
+def _write_atomic(path: Path, write_func: Callable[[Path], object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
         tmp_path = Path(tmp.name)

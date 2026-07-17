@@ -1,3 +1,3 @@
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
-JsonObject: TypeAlias = dict[str, Any]
+JsonObject: TypeAlias = dict[str, object]

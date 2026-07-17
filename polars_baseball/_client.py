@@ -8,7 +8,7 @@ from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
 from polars_baseball._config import BREF_ROOT, DEFAULT_TIMEOUT, FG_ROOT
-from polars_baseball.exceptions import PolarsBaseballHttpError
+from polars_baseball.exceptions import PolarsBaseballHttpError, PolarsBaseballTransportError
 
 _BROWSER_HEADERS: Mapping[str, str] = {
     "User-Agent": (
@@ -118,8 +118,11 @@ class HttpClient:
         for attempt in range(self._max_retries + 1):
             try:
                 return await operation()
-            except PolarsBaseballHttpError as exc:
-                if attempt == self._max_retries or not self._is_transient_status(exc.status_code):
+            except (PolarsBaseballHttpError, PolarsBaseballTransportError) as exc:
+                should_retry = isinstance(exc, PolarsBaseballTransportError) or self._is_transient_status(
+                    exc.status_code
+                )
+                if attempt == self._max_retries or not should_retry:
                     raise
                 await asyncio.sleep(self._retry_delay(attempt))
 
@@ -152,10 +155,7 @@ class HttpClient:
                     status_code=e.response.status_code,
                 ) from e
             except httpx.RequestError as e:
-                raise PolarsBaseballHttpError(
-                    f"Network request failed: {e}",
-                    status_code=500,
-                ) from e
+                raise PolarsBaseballTransportError(f"Network request failed: {e}") from e
 
         return await self._with_retries(request_once)
 
@@ -186,12 +186,16 @@ class HttpClient:
         return await self._with_retries(request_once)
 
     @staticmethod
-    def _wrap_cffi_error(url: str, error: CurlRequestException) -> PolarsBaseballHttpError:
-        status_code = getattr(getattr(error, "response", None), "status_code", 500)
+    def _wrap_cffi_error(
+        url: str, error: CurlRequestException
+    ) -> PolarsBaseballHttpError | PolarsBaseballTransportError:
+        response = getattr(error, "response", None)
         label = "BRef" if url.startswith(BREF_ROOT) else "FanGraphs"
+        if response is None:
+            return PolarsBaseballTransportError(f"{label} network request failed: {error}")
         return PolarsBaseballHttpError(
             f"{label} HTTP request failed: {error}",
-            status_code=status_code,
+            status_code=response.status_code,
         )
 
     async def get_text(

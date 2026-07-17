@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, TypeVar
+from typing import TypeVar
 
 from polars_baseball.exceptions import InvalidParameterError
 
@@ -8,7 +8,7 @@ _T = TypeVar("_T", bound="EnumBase")
 
 class EnumBase(Enum):
     @classmethod
-    def values(enum_class: type[_T]) -> Any:
+    def values(enum_class: type[_T]) -> list[object]:
         return [x.value for x in enum_class]
 
     @classmethod
@@ -34,7 +34,7 @@ class EnumBase(Enum):
         return parsed
 
     @classmethod
-    def safe_parse_by_value(enum_class: type[_T], value: Any) -> _T | None:
+    def safe_parse_by_value(enum_class: type[_T], value: object) -> _T | None:
         values = enum_class.values()
 
         matched = [x for x in values if str(x).upper() == str(value).upper()]

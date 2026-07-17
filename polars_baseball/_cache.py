@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import hashlib
 import inspect
@@ -123,16 +124,16 @@ class CacheAdapter(ABC):
         force_update: bool = False,
     ) -> pl.DataFrame:
         if not force_update:
-            cached = self.get(key, max_age=max_age)
+            cached = await asyncio.to_thread(self.get, key, max_age)
             if cached is not None:
                 return cached
         async with _in_flight_lock_for(self, key):
             if not force_update:
-                cached = self.get(key, max_age=max_age)
+                cached = await asyncio.to_thread(self.get, key, max_age)
                 if cached is not None:
                     return cached
             df = await fetcher()
-            self.set(key, df)
+            await asyncio.to_thread(self.set, key, df)
             return df
 
     def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
@@ -235,28 +236,37 @@ class FileCacheAdapter(CacheAdapter):
 class GlobalCache(CacheAdapter):
     def __init__(self, cache_dir: Path | None = None) -> None:
         self._adapter = FileCacheAdapter(cache_dir)
+        self._adapter_lock = SharedExclusiveLock()
 
     @property
     def cache_dir(self) -> Path:
-        return self._adapter.cache_dir
+        with self._adapter_lock.shared():
+            return self._adapter.cache_dir
 
     def configure(self, cache_dir: Path) -> None:
-        self._adapter = FileCacheAdapter(cache_dir)
+        adapter = FileCacheAdapter(cache_dir)
+        with self._adapter_lock.exclusive():
+            self._adapter = adapter
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        return self._adapter.get(key, max_age)
+        with self._adapter_lock.shared():
+            return self._adapter.get(key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
-        self._adapter.set(key, value)
+        with self._adapter_lock.shared():
+            self._adapter.set(key, value)
 
     def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
-        return self._adapter.get_list(key, max_age=max_age)
+        with self._adapter_lock.shared():
+            return self._adapter.get_list(key, max_age=max_age)
 
     def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
-        self._adapter.set_list(key, dfs)
+        with self._adapter_lock.shared():
+            self._adapter.set_list(key, dfs)
 
     def clear(self) -> None:
-        self._adapter.clear()
+        with self._adapter_lock.shared():
+            self._adapter.clear()
 
 
 global_cache = GlobalCache()
@@ -347,11 +357,13 @@ def _cached_execute(
     async def run() -> R:
         async with _in_flight_lock_for(cache_call.context.cache, cache_call.key):
             if not cache_call.force_update:
-                cached_val = cache_get(cache_call.context.cache, cache_call.key, cache_call.max_age)
+                cached_val = await asyncio.to_thread(
+                    cache_get, cache_call.context.cache, cache_call.key, cache_call.max_age
+                )
                 if cached_val is not None:
                     return cached_val
             val = await fn(*args, **kwargs)
-            cache_set(cache_call.context.cache, cache_call.key, val)
+            await asyncio.to_thread(cache_set, cache_call.context.cache, cache_call.key, val)
             return val
 
     return run()
