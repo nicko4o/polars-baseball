@@ -13,27 +13,13 @@
 
 ## Reference
 
-- [Statcast](reference/statcast.md)
-- [Statcast 打者 APIs](reference/statcast_batter.md)
-- [Statcast 投手 APIs](reference/statcast_pitcher.md)
+- [Statcast / Savant](reference/statcast.md)
 - [FanGraphs](reference/fangraphs.md)
 - [MLB Stats API](reference/mlb_api.md)
-- [Player ID Lookup](reference/playerid_lookup.md)
-- [Standings](reference/standings.md)
-- [Savant Gamefeed](reference/savant_gamefeed.md)
-- [Prospect Rankings](reference/prospect_rankings.md)
+- [查詢與對照 (Lookups & Mappings)](reference/lookups.md)
+- [Baseball Reference](reference/bref.md)
 - [Lahman](reference/lahman.md)
 - [Retrosheet](reference/retrosheet.md)
-- [Baseball Reference 打擊 WAR](reference/bwar_bat.md)
-- [Baseball Reference 投球 WAR](reference/bwar_pitch.md)
-- [Chadwick Register](reference/chadwick_register.md)
-- [FanGraphs 打擊資料](reference/fg_batting_data.md)
-- [FanGraphs 投球資料](reference/fg_pitching_data.md)
-- [Player ID Reverse Lookup](reference/playerid_reverse_lookup.md)
-- [Team ID Lookup](reference/teamid_lookup.md)
-- [Statcast Fielding](reference/statcast_fielding.md)
-- [Statcast Running](reference/statcast_running.md)
-- [Statcast Utilities](reference/statcast_utils.md)
 
 ## 維護
 

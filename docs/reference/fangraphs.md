@@ -3,14 +3,15 @@
 
 # FanGraphs Data Acquisition
 
-Use this when: you need FanGraphs player or team leaderboards.
-Do not use this when: you need pitch-level Statcast rows or official MLB game endpoints.
-Output grain: one row per player, team, or split returned by FanGraphs.
-Source: FanGraphs.
+Documentation and API reference for retrieving player and team leaderboards from FanGraphs.
 
-FanGraphs data should be retrieved through the `fangraphs` namespace, such as `pb.fangraphs.batting(...)`. Advanced callers can still build a `FanGraphsRequest` and pass it to `fg_data(request)`.
+---
 
 ## Namespace Helpers
+
+For common queries, use helper functions under the `fangraphs` namespace (e.g. `pb.fangraphs.batting(...)`).
+
+### Functions
 
 | Function | Description |
 | --- | --- |
@@ -21,46 +22,68 @@ FanGraphs data should be retrieved through the `fangraphs` namespace, such as `p
 | `fangraphs.team_pitching(start_season, ...)` | Team pitching leaderboard. |
 | `fangraphs.team_fielding(start_season, ...)` | Team fielding leaderboard. |
 
-## `FanGraphsRequest`
+### Arguments
+
+The namespace helpers accept all arguments supported by `FanGraphsRequest` directly as keyword arguments.
+
+---
+
+## Advanced Queries (`fg_data`)
+
+Advanced callers can construct a `FanGraphsRequest` object and pass it directly to `fg_data` to execute custom or fine-tuned requests.
+
+### Functions
+
+- `fg_data(request: FanGraphsRequest) -> pl.DataFrame`
+
+### `FanGraphsRequest` Attributes
+
+Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGraphsRequest.pitching(...)`, `FanGraphsRequest.team_batting(...)`, etc.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `start_season` | `int` | required | First season to retrieve. |
 | `end_season` | `int | None` | `start_season` | Final season to retrieve. |
 | `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch. |
-| `league` | `FangraphsLeague \| str` | `ALL` | League filter. Strings (e.g. `"AL"`) are auto-parsed. |
-| `month` | `FangraphsMonth \| str` | `ALL` | Month or split filter. `ALL` disables the filter. |
+| `league` | `FangraphsLeague \| str` | `ALL` | League filter (e.g. `"AL"`, `"NL"`). |
+| `month` | `FangraphsMonth \| str` | `ALL` | Month or split filter. |
 | `position` | `FangraphsPositions \| str` | `ALL` | Position filter. |
-| `stat_columns` | `str \| list[str]` | `ALL` | Columns to return, or `ALL` for the default set. |
-| `qual` | `int \| None` | `None` | Minimum playing-time threshold. `None` = FG default. |
-| `split_seasons` | `bool` | `True` | `True` = season-level rows; `False` = aggregated. |
-| `on_active_roster` | `bool` | `False` | When `True`, only active-roster players are returned. |
-| `minimum_age` / `maximum_age` | `int` | `0` / `100` | Player age bounds. |
-| `team` | `str` | `""` | Team filter. Use `"0,ts"` for aggregate team rows. |
-| `max_results` | `int` | `1_000_000` | Maximum number of rows to request. |
+| `stat_columns` | `str \| list[str]` | `ALL` | Columns to return, or `ALL` for default. |
+| `qual` | `int \| None` | `None` | Minimum plate appearances or innings pitched qualifier. |
+| `split_seasons` | `bool` | `True` | `True` = season-level rows; `False` = aggregated over the range. |
+| `on_active_roster` | `bool` | `False` | Only return active-roster players when `True`. |
+| `minimum_age` / `maximum_age` | `int` | `0` / `100` | Player age filters. |
+| `team` | `str` | `""` | Team abbreviation or ID. Use `"0,ts"` for team rows. |
+| `max_results` | `int` | `1_000_000` | Maximum rows to retrieve. |
 
-Use factory classmethods for advanced request construction: `FanGraphsRequest.batting(start_season=2019)`, `.pitching(start_season=2019)`, `.team_batting(start_season=2019)`, etc.
+---
 
 ## Example
 
+The following example shows how to use both the quick namespace helpers and custom `FanGraphsRequest` queries.
+
 ```python
 import asyncio
-
-import polars_baseball as bp
-
+import polars_baseball as pb
 
 async def main() -> None:
-    batting = await bp.fangraphs.batting(start_season=2019)
-    pitching = await bp.fangraphs.pitching(start_season=2019)
-    team_batting = await bp.fangraphs.team_batting(start_season=2019)
-    team_fielding = await bp.fangraphs.team_fielding(start_season=2019)
-    team_pitching = await bp.fangraphs.team_pitching(start_season=2019)
-    print(batting.head())
-    print(pitching.head())
-    print(team_batting.head())
-    print(team_fielding.head())
-    print(team_pitching.head())
+    # 1. Using quick namespace helpers
+    batting = await pb.fangraphs.batting(start_season=2019)
+    pitching = await pb.fangraphs.pitching(start_season=2019)
+    team_batting = await pb.fangraphs.team_batting(start_season=2019)
+    team_fielding = await pb.fangraphs.team_fielding(start_season=2019)
+    team_pitching = await pb.fangraphs.team_pitching(start_season=2019)
+    print("Namespace Batting:", batting.head(2))
 
+    # 2. Using advanced fg_data with FanGraphsRequest
+    req_batting = pb.FanGraphsRequest.batting(start_season=2024)
+    req_qualified = pb.FanGraphsRequest.batting(start_season=2023, qual=50)
+    req_split = pb.FanGraphsRequest.batting(start_season=2020, end_season=2024, split_seasons=True)
+    
+    season_df = await pb.fg_data(req_batting)
+    qualified_df = await pb.fg_data(req_qualified)
+    split_df = await pb.fg_data(req_split)
+    print("Advanced Query:", season_df.head(2))
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -8,8 +8,9 @@ import polars_baseball as pb
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _PYTHON_FENCE_RE = re.compile(r"```python\n(.*?)\n```", re.DOTALL)
-_INLINE_SIGNATURE_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)\((.*?)\)\s*->")
+_INLINE_SIGNATURE_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_.]*)\((.*?)\)\s*->")
 _PARAMETER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:")
+_LINK_RE = re.compile(r"!?\[.*?\]\((.*?)\)")
 _DOCUMENTED_ROOT_API_EXEMPTIONS = {
     "ArsenalType",
     "KeyType",
@@ -37,6 +38,13 @@ def _python_examples(path: Path) -> list[str]:
 
 
 def _documented_symbol(name: str) -> object | None:
+    if "." in name:
+        symbol: object = pb
+        for part in name.split("."):
+            if not hasattr(symbol, part):
+                return None
+            symbol = getattr(symbol, part)
+        return symbol
     if hasattr(pb, name):
         return getattr(pb, name)
     for module_name in _DOCUMENTED_MODULES:
@@ -44,6 +52,17 @@ def _documented_symbol(name: str) -> object | None:
         if hasattr(module, name):
             return getattr(module, name)
     return None
+
+
+def _attribute_path(node: ast.Attribute) -> tuple[str, ...] | None:
+    parts = [node.attr]
+    value = node.value
+    while isinstance(value, ast.Attribute):
+        parts.append(value.attr)
+        value = value.value
+    if not isinstance(value, ast.Name):
+        return None
+    return value.id, *reversed(parts)
 
 
 def test_readme_python_examples_are_syntactically_valid() -> None:
@@ -95,10 +114,14 @@ def test_markdown_package_alias_attributes_resolve() -> None:
                 if alias.name == "polars_baseball"
             }
             for node in ast.walk(tree):
-                if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+                if not isinstance(node, ast.Attribute):
                     continue
-                if node.value.id in aliases and not hasattr(pb, node.attr):
-                    failures.append(f"{path.relative_to(_PROJECT_ROOT)}: {node.value.id}.{node.attr}")
+                path_parts = _attribute_path(node)
+                if path_parts is None or path_parts[0] not in aliases:
+                    continue
+                documented_path = ".".join(path_parts[1:])
+                if _documented_symbol(documented_path) is None:
+                    failures.append(f"{path.relative_to(_PROJECT_ROOT)}: {'.'.join(path_parts)}")
 
     assert not failures, "Broken documented package attributes: " + ", ".join(failures)
 
@@ -130,3 +153,41 @@ def test_root_public_api_is_documented_in_markdown() -> None:
     )
 
     assert not undocumented, f"Root public API missing markdown coverage: {undocumented}"
+
+
+def test_savant_public_api_is_documented_in_markdown() -> None:
+    markdown_text = "\n".join(path.read_text(encoding="utf-8") for path in _markdown_files())
+    undocumented = sorted(name for name in pb.savant.__all__ if f"savant.{name}" not in markdown_text)
+
+    assert not undocumented, f"Savant public API missing markdown coverage: {undocumented}"
+
+
+def test_markdown_relative_links_resolve() -> None:
+    failures: list[str] = []
+    for path in _markdown_files():
+        content = path.read_text(encoding="utf-8")
+        for match in _LINK_RE.finditer(content):
+            link = match.group(1).strip()
+            if not link:
+                continue
+            # Skip external links
+            if (
+                link.startswith("http://")
+                or link.startswith("https://")
+                or link.startswith("mailto:")
+                or link.startswith("ftp://")
+                or link.startswith("javascript:")
+            ):
+                continue
+            # Handle anchor links
+            if link.startswith("#"):
+                continue
+            # Strip anchors or queries
+            link_path = link.split("#")[0].split("?")[0]
+            if not link_path:
+                continue
+            # Resolve relative path
+            target_path = (path.parent / link_path).resolve()
+            if not target_path.exists():
+                failures.append(f"{path.relative_to(_PROJECT_ROOT)}: link to {link} does not exist")
+    assert not failures, "Broken relative links:\n" + "\n".join(failures)
