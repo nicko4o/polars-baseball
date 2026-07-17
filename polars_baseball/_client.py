@@ -7,7 +7,8 @@ import httpx
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
-from polars_baseball._config import BREF_ROOT, DEFAULT_TIMEOUT, FG_ROOT
+from polars_baseball._config import DEFAULT_TIMEOUT
+from polars_baseball._http_policy import TransportKind, resolve_request_policy
 from polars_baseball.exceptions import PolarsBaseballHttpError, PolarsBaseballTransportError
 
 _BROWSER_HEADERS: Mapping[str, str] = {
@@ -15,9 +16,6 @@ _BROWSER_HEADERS: Mapping[str, str] = {
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
     ),
 }
-
-_CFFI_ROOTS: frozenset[str] = frozenset({BREF_ROOT, FG_ROOT})
-
 
 SECONDS_PER_MINUTE = 60.0
 DEFAULT_MAX_RETRIES = 2
@@ -87,10 +85,6 @@ class HttpClient:
         finally:
             self._httpx_client = None
             self._cffi_session = None
-
-    @staticmethod
-    def _needs_cffi(url: str) -> bool:
-        return any(url.startswith(root) for root in _CFFI_ROOTS)
 
     @staticmethod
     def _str_params(params: Mapping[str, object] | None) -> dict[str, str] | None:
@@ -190,7 +184,7 @@ class HttpClient:
         url: str, error: CurlRequestException
     ) -> PolarsBaseballHttpError | PolarsBaseballTransportError:
         response = getattr(error, "response", None)
-        label = "BRef" if url.startswith(BREF_ROOT) else "FanGraphs"
+        label = resolve_request_policy(url).provider_label
         if response is None:
             return PolarsBaseballTransportError(f"{label} network request failed: {error}")
         return PolarsBaseballHttpError(
@@ -205,9 +199,9 @@ class HttpClient:
         params: Mapping[str, object] | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> str:
-        if self._needs_cffi(url):
-            rate_limited = url.startswith(BREF_ROOT)
-            return await self._cffi_request(url, params, headers=headers, rate_limited=rate_limited)
+        policy = resolve_request_policy(url)
+        if policy.transport is TransportKind.BROWSER:
+            return await self._cffi_request(url, params, headers=headers, rate_limited=policy.rate_limited)
         return cast(str, await self._httpx_request(url, params, headers, as_text=True))
 
     async def get_bytes(

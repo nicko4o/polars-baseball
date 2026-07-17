@@ -6,7 +6,6 @@ from typing import TypedDict
 import polars as pl
 from typing_extensions import Unpack
 
-from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import FG_LEADERS_URL, FG_MAX_RESULTS
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.enums.fangraphs import (
@@ -19,7 +18,7 @@ from polars_baseball.enums.fangraphs import (
     stat_list_from_str,
     stat_list_to_str,
 )
-from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
+from polars_baseball.gateways.fangraphs import FanGraphsGateway
 
 
 class _FanGraphsKwargs(TypedDict, total=False):
@@ -192,9 +191,6 @@ class FanGraphsRequest:
         return cls.from_raw(stats_category=FangraphsStatsCategory.RELIEVERS, is_team_data=True, **kwargs)
 
 
-_fg_parser = FangraphsHTMLParser()
-
-
 def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
     page_params = {"pageitems": str(request.max_results), "pagenum": "1"}
     team = f"{request.team or 0},ts" if request.is_team_data else request.team
@@ -221,18 +217,6 @@ def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
     }
 
 
-def _fg_cache_key(call: CacheCallArgs) -> str:
-    request = call.argument("request", FanGraphsRequest)
-    return generate_cache_key(FG_LEADERS_URL, _build_fg_url_options(request))
-
-
-@cached(key=_fg_cache_key)
-async def _fetch_fangraphs(request: FanGraphsRequest, context: BaseballContext) -> pl.DataFrame:
-    url_options = _build_fg_url_options(request)
-    html = await context.http.get_text(FG_LEADERS_URL, params=url_options)
-    return _fg_parser.parse(html)
-
-
 async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = None) -> pl.DataFrame:
     """Execute a pre-built FanGraphs request and return the parsed results.
 
@@ -244,4 +228,4 @@ async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = N
         - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """
     ctx = context or default_context()
-    return await _fetch_fangraphs(request, ctx)
+    return await FanGraphsGateway(ctx).get_leaderboard(FG_LEADERS_URL, _build_fg_url_options(request))

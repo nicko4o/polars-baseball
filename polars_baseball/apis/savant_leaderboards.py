@@ -1,12 +1,9 @@
-import io
 import warnings
 from typing import Literal
 
 import polars as pl
 
-from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import SAVANT_INVALID_PLAYER_ID, SAVANT_ROOT
-from polars_baseball._encoding import ensure_bytes, ensure_str
 from polars_baseball.apis._leaderboard_registry import get_leaderboard
 from polars_baseball.context import BaseballContext, default_context
 from polars_baseball.enums.pitch import norm_pitch_code
@@ -276,20 +273,7 @@ async def _try_fetch_active_spin(
         "hand": "",
         "csv": SAVANT_CSV_PARAM,
     }
-    key = generate_cache_key(url, params)
-    cached_df = ctx.cache.get(key)
-    if cached_df is not None:
-        return cached_df
-    raw_csv = await ctx.http.get_text(url, params=params)
-    if not raw_csv:
-        return None
-    raw_text = ensure_str(raw_csv)
-    if "<html" in raw_text:
-        return None
-    df = pl.read_csv(io.BytesIO(ensure_bytes(raw_text)))
-    df = df.rename({col: col.strip() for col in df.columns})
-    ctx.cache.set(key, df)
-    return df
+    return await SavantGateway(ctx).get_optional_dataset(url, params)
 
 
 async def statcast_pitcher_active_spin(
