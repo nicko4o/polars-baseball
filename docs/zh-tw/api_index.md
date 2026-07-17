@@ -32,12 +32,8 @@
 
 ## Provider 頁面
 
-- [Statcast](reference/statcast.md)
-- [Statcast batter APIs](reference/statcast_batter.md)
-- [Statcast pitcher APIs](reference/statcast_pitcher.md)
+- [Statcast / Savant](reference/statcast.md)
 - [FanGraphs](reference/fangraphs.md)
 - [MLB Stats API](reference/mlb_api.md)
-- [Player ID Lookup](reference/playerid_lookup.md)
-- [Standings](reference/standings.md)
-- [Savant Gamefeed](reference/savant_gamefeed.md)
-- [Prospect Rankings](reference/prospect_rankings.md)
+- [查詢與對照 (Lookups & Mappings)](reference/lookups.md)
+- [Baseball Reference](reference/bref.md)

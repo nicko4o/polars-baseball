@@ -18,7 +18,7 @@
 | Identity | `mlb.people`, `mlb.people_awards` | 查官方人物 metadata 或獎項時間線。 |
 | 賽程與球隊 metadata | `mlb.schedule`, `mlb.teams`, `mlb.roster`, `mlb.venues`, `mlb.divisions`, `mlb.leagues` | 查比賽列表、名冊 snapshot 或可 join 的維度表。 |
 | 比賽資料 | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore` | 查單場球員、play、live feed 或局數資料。 |
-| 統計與排行榜 | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal` | 查官方 stat groups 或 league leaders。 |
+| 統計與排行榜 | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `standings` | 查官方 stat groups、league leaders 或戰績表。 |
 | Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | 查球員異動、選秀或季後賽賽程列。 |
 
 ## 1. 球員基本資料 (`mlb.people`)
@@ -375,7 +375,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 21. 球員獎項時間線 (`mlb.people_awards`)
+## 21. 個人獎項 (`mlb.people_awards`)
 
 `mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -388,6 +388,28 @@ import polars_baseball as pb
 async def main() -> None:
     df = await pb.mlb.people_awards(person_id=660271)
     print(df.select(["personId", "awardId", "awardName", "season"]))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 22. 戰績表 (`standings`)
+
+`standings(season: int | None = None) -> pl.DataFrame`
+
+獲取指定球季的 MLB 戰績表，其中包含分區（division）元數據欄位。
+
+### 參數
+
+- `season`：球季年份。如果省略，預設會查詢目前的球季。
+
+```python
+import asyncio
+from polars_baseball import standings
+
+async def main() -> None:
+    df = await standings(2019)
+    print(df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())
