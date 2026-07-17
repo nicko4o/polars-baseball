@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix type hint contract and argument fallback logic in `CacheCallArgs.argument()`.
+- Prevent concurrent initialization race conditions in player lookup by implementing a loop-local single-flight lock.
+- Enable safe retry of player lookup initialization after transient loading failures.
+- Preserve original accented player names during accent-insensitive lookup searches.
+- Add support for string-based database IDs in `playerid_reverse_lookup` for Baseball Reference and Retrosheet.
+- Retain the public schema contract for empty player lookup table results.
+- Harden HTTP client routing by resolving policies via strict scheme/hostname origin matching.
+
 ## [0.6.0] - 2026-07-17
 
 ### Added

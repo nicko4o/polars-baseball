@@ -34,11 +34,11 @@ Finds player registry mappings from a list of source-specific database IDs.
 
 ### Functions
 
-- `playerid_reverse_lookup(player_ids: list[int], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame`
+- `playerid_reverse_lookup(player_ids: list[int | str], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame`
 
 ### Arguments
 
-- `player_ids`: A list of integer IDs to look up.
+- `player_ids`: IDs to look up. Use integers for MLBAM/FanGraphs and strings for BRef/Retrosheet.
 - `key_type`: The source database namespace of the input IDs. Must be a `KeyType` enum value:
   - `KeyType.MLBAM` (MLB Advanced Media / Statcast ID)
   - `KeyType.RETROSHEET` (Retrosheet ID)

@@ -13,6 +13,12 @@ from polars_baseball.context import BaseballContext
 _CACHE_MISS_TIMEOUT_SECONDS = 1
 
 
+def test_cache_call_argument_uses_non_none_default_for_explicit_none() -> None:
+    call = CacheCallArgs(context=MagicMock(), arguments={"team": None}, force_update=False)
+
+    assert call.argument("team", str, "all") == "all"
+
+
 @pytest.mark.asyncio
 async def test_cached_hit_returns_cached_data_and_skips_fetch() -> None:
     mock_cache = MagicMock()
