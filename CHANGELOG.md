@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-17
+
 ### Added
 - Add local Markdown relative link regression test to prevent future documentation link degradation.
 
 ### Changed
 - Consolidate reference documentation pages from 21 pages to 8 pages for both English and Traditional Chinese versions.
 - Refactor core provider logic for better Separation of Concerns (SRP): introduce dedicated gateways for FanGraphs and Savant, extract a central HTTP routing policy, and isolate player search and lookup state into a specialized service.
+- **BREAKING CHANGE**: Refactored internal caching decorators (`@cached`). Dynamic parameter binding using signature inspection has been replaced with the explicit, type-safe `CacheCallArgs` pattern.
 
 ## [0.5.0] - 2026-07-16
 

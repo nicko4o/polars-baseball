@@ -61,7 +61,7 @@ from polars_baseball.context import BaseballContext
 from polars_baseball.context import cleanup as _cleanup
 from polars_baseball.enums import ArsenalType, KeyType
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
