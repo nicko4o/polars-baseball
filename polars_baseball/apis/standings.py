@@ -1,12 +1,11 @@
-import json
-
 import polars as pl
 
 from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
 from polars_baseball._season import most_recent_season
 from polars_baseball.context import BaseballContext, default_context
-from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.exceptions import InvalidParameterError
+from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.standings import parse_standings_payload
 
 _PRE_DEAD_BALL_START = MLB_FIRST_YEAR
@@ -22,14 +21,12 @@ def _standings_cache_key(call: CacheCallArgs) -> str:
 async def _fetch_standings(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
     ctx = context or default_context()
     url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
-    try:
-        res = ctx.http.get_text(url)
-        html = await res if not isinstance(res, str) else res
-        data = json.loads(html)
-    except Exception as e:
-        raise UpstreamParseError(f"Failed to fetch or parse standings from MLB Stats API: {e}") from e
-
-    return parse_standings_payload(data, season)
+    return await MlbStatsGateway(ctx).fetch(
+        url,
+        params=None,
+        error_msg="Failed to fetch or parse standings from MLB Stats API",
+        parser=lambda payload: parse_standings_payload(payload, season),
+    )
 
 
 async def standings(season: int | None = None, context: BaseballContext | None = None) -> pl.DataFrame:

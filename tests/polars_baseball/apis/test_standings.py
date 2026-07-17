@@ -7,7 +7,7 @@ import pytest
 from polars_baseball._client import HttpClient
 from polars_baseball.apis.standings import standings
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.exceptions import InvalidParameterError, PolarsBaseballTransportError
 
 # ── Mock Data ──────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ async def test_standings_too_early() -> None:
 @patch("polars_baseball.apis.standings.default_context")
 async def test_standings_upstream_failure(mock_default_ctx: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=Exception("Timeout"))
+    mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Timeout"))
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
-    with pytest.raises(UpstreamParseError, match="Failed to fetch or parse standings"):
+    with pytest.raises(PolarsBaseballTransportError, match="Timeout"):
         await standings(season=2023)
