@@ -205,8 +205,7 @@ Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 packa
 ## 文件
 
 - [Documentation](docs/index.md)
-- [API 用途索引](docs/zh-tw/api_index.md)：依任務選擇正確 API。
-- [繁體中文文件](docs/zh-tw/)
+- [API 用途索引 (English)](docs/api_index.md)：依任務選擇正確 API。
 
 ## Showcase
 
