@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `team_ids` to root public API (`pb.team_ids`).
+- Add docstrings to `CacheAdapter` ABC (get/set/clear/get_or_fetch/get_list/set_list), `FileCacheAdapter`, `NullCacheAdapter`, `GlobalCache`, and `cached`/`cached_list` decorators in `_cache.py`.
+- Add docstrings to `CompiledTable`, `CompiledDatasetGateway` (all public methods), and module-level helpers in `gateways/compiled.py`.
+- Add docstrings to `parsers/retrosheet.py` (6 parsing functions) and all `parsers/mlb/` modules (9 files, 15+ parse functions).
+- Document docstring convention (`Note:` section) in `MAINTAINING.md`.
+
+### Changed
+- Standardize docstring format: replace project-invented `Edge Cases:` sections with standard `Note:` across 24 files (~40 functions).
+- Fix `add_spray_angle` removal version reference in `docs/reference/statcast.md` (was "version 2", never released).
+- Remove redundant type signatures from `docs/reference/statcast.md` function listings.
+- Improve `bwar_bat`/`bwar_pitch` and 5 Retrosheet gamelog function docstrings with note on delegation behavior.
 - Add `benchmarks/` framework with structured benchmark runner, profiles, reporters (console via `rich`, JSON), and baseline tracking.
 - Add `python -m benchmarks run` CLI replacing `examples/benchmark_statcast.py`.
 - Add `python -m benchmarks baseline` CLI for managing historical benchmark data.

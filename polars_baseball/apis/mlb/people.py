@@ -54,7 +54,7 @@ async def mlb_people(
     Validates that all person_ids are positive integers. Returns an empty
     DataFrame when the API returns no matching people.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if person_ids is empty or contains
         non-positive integers.
     """

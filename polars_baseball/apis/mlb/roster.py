@@ -45,7 +45,7 @@ async def mlb_roster(
     Typical roster_type values are "active" and "40Man". Returns an empty
     DataFrame when no roster data is available for the given team and season.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if team_id is non-positive, the season
         is out of range, or roster_type is empty.
     """

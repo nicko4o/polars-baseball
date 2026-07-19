@@ -73,7 +73,7 @@ async def mlb_schedule(
     At least one of season or date must be provided. season is validated
     against the valid MLB season range.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if neither season nor date is given,
         the season is out of range, date is not in YYYY-MM-DD format, or
         team_id is non-positive.
@@ -109,7 +109,7 @@ async def mlb_postseason_schedule(
     Returns only playoff games (gameType "P") for the specified season.
     Returns an empty DataFrame when no postseason data is available.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if the season is out of valid range.
     """
     if season < MLB_FIRST_YEAR or season > most_recent_season() + 1:

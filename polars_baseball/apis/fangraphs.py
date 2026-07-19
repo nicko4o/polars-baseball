@@ -223,7 +223,7 @@ async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = N
     Uses ``curl_cffi`` (via :class:`BaseballContext`) to bypass Cloudflare protection.
     Results are transparently cached behind the ``@cached`` decorator.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when the upstream HTML contains no data table.
         - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """

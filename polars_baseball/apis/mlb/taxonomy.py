@@ -85,7 +85,7 @@ async def mlb_teams(
     If season is provided, returns only teams active for that season.
     Returns all teams across sports when no filters are applied.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if season is provided but out of
         valid range, or if sport_id is non-positive.
     """

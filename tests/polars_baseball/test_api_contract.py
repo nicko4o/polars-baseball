@@ -68,6 +68,7 @@ ROOT_PUBLIC_API = {
     "teams_franchises",
     "teams_half",
     "teams_upstream",
+    "team_ids",
     "top_prospects",
     "wild_card_logs",
     "world_series_logs",

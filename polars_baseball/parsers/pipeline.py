@@ -121,6 +121,13 @@ def _resolve_player_row(item: dict[str, Any], payload: dict[str, Any]) -> dict[s
 
 
 class MLBPipelineParser:
+    """Parse MLB Pipeline prospect HTML pages into scouting-grade DataFrames.
+
+    Extracts player identity fields, scouting grades (hit, power, run,
+    arm, field, fastball, etc.), and team affiliations from the HTML
+    prospect card structure. Returns one row per prospect.
+    """
+
     def parse(self, raw_html: str) -> pl.DataFrame:
         html_parser = lxml.etree.HTMLParser()
         tree = lxml.etree.fromstring(raw_html.encode("utf-8"), html_parser)

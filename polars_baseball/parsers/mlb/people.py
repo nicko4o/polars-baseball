@@ -1,3 +1,5 @@
+"""MLB Stats API parsers for people and awards data."""
+
 from typing import Any
 
 import polars as pl
@@ -68,6 +70,12 @@ def parse_people_award(award_data: dict[str, Any], person_id: int) -> PeopleAwar
 
 
 def parse_mlb_people(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse people from MLB Stats API /people response.
+
+    Extracts biographical and positional fields from each entry in the
+    people[] array. Nested objects (primaryPosition, batSide, pitchHand)
+    are flattened into prefixed columns.
+    """
     people = data.get("people", [])
     if not people:
         return pl.DataFrame()
@@ -76,6 +84,14 @@ def parse_mlb_people(data: dict[str, Any]) -> pl.DataFrame:
 
 
 def parse_mlb_people_awards(data: dict[str, Any], person_id: int) -> pl.DataFrame:
+    """Parse awards from MLB Stats API /people/{id}/awards response.
+
+    Each award entry is annotated with the person ID. Nested team and
+    player position objects are flattened.
+
+    Note:
+        Non-dict entries in the awards array are silently skipped.
+    """
     awards = data.get("awards", [])
     if not awards:
         return pl.DataFrame()

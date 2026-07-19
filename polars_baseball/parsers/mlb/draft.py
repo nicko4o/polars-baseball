@@ -1,3 +1,5 @@
+"""MLB Stats API parser for draft data."""
+
 from typing import Any
 
 import polars as pl
@@ -37,6 +39,16 @@ def parse_draft_pick(pick: dict[str, Any], year: int) -> DraftPickDict:
 
 
 def parse_mlb_draft(data: dict[str, Any], year: int) -> pl.DataFrame:
+    """Parse draft picks from MLB Stats API /draft response.
+
+    Navigates drafts.rounds[].picks[] to extract each draft pick. Each
+    pick must have round, pickNumber, and playerName or raises
+    UpstreamParseError.
+
+    Note:
+        Raises UpstreamParseError when a draft pick is missing any
+        required core field.
+    """
     drafts = data.get("drafts", {})
     rounds = drafts.get("rounds", []) if isinstance(drafts, dict) else []
     rows: list[DraftPickDict] = []

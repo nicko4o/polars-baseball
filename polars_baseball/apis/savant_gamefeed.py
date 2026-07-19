@@ -25,7 +25,7 @@ async def savant_gamefeed_exit_velocity(
     game_pk: int | str,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Baseball Savant gamefeed exit velocity rows for a single game."""
+    """Fetch exit velocity data for a single game."""
     ctx = context or default_context()
     parser = SavantGamefeedParser()
     return await SavantGateway(ctx).get_gamefeed_dataset(
@@ -40,7 +40,7 @@ async def savant_gamefeed_pitch_data(
     game_pk: int | str,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Baseball Savant gamefeed pitcher rows for a single game."""
+    """Fetch pitch-by-pitch data for a single game."""
     ctx = context or default_context()
     parser = SavantGamefeedParser()
     return await SavantGateway(ctx).get_gamefeed_dataset(
@@ -74,7 +74,7 @@ async def savant_gamefeed_exit_velocity_many(
     context: BaseballContext | None = None,
     parallel: bool = True,
 ) -> pl.DataFrame:
-    """Fetch Baseball Savant gamefeed exit velocity for multiple games."""
+    """Fetch exit velocity data for multiple games."""
     return await _fetch_many_gamefeed(game_pks, savant_gamefeed_exit_velocity, EXIT_VELOCITY_SCHEMA, context, parallel)
 
 
@@ -83,5 +83,5 @@ async def savant_gamefeed_pitch_data_many(
     context: BaseballContext | None = None,
     parallel: bool = True,
 ) -> pl.DataFrame:
-    """Fetch Baseball Savant gamefeed pitch data for multiple games."""
+    """Fetch pitch-by-pitch data for multiple games."""
     return await _fetch_many_gamefeed(game_pks, savant_gamefeed_pitch_data, PITCH_DATA_SCHEMA, context, parallel)
