@@ -58,6 +58,7 @@ from polars_baseball.apis.retrosheet import (
 )
 from polars_baseball.apis.standings import standings
 from polars_baseball.apis.statcast import statcast, statcast_batter, statcast_pitcher, statcast_single_game
+from polars_baseball.apis.teamid import team_ids
 from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext
 from polars_baseball.context import cleanup as _cleanup
@@ -138,6 +139,7 @@ __all__ = [
     "teams_franchises",
     "teams_half",
     "teams_upstream",
+    "team_ids",
     "top_prospects",
     "prospect_rankings",
     "wild_card_logs",

@@ -32,6 +32,19 @@ _LOCKS_GUARD = threading.Lock()
 
 @dataclass(frozen=True)
 class CompiledTable:
+    """Descriptor for a single table within a compiled dataset archive.
+
+    Attributes:
+        dataset: Logical dataset name (namespace for grouping tables).
+        table_name: Table identifier used in cache file naming.
+        archive_url: Remote URL for the ZIP archive containing this table.
+        archive_member: Exact member path within the ZIP archive.
+        archive_member_pattern: Regex pattern to locate the member when
+            the exact path is unknown.
+        quote_char: CSV quote character.
+        infer_schema_length: Row count to sample for CSV schema inference.
+    """
+
     dataset: str
     table_name: str
     archive_url: str
@@ -48,11 +61,24 @@ class CompiledTable:
 
 
 class CompiledDatasetGateway:
+    """Gateway for lazy-compiled datasets (Lahman, Chadwick, etc.).
+
+    Supports two backends:
+        1. Remote Parquet CDN (when COMPILED_DATASETS_ROOT_URL is set).
+        2. On-demand compilation from upstream ZIP archives.
+    """
+
     def __init__(self, context: BaseballContext) -> None:
         self._context = context
         self._cache_dir = _cache_dir(context)
 
     async def ensure_archive(self, dataset: str, archive_url: str) -> Path:
+        """Download and validate the ZIP archive for a dataset, or return cached path.
+
+        Note:
+            Validates ZIP integrity after download. Raises UpstreamDataCorruptedError
+            for invalid archives.
+        """
         _validate_relative_name(dataset)
         archive_path = self._archive_path(dataset)
         async with _lock_for(str(archive_path)):
@@ -63,6 +89,12 @@ class CompiledDatasetGateway:
         return archive_path
 
     async def table_path(self, table: CompiledTable) -> Path:
+        """Resolve the local Parquet path for a table, compiling from archive if needed.
+
+        Note:
+            Requires a file-backed cache directory. Raises UpstreamParseError
+            when cache_dir is None.
+        """
         if self._cache_dir is None:
             raise UpstreamParseError("Compiled dataset table paths require a file-backed cache directory.")
         path = self._table_path(table)
@@ -73,10 +105,21 @@ class CompiledDatasetGateway:
         return path
 
     async def scan_table(self, table: CompiledTable) -> pl.LazyFrame:
+        """Return a lazy Parquet scan handle for this table.
+
+        Note:
+            Compiles the table first if no cached Parquet exists.
+        """
         path = await self.table_path(table)
         return pl.scan_parquet(path)
 
     async def read_table(self, table: CompiledTable, *, use_cache: bool = True) -> pl.DataFrame:
+        """Read the full table into memory.
+
+        Note:
+            When use_cache is False or no cache_dir is configured,
+            fetches directly from upstream without local persistence.
+        """
         if not use_cache or self._cache_dir is None:
             return await self._fetch_table_uncached(table)
         lazy_frame = await self.scan_table(table)
@@ -131,17 +174,30 @@ def _lock_for(key: str) -> asyncio.Lock:
 
 
 def _validate_relative_name(value: str) -> None:
+    """Validate that a path component is relative and safe.
+
+    Raises ValueError for absolute paths or path-traversal patterns.
+    """
     path = Path(value)
     if not value or path.is_absolute() or ".." in path.parts:
         raise ValueError(f"Unsafe compiled dataset path: {value}")
 
 
 def _validate_zip(path: Path) -> None:
+    """Validate that a file is a readable ZIP archive.
+
+    Raises UpstreamDataCorruptedError on bad or truncated ZIP files.
+    """
     with zipfile.ZipFile(path):
         return None
 
 
 def _write_atomic(path: Path, write_func: Callable[[Path], object]) -> None:
+    """Write data to a file atomically via temp-file-then-replace.
+
+    Note:
+        Cleans up the temp file on any write failure.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
         tmp_path = Path(tmp.name)
@@ -177,6 +233,13 @@ def _read_archive_csv(path: Path, table: CompiledTable) -> pl.DataFrame:
 
 
 def read_archive_table_bytes(raw_archive: bytes, table: CompiledTable) -> pl.DataFrame:
+    """Read a table directly from in-memory archive bytes without caching.
+
+    Note:
+        Uses archive_member or archive_member_pattern to locate the CSV
+        within the ZIP. Raises UpstreamStructureChangedError when the
+        expected member is not found.
+    """
     return _read_archive_zip_to_df(raw_archive, table, "Bad zip file data")
 
 

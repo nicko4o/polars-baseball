@@ -58,6 +58,13 @@ def most_recent_season() -> int:
 
 
 def sanitize_date_range(start_dt: str | None, end_dt: str | None) -> tuple[date, date]:
+    """Normalize a date range, filling None with defaults and swapping inverted bounds.
+
+    Note:
+        When both dates are None, defaults to yesterday-today. Missing
+        start or end copies the provided value. If end < start, the
+        pair is swapped.
+    """
     if start_dt is None and end_dt is None:
         today = date.today()
         start_dt = str(today - timedelta(1))
@@ -79,6 +86,12 @@ def sanitize_date_range(start_dt: str | None, end_dt: str | None) -> tuple[date,
 
 
 def statcast_date_range(start: date, stop: date, step: int, verbose: bool = True) -> Iterator[tuple[date, date]]:
+    """Yield date chunks of *step* days, skipping offseason dates per STATCAST_VALID_DATES.
+
+    Note:
+        Chunks never exceed STATCAST_VALID_DATES for each year. Offseason
+        periods are silently skipped or warned via verbose=True.
+    """
     low = start
 
     while low <= stop:

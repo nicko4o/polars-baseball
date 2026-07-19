@@ -1,3 +1,5 @@
+"""MLB Stats API parsers for game data—boxscores, boxscore stats, play-by-play, win probability, and linescore."""
+
 from typing import Any, cast
 
 import polars as pl
@@ -162,6 +164,12 @@ def parse_linescore(data: dict[str, Any], game_pk: int) -> list[LinescoreDict]:
 
 
 def parse_mlb_boxscore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse boxscore from MLB Stats API /game/{gamePk}/boxscore response.
+
+    Iterates both away and home teams, extracting each player's basic
+    info, position, batting order, and stat groups (batting, pitching,
+    fielding) flattened into prefixed columns.
+    """
     rows = parse_boxscore(data, game_pk)
     if not rows:
         return pl.DataFrame()
@@ -169,6 +177,12 @@ def parse_mlb_boxscore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
 
 
 def parse_mlb_boxscore_stats(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse boxscore stats from MLB Stats API /game/{gamePk}/boxscore response.
+
+    Identical structure to parse_mlb_boxscore but validates against the
+    boxscore stats type schema which includes stat columns from the
+    batting, pitching, and fielding groups.
+    """
     rows = parse_boxscore(data, game_pk)
     if not rows:
         return pl.DataFrame()
@@ -176,6 +190,12 @@ def parse_mlb_boxscore_stats(data: dict[str, Any], game_pk: int) -> pl.DataFrame
 
 
 def parse_mlb_play_by_play(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse play-by-play from MLB Stats API /game/{gamePk}/feed/live response.
+
+    Extracts each play in liveData.plays.allPlays[], flattening the
+    about, result, matchup, and count sub-objects. Includes win
+    probability and leverage index fields.
+    """
     plays = data.get("allPlays", [])
     if not plays:
         return pl.DataFrame()
@@ -184,6 +204,15 @@ def parse_mlb_play_by_play(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
 
 
 def parse_mlb_win_probability(data: object, game_pk: int) -> pl.DataFrame:
+    """Parse win probability data from MLB Stats API win probability endpoint.
+
+    Accepts a raw list of play objects rather than a wrapper dict.
+    Each play is parsed identically to parse_mlb_play_by_play.
+
+    Note:
+        Non-dict entries in the list are silently skipped. Returns an
+        empty DataFrame when data is not a list.
+    """
     if not isinstance(data, list):
         return pl.DataFrame()
     rows = [parse_play(play, game_pk) for play in data if isinstance(play, dict)]
@@ -193,6 +222,15 @@ def parse_mlb_win_probability(data: object, game_pk: int) -> pl.DataFrame:
 
 
 def parse_mlb_game_feed_live(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse live game feed from MLB Stats API /game/{gamePk}/feed/live (v1.1).
+
+    Extracts pitch-level events from liveData.plays.allPlays[].playEvents[].
+    Only events flagged as isPitch are included.
+
+    Note:
+        Returns empty DataFrame when no pitch events are found or when
+        liveData/plays/allPlays keys are missing.
+    """
     live_data = data.get("liveData", {})
     plays = live_data.get("plays", {}) if isinstance(live_data, dict) else {}
     all_plays = plays.get("allPlays", []) if isinstance(plays, dict) else []
@@ -207,6 +245,14 @@ def parse_mlb_game_feed_live(data: dict[str, Any], game_pk: int) -> pl.DataFrame
 
 
 def parse_mlb_game_linescore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse linescore from MLB Stats API /game/{gamePk}/linescore response.
+
+    Extracts each inning from the innings[] array, capturing runs,
+    hits, and errors for both home and away teams.
+
+    Note:
+        Innings with non-dict values are silently skipped.
+    """
     rows = parse_linescore(data, game_pk)
     if not rows:
         return pl.DataFrame()

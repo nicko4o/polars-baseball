@@ -97,6 +97,17 @@ def _parse_division_records(division_record: Mapping[str, object], season: int) 
 
 
 def parse_standings_payload(payload: object, season: int) -> pl.DataFrame:
+    """Parse MLB Stats API standings JSON payload into a DataFrame.
+
+    Walks records[].teamRecords[], extracting team id, name, wins,
+    losses, winning percentage, and games back. Returns one row per
+    team-division-season combination.
+
+    Note:
+        Raises UpstreamParseError when the root payload is not a dict.
+        Returns an empty DataFrame with STANDINGS_TYPES schema when
+        no records are found.
+    """
     if not isinstance(payload, Mapping):
         raise UpstreamParseError(f"Standings payload root must be object, got {type(payload)}")
 

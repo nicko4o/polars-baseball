@@ -20,6 +20,28 @@ This project keeps documentation intentionally small and layered. Do not add a n
 - Prefer updating an existing provider reference page over creating a one-function page.
 - Remove stale content instead of preserving historical behavior in reference docs. Historical behavior belongs in the changelog.
 - Every public data-fetching API example must be executable Python, not pseudo-code.
+- Reference docs list function names and arguments in plain prose (without type annotations). The source signature is the SSOT for types.
+- Reference docs may omit argument tables for functions whose parameters are fully explained by their names and types.
+
+## Docstring Convention
+
+Use the following format (plain paragraph, with `Note:` for non-obvious behavior):
+
+```python
+def function_name(param: str, year: int) -> pl.DataFrame:
+    """One-line summary. Use present tense, imperative mood.
+
+    Note:
+        - Specific boundary conditions or notable behaviors.
+    """
+```
+
+Rules:
+- **One-line summary** is sufficient for self-explanatory functions. Do not add `Args:` / `Returns:` / `Raises:` sections unless they carry non-obvious semantics.
+- **`Note:`** is the standard section for documenting non-obvious behavior (empty returns, parameter constraints, delegation side effects, exception triggers).
+- **Do not** repeat type annotations from the signature — type hints are the SSOT for data types.
+- **Do not** add docstrings to internal (`_`-prefixed) helpers whose purpose is clear from their name and signature.
+- **Exception documentation**: mention by exception class name (e.g. `UpstreamParseError`, `InvalidParameterError`) only when the caller can reasonably handle it. Do not list standard exceptions (`TypeError`, `ValueError`) raised from basic argument validation.
 
 # 文件維護規則
 

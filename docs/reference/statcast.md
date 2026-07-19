@@ -13,10 +13,10 @@ Retrieve detailed pitch-level Statcast database rows.
 
 ### Functions
 
-- `statcast(start_date: str | None = None, end_date: str | None = None, team: str | None = None, verbose: bool = True, parallel: bool = True) -> pl.DataFrame` (also available as `savant.statcast`)
-- `statcast_single_game(game_pk: str | int) -> pl.DataFrame` (also available as `savant.single_game`)
-- `statcast_batter(start_date: str, end_date: str, player_id: int) -> pl.DataFrame`
-- `statcast_pitcher(start_date: str, end_date: str, player_id: int) -> pl.DataFrame`
+- `statcast()` — pitch-level data for a date range (also available as `savant.statcast`)
+- `statcast_single_game()` — pitch data for a single game (also available as `savant.single_game`)
+- `statcast_batter()` — pitch data for a specific batter
+- `statcast_pitcher()` — pitch data for a specific pitcher
 
 ### Arguments
 
@@ -165,7 +165,7 @@ Retrieve prospect rankings and pipeline data.
 
 ## Spray Angle Utilities
 
-The legacy `add_spray_angle` pandas utility was removed in version 2. Derived spray angles should be calculated directly with Polars expressions or Python math:
+The legacy `add_spray_angle` pandas utility was removed in a prior version. Derived spray angles should be calculated directly with Polars expressions or Python math:
 
 ```python
 from math import atan2, pi

@@ -1,3 +1,5 @@
+"""MLB Stats API parser for transaction data."""
+
 from typing import Any
 
 import polars as pl
@@ -41,6 +43,16 @@ def parse_transaction(tx: dict[str, Any]) -> TransactionDict:
 
 
 def parse_mlb_transactions(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse transactions from MLB Stats API /transactions response.
+
+    Each transaction must have core fields (id, date, description,
+    typeCode, typeDesc) or raises UpstreamParseError. Person, fromTeam,
+    and toTeam sub-objects are flattened into the row.
+
+    Note:
+        Raises UpstreamParseError when a transaction is missing any
+        required core field.
+    """
     transactions = data.get("transactions", [])
     rows = [parse_transaction(transaction) for transaction in transactions]
     if not rows:
