@@ -55,9 +55,10 @@ polars-baseball -> Polars -> analysis
   async workflows.
 - **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
   Retrosheet, MLB Stats API, and player ID workflows.
-- **Built-in cache**: Repeated network requests are cached as Parquet files for large workflows.
+- **Opt-in file cache**: Large workflows can cache repeated network requests as Parquet files.
 - **Service-ready context**: `BaseballContext` lets long-running apps control HTTP and cache
   resources explicitly.
+- **Explicit HTTP policy**: `HttpClient` exposes timeout, retry, and BRef rate-limit settings.
 
 ## Installation
 
@@ -170,8 +171,9 @@ against pandas-first workflows.
 ## Web Services & Concurrency
 
 Calling package functions without `context` uses the implicit package-level `BaseballContext`.
-That default context is convenient for scripts, but long-running concurrent services should manage
-their own context and pass it into every API call.
+That default context is convenient for scripts and does not write cache files unless
+`configure_cache()` has been called. Long-running concurrent services should manage their own
+context and pass it into every API call.
 
 ```python
 from contextlib import asynccontextmanager

@@ -1,7 +1,8 @@
 import logging as _logging
 
 from polars_baseball import fangraphs, mlb, savant
-from polars_baseball._cache import configure_cache
+from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter, configure_cache
+from polars_baseball._client import HttpClient
 from polars_baseball.apis.bref import bwar_bat, bwar_pitch
 from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
 from polars_baseball.apis.lahman import (
@@ -38,6 +39,7 @@ from polars_baseball.apis.lahman import (
 from polars_baseball.apis.playerid import (
     chadwick_register,
     get_lookup_table,
+    player_name_suggestions,
     player_search_list,
     playerid_lookup,
     playerid_reverse_lookup,
@@ -61,7 +63,7 @@ from polars_baseball.context import BaseballContext
 from polars_baseball.context import cleanup as _cleanup
 from polars_baseball.enums import ArsenalType, KeyType
 
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
@@ -74,8 +76,12 @@ async def cleanup() -> None:
 __all__ = [
     "ArsenalType",
     "BaseballContext",
+    "CacheAdapter",
     "FanGraphsRequest",
+    "FileCacheAdapter",
+    "HttpClient",
     "KeyType",
+    "NullCacheAdapter",
     "all_star_full",
     "all_star_game_logs",
     "appearances",
@@ -112,6 +118,7 @@ __all__ = [
     "people",
     "pitching",
     "pitching_post",
+    "player_name_suggestions",
     "playerid_lookup",
     "player_search_list",
     "playerid_reverse_lookup",
