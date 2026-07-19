@@ -7,7 +7,15 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from polars_baseball._cache import FileCacheAdapter, cached, configure_cache, generate_cache_key, global_cache
+from polars_baseball._cache import (
+    FileCacheAdapter,
+    GlobalCache,
+    NullCacheAdapter,
+    cached,
+    configure_cache,
+    generate_cache_key,
+    global_cache,
+)
 
 
 class _MemoryCache:
@@ -61,6 +69,46 @@ def test_file_cache_adapter_get_set(tmp_path: Path) -> None:
     # Clear cache
     adapter.clear()
     assert adapter.get(key) is None
+
+
+def test_null_cache_adapter_never_stores_values() -> None:
+    adapter = NullCacheAdapter()
+    df = pl.DataFrame({"col1": [1]})
+
+    adapter.set("key", df)
+    adapter.set_list("list-key", [df])
+
+    assert adapter.get("key") is None
+    assert adapter.get_list("list-key") is None
+
+
+def test_global_cache_starts_as_noop_until_configured() -> None:
+    adapter = GlobalCache()
+    df = pl.DataFrame({"col1": [1]})
+
+    adapter.set("key", df)
+
+    assert adapter.get("key") is None
+    with pytest.raises(RuntimeError, match="not configured"):
+        _ = adapter.cache_dir
+
+
+@pytest.mark.asyncio
+async def test_null_cache_get_or_fetch_runs_every_time() -> None:
+    adapter = NullCacheAdapter()
+    calls = 0
+
+    async def fetch() -> pl.DataFrame:
+        nonlocal calls
+        calls += 1
+        return pl.DataFrame({"value": [calls]})
+
+    first = await adapter.get_or_fetch("key", fetch)
+    second = await adapter.get_or_fetch("key", fetch)
+
+    assert first["value"][0] == 1
+    assert second["value"][0] == 2
+    assert calls == 2
 
 
 def test_configure_cache_keeps_global_proxy(tmp_path: Path) -> None:
@@ -129,7 +177,7 @@ async def test_cached_coalesces_concurrent_misses() -> None:
     context = _MemoryContext()
 
     @cached("shared-key")
-    async def fetch(ctx: _MemoryContext) -> pl.DataFrame:
+    async def fetch(context: _MemoryContext) -> pl.DataFrame:
         nonlocal calls
         calls += 1
         await asyncio.sleep(0)

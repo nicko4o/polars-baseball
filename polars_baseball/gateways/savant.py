@@ -7,7 +7,7 @@ import polars as pl
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._encoding import ensure_str
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamParseError
+from polars_baseball.exceptions import UpstreamParseError, UpstreamUnavailableError
 from polars_baseball.parsers._strategy import ProviderChain
 from polars_baseball.parsers.savant import SavantCSVParser
 from polars_baseball.parsers.savant_gamefeed import JsonObject
@@ -112,9 +112,7 @@ class SavantGateway:
     ) -> pl.DataFrame:
         raw = await self._context.http.get_text(url, params=params)
         if not raw:
-            if raise_on_empty:
-                raise UpstreamParseError("Savant returned empty response.")
-            return pl.DataFrame()
+            raise UpstreamUnavailableError("Savant returned empty response.")
 
         raw_text = ensure_str(raw)
         self._verify_error_response(raw_text)
@@ -140,7 +138,7 @@ class SavantGateway:
     ) -> pl.DataFrame:
         raw = await self._context.http.get_text(url, params=params)
         if not raw:
-            raise UpstreamParseError("Savant returned empty response.")
+            raise UpstreamUnavailableError("Savant returned empty response.")
 
         raw_text = ensure_str(raw)
         chain = _get_leaderboard_chain()
@@ -156,7 +154,7 @@ class SavantGateway:
     ) -> pl.DataFrame:
         raw_json = await self._context.http.get_text(url, params=params)
         if not raw_json:
-            raise UpstreamParseError("Savant gamefeed returned empty response.")
+            raise UpstreamUnavailableError("Savant gamefeed returned empty response.")
 
         try:
             payload = json.loads(ensure_str(raw_json))

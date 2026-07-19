@@ -18,7 +18,7 @@ _BROWSER_HEADERS: Mapping[str, str] = {
 }
 
 SECONDS_PER_MINUTE = 60.0
-DEFAULT_MAX_RETRIES = 2
+DEFAULT_MAX_RETRIES = 0
 DEFAULT_RETRY_BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_MULTIPLIER = 2.0
 TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
@@ -27,14 +27,19 @@ _T = TypeVar("_T")
 
 
 class HttpClient:
+    """Async HTTP client with explicit timeout, retry, and provider rate-limit policy."""
+
     def __init__(
         self,
-        bref_requests_per_minute: int = 10,
+        bref_requests_per_minute: int | None = None,
         extra_headers: Mapping[str, str] | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff_base_seconds: float = DEFAULT_RETRY_BACKOFF_BASE_SECONDS,
+        timeout: float = DEFAULT_TIMEOUT,
+        impersonate: str | None = "chrome",
+        default_headers: Mapping[str, str] | None = None,
     ) -> None:
-        if bref_requests_per_minute <= 0:
+        if bref_requests_per_minute is not None and bref_requests_per_minute <= 0:
             raise ValueError(f"bref_requests_per_minute must be greater than 0, got {bref_requests_per_minute}")
         if max_retries < 0:
             raise ValueError(f"max_retries must be greater than or equal to 0, got {max_retries}")
@@ -42,14 +47,24 @@ class HttpClient:
             raise ValueError(
                 f"retry_backoff_base_seconds must be greater than or equal to 0, got {retry_backoff_base_seconds}"
             )
+        if timeout <= 0:
+            raise ValueError(f"timeout must be greater than 0, got {timeout}")
         self._httpx_client: httpx.AsyncClient | None = None
         self._cffi_session: AsyncSession | None = None
         self._lock = asyncio.Lock()
         self._bref_last_request = 0.0
-        self._bref_delay = SECONDS_PER_MINUTE / bref_requests_per_minute
+        self._bref_delay = (
+            SECONDS_PER_MINUTE / bref_requests_per_minute if bref_requests_per_minute is not None else None
+        )
         self._extra_headers: dict[str, str] = dict(extra_headers) if extra_headers is not None else {}
         self._max_retries = max_retries
         self._retry_backoff_base_seconds = retry_backoff_base_seconds
+        self._timeout = timeout
+        self._impersonate = impersonate
+        if default_headers is not None:
+            self._default_headers: dict[str, str] = dict(default_headers)
+        else:
+            self._default_headers = dict(_BROWSER_HEADERS) if impersonate is not None else {}
 
     @property
     def extra_headers(self) -> dict[str, str]:
@@ -62,18 +77,18 @@ class HttpClient:
     def get_httpx_client(self) -> httpx.AsyncClient:
         if self._httpx_client is None:
             self._httpx_client = httpx.AsyncClient(
-                timeout=DEFAULT_TIMEOUT,
+                timeout=self._timeout,
                 follow_redirects=True,
-                headers=_BROWSER_HEADERS,
+                headers=self._default_headers if self._default_headers else None,
             )
         return self._httpx_client
 
     def get_cffi_session(self) -> AsyncSession:
         if self._cffi_session is None:
-            self._cffi_session = AsyncSession(
-                impersonate="chrome",
-                timeout=DEFAULT_TIMEOUT,
-            )
+            kwargs: dict[str, object] = {"timeout": self._timeout}
+            if self._impersonate is not None:
+                kwargs["impersonate"] = self._impersonate
+            self._cffi_session = AsyncSession(**kwargs)  # type: ignore[arg-type]
         return self._cffi_session
 
     async def close(self) -> None:
@@ -94,6 +109,8 @@ class HttpClient:
 
     async def _rate_limit(self) -> None:
         async with self._lock:
+            if self._bref_delay is None:
+                return
             now = time.time()
             elapsed = now - self._bref_last_request
             sleep_time = self._bref_delay - elapsed
@@ -161,10 +178,11 @@ class HttpClient:
         rate_limited: bool = True,
     ) -> str:
         session = self.get_cffi_session()
-        if rate_limited:
+        if rate_limited and self._bref_delay is not None:
             await self._rate_limit()
         str_params = self._str_params(params)
-        merged_headers = dict(self._extra_headers)
+        merged_headers = dict(self._default_headers)
+        merged_headers.update(self._extra_headers)
         if headers is not None:
             merged_headers.update(headers)
 

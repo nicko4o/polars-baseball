@@ -69,10 +69,19 @@ async def test_accent_insensitive_search_preserves_original_names() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fuzzy_accent_insensitive_search_preserves_original_names() -> None:
+async def test_search_does_not_return_fuzzy_suggestions_as_results() -> None:
     service = PlayerLookupService(AsyncMock(return_value=_player_table()))
 
     result = await service.search("valenzula", "fernando", fuzzy=True, ignore_accents=True)
+
+    assert result.is_empty()
+
+
+@pytest.mark.asyncio
+async def test_suggest_accent_insensitive_search_preserves_original_names() -> None:
+    service = PlayerLookupService(AsyncMock(return_value=_player_table()))
+
+    result = await service.suggest("valenzula", "fernando", ignore_accents=True)
 
     assert "valenzuéla" in result["name_last"].to_list()
 

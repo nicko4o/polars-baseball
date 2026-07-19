@@ -14,6 +14,7 @@ Finds player records and maps IDs across MLBAM, Retrosheet, FanGraphs, Baseball 
 ### Functions
 
 - `playerid_lookup(last: str, first: str | None = None, fuzzy: bool = False, ignore_accents: bool = False) -> pl.DataFrame`
+- `player_name_suggestions(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame`
 - `player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame`
 - `get_lookup_table(save: bool = True) -> pl.DataFrame`
 
@@ -21,7 +22,7 @@ Finds player records and maps IDs across MLBAM, Retrosheet, FanGraphs, Baseball 
 
 - `last`: Player last name.
 - `first`: Optional player first name. Narrowing down with a first name is recommended for common names.
-- `fuzzy`: Enable fuzzy name matching for typos.
+- `fuzzy`: Enable fuzzy name matching for typos (deprecated; use `player_name_suggestions` instead).
 - `ignore_accents`: If `True`, normalizes accented characters (e.g. `ó` to `o`) before matching.
 - `player_list`: A list of `(last, first)` tuples for performing batch lookups.
 - `save`: If `True`, caches the raw lookup index mapping to disk for fast subsequent queries.

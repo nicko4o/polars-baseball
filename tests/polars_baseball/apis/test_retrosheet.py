@@ -163,3 +163,35 @@ async def test_world_series_logs(mock_default_ctx: MagicMock) -> None:
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
     df = await world_series_logs()
     assert df.height == 1
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.retrosheet.default_context")
+async def test_retrosheet_empty_responses_raise(mock_default_ctx: MagicMock, mock_seasons_contents: bytes) -> None:
+    from polars_baseball.exceptions import UpstreamUnavailableError
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=b"")
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+
+    with pytest.raises(UpstreamUnavailableError):
+        await park_codes()
+
+    mock_http.get_text = AsyncMock(side_effect=[mock_seasons_contents, b""])
+    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    with pytest.raises(UpstreamUnavailableError):
+        await schedules(2026)
+
+
+@pytest.mark.asyncio
+async def test_retrosheet_explicit_github_token() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=b"[]")
+    ctx = BaseballContext(http=mock_http, github_token="my-test-token")
+
+    try:
+        await rosters(2026, context=ctx)
+    except Exception:
+        pass
+
+    assert mock_http.get_text.call_args[1]["headers"]["Authorization"] == "token my-test-token"

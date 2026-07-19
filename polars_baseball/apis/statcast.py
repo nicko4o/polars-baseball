@@ -129,8 +129,15 @@ async def _run_statcast_parallel(
     team: str | None,
     verbose: bool,
     context: BaseballContext | None,
+    concurrency_limit: int,
 ) -> list[pl.DataFrame]:
-    tasks = [_small_request(start, end, team, context=context) for start, end in date_range]
+    sem = asyncio.Semaphore(concurrency_limit)
+
+    async def _sem_request(start: date, end: date) -> pl.DataFrame:
+        async with sem:
+            return await _small_request(start, end, team, context=context)
+
+    tasks = [_sem_request(start, end) for start, end in date_range]
     if verbose and len(date_range) > 1:
         from tqdm.asyncio import tqdm as async_tqdm
 
@@ -165,6 +172,7 @@ async def statcast(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
+    concurrency_limit: int = 5,
 ) -> pl.DataFrame:
     """Fetch Statcast pitch-level data for a date range.
 
@@ -188,7 +196,7 @@ async def statcast(
     date_range = list(statcast_date_range(start_dt_date, end_dt_date, step=1, verbose=verbose))
 
     if parallel:
-        dataframe_list = await _run_statcast_parallel(date_range, team, verbose, context)
+        dataframe_list = await _run_statcast_parallel(date_range, team, verbose, context, concurrency_limit)
     else:
         dataframe_list = await _run_statcast_sequential(date_range, team, verbose, context)
 

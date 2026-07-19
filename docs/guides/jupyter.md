@@ -50,7 +50,7 @@ summary
 
 ## Cache Behavior
 
-Notebook sessions reuse the same package cache as scripts: `~/.polars_baseball/cache` by default. Long-running notebooks should call `cleanup()` before kernel shutdown when they are done with package-managed HTTP resources.
+Notebook sessions do not write cache files unless you call `configure_cache()` first. Long-running notebooks should call `cleanup()` before kernel shutdown when they are done with package-managed HTTP resources.
 
 ```python
 import polars_baseball as pb

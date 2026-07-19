@@ -63,6 +63,8 @@ class CompiledDatasetGateway:
         return archive_path
 
     async def table_path(self, table: CompiledTable) -> Path:
+        if self._cache_dir is None:
+            raise UpstreamParseError("Compiled dataset table paths require a file-backed cache directory.")
         path = self._table_path(table)
         async with _lock_for(str(path)):
             if not path.exists():
@@ -75,16 +77,21 @@ class CompiledDatasetGateway:
         return pl.scan_parquet(path)
 
     async def read_table(self, table: CompiledTable, *, use_cache: bool = True) -> pl.DataFrame:
-        if not use_cache:
+        if not use_cache or self._cache_dir is None:
             return await self._fetch_table_uncached(table)
         lazy_frame = await self.scan_table(table)
         return lazy_frame.collect()
 
     def _table_path(self, table: CompiledTable) -> Path:
-        return self._cache_dir / COMPILED_DATASETS_DIR / table.dataset / f"{table.table_name}{PARQUET_SUFFIX}"
+        return self._file_cache_dir() / COMPILED_DATASETS_DIR / table.dataset / f"{table.table_name}{PARQUET_SUFFIX}"
 
     def _archive_path(self, dataset: str) -> Path:
-        return self._cache_dir / COMPILED_DATASETS_DIR / ARCHIVES_DIR / f"{dataset}{ZIP_SUFFIX}"
+        return self._file_cache_dir() / COMPILED_DATASETS_DIR / ARCHIVES_DIR / f"{dataset}{ZIP_SUFFIX}"
+
+    def _file_cache_dir(self) -> Path:
+        if self._cache_dir is None:
+            raise UpstreamParseError("Compiled datasets require a file-backed cache directory for file paths.")
+        return self._cache_dir
 
     async def _fetch_table(self, table: CompiledTable) -> pl.DataFrame:
         if COMPILED_DATASETS_ROOT_URL:
@@ -107,11 +114,9 @@ class CompiledDatasetGateway:
         return await asyncio.to_thread(_read_archive_csv, archive_path, table)
 
 
-def _cache_dir(context: BaseballContext) -> Path:
+def _cache_dir(context: BaseballContext) -> Path | None:
     cache_dir = getattr(context.cache, "cache_dir", None)
-    if not isinstance(cache_dir, Path):
-        raise UpstreamParseError("Compiled datasets require a file-backed cache directory.")
-    return cache_dir
+    return cache_dir if isinstance(cache_dir, Path) else None
 
 
 def _lock_for(key: str) -> asyncio.Lock:

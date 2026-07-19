@@ -59,7 +59,7 @@ async def test_extra_headers_passed_to_httpx() -> None:
 
 @pytest.mark.asyncio
 async def test_extra_headers_passed_to_cffi() -> None:
-    client = HttpClient()
+    client = HttpClient(impersonate=None)
     client.extra_headers = {"Cookie": "cf_clearance=yes"}
 
     mock_resp = MagicMock()
