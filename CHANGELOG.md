@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Deprecate and remove Traditional Chinese reference documentation and guides under `docs/zh-tw/` to establish a single source of truth (SSOT) and reduce maintenance overhead.
+
 ### Fixed
 - Fix type hint contract and argument fallback logic in `CacheCallArgs.argument()`.
 - Prevent concurrent initialization race conditions in player lookup by implementing a loop-local single-flight lock.

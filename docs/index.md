@@ -3,7 +3,6 @@
 Start with the use-case index when you know the task but not the API name.
 
 - [API Use-Case Index](api_index.md): choose an API by task.
-- [Traditional Chinese documentation](zh-tw/index.md)
 
 ## Guides
 
