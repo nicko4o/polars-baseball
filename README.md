@@ -214,7 +214,6 @@ of the compatibility contract.
 
 - [Documentation](docs/index.md)
 - [API Use-Case Index](docs/api_index.md): choose the right API by task.
-- [Traditional Chinese documentation](docs/zh-tw/)
 
 ## Showcase
 
