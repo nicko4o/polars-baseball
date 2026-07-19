@@ -154,18 +154,31 @@ Runnable examples live in [`examples/`](examples/):
 - [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py): Statcast pitch mix with Polars.
 - [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py): FanGraphs batting leaderboard.
 - [`examples/mlb_schedule.py`](examples/mlb_schedule.py): MLB Stats API schedule query.
-- [`examples/benchmark_statcast.py`](examples/benchmark_statcast.py): Conservative Statcast timing and memory benchmark.
-
 ## Benchmarking
 
-Do not trust performance claims without a reproducible command. Start with:
+Do not trust performance claims without a reproducible command:
 
 ```bash
-python examples/benchmark_statcast.py --start-date 2024-04-01 --end-date 2024-04-07
+python -m benchmarks run statcast_1week
 ```
 
-The script reports row count, column count, wall time, and Python allocation peak measured by
-`tracemalloc`. Use the same date range, cache state, Python version, and machine when comparing
+List available profiles:
+
+```bash
+python -m benchmarks run list
+```
+
+Full command reference:
+
+```text
+python -m benchmarks run <profile> [--json] [--json-file PATH] [--baseline] [--fail-if-regression]
+python -m benchmarks baseline show
+python -m benchmarks baseline clear
+```
+
+The runner reports wall time, CPU time, peak Python memory (via `tracemalloc`), GC collections,
+and result shape. Use the `--baseline` flag to save results and compare against historical data.
+Use the same date range, cache state, Python version, and machine when comparing
 against pandas-first workflows.
 
 ## Web Services & Concurrency

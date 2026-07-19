@@ -2,9 +2,16 @@ import argparse
 import asyncio
 import sys
 import time
+import warnings
 from typing import Final
 
 from polars_baseball import statcast
+
+warnings.warn(
+    "scripts/statcast_timing.py is deprecated. Use `python -m benchmarks run <profile> --baseline` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 DEFAULT_TIME_THRESHOLD: Final[float] = 30.0
 DEFAULT_START_DATE: Final[str] = "2018-08-01"

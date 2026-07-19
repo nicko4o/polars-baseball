@@ -41,6 +41,7 @@ max-complexity = 12
 "polars_baseball/data/**" = ["D103"]
 "tests/**" = ["D103"]
 "scripts/**" = ["D103"]
+"benchmarks/**" = ["D103"]
 
 [format]
 quote-style = "double"

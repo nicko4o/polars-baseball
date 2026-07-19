@@ -1467,6 +1467,7 @@ test = [
 dev = [
     { name = "bump-my-version" },
     { name = "pre-commit" },
+    { name = "rich" },
     { name = "vulture" },
 ]
 
@@ -1498,6 +1499,7 @@ provides-extras = ["plot", "test"]
 dev = [
     { name = "bump-my-version", specifier = ">=0.28.1" },
     { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "rich", specifier = ">=13.0.0" },
     { name = "vulture", specifier = ">=2.16" },
 ]
 
