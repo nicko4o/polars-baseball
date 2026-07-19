@@ -148,17 +148,30 @@ if __name__ == "__main__":
 - [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py)：Statcast pitch mix。
 - [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py)：FanGraphs batting leaderboard。
 - [`examples/mlb_schedule.py`](examples/mlb_schedule.py)：MLB Stats API schedule query。
-- [`examples/benchmark_statcast.py`](examples/benchmark_statcast.py)：保守的 Statcast timing 與 memory benchmark。
-
 ## Benchmark
 
 先用可重現指令，不要相信沒有條件的效能口號：
 
 ```bash
-python examples/benchmark_statcast.py --start-date 2024-04-01 --end-date 2024-04-07
+python -m benchmarks run statcast_1week
 ```
 
-腳本會輸出 rows、columns、wall time，以及 `tracemalloc` 量到的 Python allocation peak。
+列出可用 profiles：
+
+```bash
+python -m benchmarks run list
+```
+
+完整指令：
+
+```text
+python -m benchmarks run <profile> [--json] [--json-file PATH] [--baseline] [--fail-if-regression]
+python -m benchmarks baseline show
+python -m benchmarks baseline clear
+```
+
+Runner 會回報 wall time、CPU time、peak Python memory（透過 `tracemalloc`）、GC collections
+以及 result shape。使用 `--baseline` 標記可儲存結果並與歷史資料比對。
 要比較 pandas-first workflow，請固定 date range、cache state、Python 版本與機器。
 
 ## Web 服務與高並行

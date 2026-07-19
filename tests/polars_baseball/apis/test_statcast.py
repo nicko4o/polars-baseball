@@ -48,19 +48,22 @@ async def test_statcast_date_range(
     mock_cache_set: AsyncMock,
     mock_cache_get: AsyncMock,
     mock_default_ctx: MagicMock,
-    mock_statcast_csv: str,
-    mock_statcast_csv_game2: str,
 ) -> None:
     mock_cache_get.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(side_effect=[mock_statcast_csv, mock_statcast_csv_game2])
+    # 8 days → step=7 produces 2 sub-queries: (Jun 1-7), (Jun 8-8)
+    csv_part1 = (
+        "game_date,game_pk,at_bat_number,pitch_number,pitch_type,release_speed\n"
+        "2026-06-01,123456,1,1,FF,95.5\n"
+        "2026-06-01,123456,1,2,SL,84.2\n"
+    )
+    csv_part2 = "game_date,game_pk,at_bat_number,pitch_number,pitch_type,release_speed\n2026-06-08,123457,2,1,FF,98.1\n"
+    mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    # Query 2 days (June 1st to June 2nd, 2026)
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-02", verbose=False)
+    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False)
     assert df.height == 3
-    # Check that sorting is descending by game_date, game_pk, at_bat_number, pitch_number
-    assert df["game_date"][0] == "2026-06-02"
+    assert df["game_date"][0] == "2026-06-08"
     assert df["game_date"][1] == "2026-06-01"
     assert df["pitch_number"][1] == 2
     assert df["pitch_number"][2] == 1
@@ -209,21 +212,21 @@ async def test_statcast_concat_path_with_schema_alignment(
     mock_cache_get.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
 
-    # day 1: bat_speed is Float64
-    csv_day1 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-01,123456,70.5,1.2\n"
-    # day 2: bat_speed is empty string (making Polars infer it differently)
-    csv_day2 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-02,123457,,\n"
+    # part 1 (Jun 1-7): bat_speed is Float64
+    csv_part1 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-01,123456,70.5,1.2\n2026-06-02,123457,72.3,2.1\n"
+    # part 2 (Jun 8): bat_speed is empty string (making Polars infer it differently)
+    csv_part2 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-08,123458,,\n"
 
-    mock_http.get_text = AsyncMock(side_effect=[csv_day1, csv_day2])
+    mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    # Query 2 days to force multiple requests and concatenation
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-02", verbose=False)
+    # Query 8 days to force 2 sub-queries with step=7
+    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False)
 
     assert isinstance(df, pl.DataFrame)
-    assert df.height == 2
+    assert df.height == 3
     # Verify that bat_speed and miss_distance have been aligned to Float64
     assert df["bat_speed"].dtype == pl.Float64
     assert df["miss_distance"].dtype == pl.Float64
-    assert df["bat_speed"][0] is None  # descending sort (June 2nd has None bat_speed)
-    assert df["bat_speed"][1] == 70.5  # June 1st has 70.5 bat_speed
+    assert df["bat_speed"][0] is None  # descending sort (June 8th has None bat_speed)
+    assert df["bat_speed"][2] == 70.5  # June 1st has 70.5 bat_speed

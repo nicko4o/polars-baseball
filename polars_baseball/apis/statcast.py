@@ -193,7 +193,7 @@ async def statcast(
     if verbose:
         logger.info("This is a large query, it may take a moment to complete")
 
-    date_range = list(statcast_date_range(start_dt_date, end_dt_date, step=1, verbose=verbose))
+    date_range = list(statcast_date_range(start_dt_date, end_dt_date, step=7, verbose=verbose))
 
     if parallel:
         dataframe_list = await _run_statcast_parallel(date_range, team, verbose, context, concurrency_limit)
