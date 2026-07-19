@@ -10,6 +10,13 @@ def validate_and_cast_schema(
     required_cols: Sequence[str],
     type_mapping: dict[str, pl.DataType | type[pl.DataType]],
 ) -> pl.DataFrame:
+    """Validate required columns exist and cast to target types.
+
+    Note:
+        Returns the DataFrame unchanged when it is empty (no rows to
+        validate). Raises InvalidSchemaError when required columns are
+        missing or when casting fails.
+    """
     if df.is_empty():
         return df
 

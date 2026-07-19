@@ -52,7 +52,7 @@ async def events(
     """Fetch Retrosheet event files for a given season.
 
     Returns one DataFrame with filename and raw event file content.
-    Edge Cases: type parameter selects file extensions (".EVA"/".EVN" for "regular",
+    Note: type parameter selects file extensions (".EVA"/".EVN" for "regular",
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
     """
@@ -102,7 +102,7 @@ async def rosters(
     """Fetch Retrosheet roster (.ROS) files for a given season.
 
     Reads all .ROS files for the season and returns a combined DataFrame.
-    Edge Cases: Returns an empty DataFrame with the correct schema if no roster
+    Note: Returns an empty DataFrame with the correct schema if no roster
     files are available or all fetch attempts return no data.
     """
     ctx = context or default_context()
@@ -157,7 +157,7 @@ def _schedules_cache_key(call: CacheCallArgs) -> str:
 async def schedules(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
     """Fetch Retrosheet schedule CSV for a given season.
 
-    Edge Cases: Raises ServerError if the schedule file is not found in the
+    Note: Raises ServerError if the schedule file is not found in the
     season directory.
     """
     ctx = context or default_context()
@@ -182,7 +182,7 @@ def _season_game_logs_cache_key(call: CacheCallArgs) -> str:
 async def season_game_logs(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
     """Fetch Retrosheet season game logs (GL{season}.TXT) for a given season.
 
-    Edge Cases: Raises ServerError if the game log file is not found.
+    Note: Raises ServerError if the game log file is not found.
     """
     ctx = context or default_context()
     files = await _get_season_contents(season, ctx)
@@ -213,25 +213,50 @@ async def _get_gamelog_generic(suffix: str, context: BaseballContext | None = No
 
 
 async def world_series_logs(context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch Retrosheet World Series game logs."""
+    """Fetch Retrosheet World Series game logs.
+
+    Note:
+        Delegates to _get_gamelog_generic with type code "WS".
+        Returns empty DataFrame when season data is not available.
+    """
     return await _get_gamelog_generic("WS", context=context)
 
 
 async def all_star_game_logs(context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch Retrosheet All-Star Game logs."""
+    """Fetch Retrosheet All-Star Game logs.
+
+    Note:
+        Delegates to _get_gamelog_generic with type code "AS".
+        Returns empty DataFrame when season data is not available.
+    """
     return await _get_gamelog_generic("AS", context=context)
 
 
 async def wild_card_logs(context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch Retrosheet Wild Card game logs."""
+    """Fetch Retrosheet Wild Card game logs.
+
+    Note:
+        Delegates to _get_gamelog_generic with type code "WC".
+        Returns empty DataFrame when season data is not available.
+    """
     return await _get_gamelog_generic("WC", context=context)
 
 
 async def division_series_logs(context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch Retrosheet Division Series game logs."""
+    """Fetch Retrosheet Division Series game logs.
+
+    Note:
+        Delegates to _get_gamelog_generic with type code "DV".
+        Returns empty DataFrame when season data is not available.
+    """
     return await _get_gamelog_generic("DV", context=context)
 
 
 async def lcs_logs(context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch Retrosheet League Championship Series game logs."""
+    """Fetch Retrosheet League Championship Series game logs.
+
+    Note:
+        Delegates to _get_gamelog_generic with type code "LC".
+        Returns empty DataFrame when season data is not available.
+    """
     return await _get_gamelog_generic("LC", context=context)

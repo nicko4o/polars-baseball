@@ -1,3 +1,5 @@
+"""MLB Stats API parser for venue data."""
+
 from typing import Any
 
 import polars as pl
@@ -18,6 +20,11 @@ def parse_venue(venue: dict[str, Any]) -> VenueDict:
 
 
 def parse_mlb_venues(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse venues from MLB Stats API /venues response.
+
+    Extracts id, name, link, active, and season from each venue in the
+    venues array.
+    """
     venues = data.get("venues", [])
     rows = [parse_venue(venue) for venue in venues]
     if not rows:

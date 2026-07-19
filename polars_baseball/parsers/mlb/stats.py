@@ -1,3 +1,5 @@
+"""MLB Stats API parsers for player stats, team stats, stat leaders, and pitch arsenal."""
+
 from typing import Any
 
 import polars as pl
@@ -123,6 +125,12 @@ def parse_pitch_arsenal(split: dict[str, Any], person_id: int, season: int) -> P
 
 
 def parse_mlb_player_stats(data: dict[str, Any], person_id: int, group: str, stats_type: str) -> pl.DataFrame:
+    """Parse player stats from MLB Stats API /people/{id}/stats response.
+
+    Flattens stats[].splits[].stat objects into rows, skipping nested
+    dict values within each stat object. Each row is annotated with the
+    person ID, season, group, and stat type.
+    """
     rows = parse_player_stats(data, person_id, group, stats_type)
     if not rows:
         return pl.DataFrame()
@@ -130,6 +138,12 @@ def parse_mlb_player_stats(data: dict[str, Any], person_id: int, group: str, sta
 
 
 def parse_mlb_team_stats(data: dict[str, Any], team_id: int, group: str) -> pl.DataFrame:
+    """Parse team stats from MLB Stats API /teams/{id}/stats response.
+
+    Flattens stats[].splits[].stat objects into rows, skipping nested
+    dict values. Each row is annotated with the team ID, season, group,
+    and stat type.
+    """
     rows = parse_team_stats(data, team_id, group)
     if not rows:
         return pl.DataFrame()
@@ -137,6 +151,12 @@ def parse_mlb_team_stats(data: dict[str, Any], team_id: int, group: str) -> pl.D
 
 
 def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | None) -> pl.DataFrame:
+    """Parse stat leaders from MLB Stats API /stats/leaders response.
+
+    Iterates leagueLeaders[].leaderCategory entries and their nested
+    leaders[] arrays. Each row captures the player, team, league,
+    category, value, season, and stat group.
+    """
     league_leaders = data.get("leagueLeaders", [])
     if not league_leaders:
         return pl.DataFrame()
@@ -151,6 +171,15 @@ def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | 
 
 
 def parse_mlb_pitch_arsenal(data: dict[str, Any], person_id: int, season: int) -> pl.DataFrame:
+    """Parse pitch arsenal data from MLB Stats API /people/{id}/stats response.
+
+    Filters for splits where type.displayName is "pitchArsenal".
+    Each split must contain core pitch fields or raises UpstreamParseError.
+
+    Note:
+        Raises UpstreamParseError if a pitch arsenal entry is missing
+        code, description, percentage, or averageSpeed.
+    """
     stats = data.get("stats", [])
     rows: list[PitchArsenalDict] = []
     for stat in stats:

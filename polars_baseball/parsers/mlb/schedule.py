@@ -1,3 +1,5 @@
+"""MLB Stats API parser for schedule data."""
+
 from typing import Any, cast
 
 import polars as pl
@@ -104,6 +106,12 @@ def parse_game(game_data: dict[str, Any]) -> GameDict:
 
 
 def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse schedule from MLB Stats API /schedule response.
+
+    Iterates dates[].games[] across all dates in the response. Each
+    game includes team info, scores, probable pitchers, decision
+    pitchers, hits, errors, and venue/status metadata.
+    """
     dates = data.get("dates", [])
     if not dates:
         return pl.DataFrame()

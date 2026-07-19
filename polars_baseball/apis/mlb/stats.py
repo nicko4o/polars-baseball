@@ -153,7 +153,7 @@ async def mlb_stat_leaders(
     "pitching"). Returns an empty DataFrame when no leader data is
     available for the given season and categories.
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if the season is out of range,
         categories is empty, or limit is non-positive.
     """
@@ -188,7 +188,7 @@ async def mlb_team_stats(
     "pitching", "fielding"). The stats_type parameter controls the time
     frame (e.g. "season", "career").
 
-    Edge Cases:
+    Note:
         Raises InvalidParameterError if team_id is non-positive, the
         season is out of range, or group or stats_type is empty.
     """

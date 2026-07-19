@@ -19,6 +19,13 @@ _MLBID_COLUMN: str = "mlbID"
 
 
 class BRefHTMLParser(BaseParser):
+    """Parse Baseball Reference standard HTML stat tables into DataFrames.
+
+    Handles multi-column HTML tables from BRef player/team pages, extracting
+    header rows and data rows via lxml. Applies null-token sanitization and
+    schema coercion via bref_schema.
+    """
+
     def parse(self, raw: str) -> pl.DataFrame:
         return self._to_dataframe(raw)
 
@@ -106,6 +113,13 @@ class BRefHTMLParser(BaseParser):
 
 
 class BRefGameLogParser(BaseParser):
+    """Parse Baseball Reference game log HTML tables into DataFrames.
+
+    Handles multi-level column headers (merged thead cells), renames
+    ambiguous column names via _COLUMN_RENAMES, and normalizes the
+    resulting table structure for a specific log_type.
+    """
+
     _COLUMN_RENAMES = {
         "Gtm": "Game",
         "Unnamed: 3_level_1": "Home",
@@ -210,6 +224,16 @@ class BRefGameLogParser(BaseParser):
 
 
 class BRefSplitsParser:
+    """Parse BRef player splits HTML and player info metadata.
+
+    Reads the players info div for position, bats, throws side; the
+    splits table parsing is delegated to BRefHTMLParser internally.
+
+    Note:
+        Does not inherit from BaseParser — get_player_info() returns
+        a dict rather than a DataFrame.
+    """
+
     def __init__(self, playerid: str, year: int | None, pitching: bool) -> None:
         self.playerid = playerid
         self.year = year

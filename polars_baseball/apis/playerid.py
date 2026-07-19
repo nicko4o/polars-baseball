@@ -82,7 +82,7 @@ async def chadwick_register(save: bool = True, context: BaseballContext | None =
     ``key_retro``, ``key_bbref``, ``key_fangraphs``, ``mlb_played_first``,
     ``mlb_played_last``.  Only rows with at least one MLB key are included.
 
-    Edge Cases:
+    Note:
         - Raises ``UpstreamParseError`` if the upstream people table is empty.
         - Missing MLB IDs default to ``-1``.
     """
@@ -119,7 +119,7 @@ async def playerid_lookup(
     results, falls back to ``difflib``-based fuzzy matching.  When ``ignore_accents`` is
     true, diacritical marks are normalized before comparison.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when no player matches the criteria.
         - Case-insensitive; inputs are lowercased automatically.
     """
@@ -137,7 +137,7 @@ async def player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame
     Each tuple is ``(last, first)``.  Delegates to :func:`playerid_lookup` for each pair
     and concatenates results.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when the input list is empty or no players match.
     """
     return await _module_client.search_list(player_list)
@@ -149,7 +149,7 @@ async def playerid_reverse_lookup(player_ids: list[PlayerId], key_type: KeyType 
     Use ``key_type`` to select the ID namespace (MLBAM, FanGraphs, BRef, or Retrosheet).
     Raises ``InvalidParameterError`` when ``key_type`` is not a ``KeyType`` enum.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when none of the provided IDs match.
     """
     return await _module_client.reverse_lookup(player_ids, key_type)

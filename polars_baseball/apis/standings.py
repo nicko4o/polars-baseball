@@ -34,7 +34,7 @@ async def standings(season: int | None = None, context: BaseballContext | None =
 
     Returns one DataFrame with division metadata and team-level standings.
 
-    Edge Cases:
+    Note:
         - Raises ``InvalidParameterError`` for seasons before 1901 (``MLB_FIRST_YEAR``).
         - Defaults to the most recent completed season when ``season`` is omitted.
         - Games Back (``GB``) is ``None`` for division leaders or tied values.

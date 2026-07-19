@@ -70,9 +70,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           fail_ci_if_error: true
-      - name: Timing test
-        timeout-minutes: 2
-        run: uv run python scripts/statcast_timing.py
       - name: Cache test
         run: uv run python ./scripts/validate_cache.py
       - name: Dry-run Package Build

@@ -24,6 +24,13 @@ _NEXT_DATA_RE = re.compile(
 
 
 class FangraphsHTMLParser(BaseParser):
+    """Parse FanGraphs leaderboard HTML using __NEXT_DATA__ JSON embedded in the page.
+
+    Extracts the <script id="__NEXT_DATA__"> block, decodes the
+    leaders/major-league/data query key, and converts the player data
+    array into a DataFrame. Strips HTML tags from string columns.
+    """
+
     def parse(self, raw: str) -> pl.DataFrame:
         return self._parse_next_data(raw)
 

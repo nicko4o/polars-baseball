@@ -180,7 +180,7 @@ async def statcast(
     and concatenated.  Use ``team`` to filter for home games of a specific franchise.
     When ``parallel`` is true (default), sub-queries run concurrently.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when no data matches the filters.
         - Emits a warning when the date range exceeds ~90 days (oversized threshold).
         - Requests spanning multiple calendar years are split at year boundaries.
@@ -211,7 +211,7 @@ async def statcast(
 async def statcast_single_game(game_pk: str | int, context: BaseballContext | None = None) -> pl.DataFrame:
     """Fetch Statcast data for a single game.
 
-    Edge Cases:
+    Note:
         - Returns empty DataFrame when ``game_pk`` is invalid or the game has no data.
         - Postponed or cancelled games return an empty DataFrame.
     """

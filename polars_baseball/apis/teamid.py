@@ -24,7 +24,7 @@ def team_ids(season: int | None = None, league: str = "ALL") -> pl.DataFrame:
     Filters by season and/or league when provided.  Data sourced from
     ``polars_baseball/data/fangraphs_teams.csv``.
 
-    Edge Cases:
+    Note:
         - Raises ``ServerError`` if the bundled CSV file is missing.
         - Returns empty DataFrame when no teams match the given season/league filters.
     """

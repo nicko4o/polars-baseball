@@ -54,6 +54,13 @@ _NESTED_ID_KEY = "id"
 
 
 class SavantGamefeedParser:
+    """Parse Baseball Savant gamefeed JSON into exit-velocity or pitch-data DataFrames.
+
+    Accepts the raw gamefeed JSON payload and a game_pk. Handles the
+    variable JSON structure where nodes can be lists or dicts of lists
+    (keyed by pitcher id).
+    """
+
     def parse_exit_velocity(self, game_pk: int, payload: JsonObject) -> pl.DataFrame:
         rows = [self._exit_velocity_row(game_pk, item) for item in _node_rows(payload, _EXIT_VELOCITY_NODE)]
         return _frame(rows, EXIT_VELOCITY_SCHEMA)

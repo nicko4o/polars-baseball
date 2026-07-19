@@ -1,3 +1,5 @@
+"""MLB Stats API parsers for team, division, and league taxonomy data."""
+
 from typing import Any
 
 import polars as pl
@@ -79,6 +81,11 @@ def parse_league(league_data: dict[str, Any]) -> LeagueDict:
 
 
 def parse_mlb_teams(data: dict[str, Any], season: int | None) -> pl.DataFrame:
+    """Parse teams from MLB Stats API /teams response.
+
+    Each team entry flattens league, division, venue, and springLeague
+    sub-objects. Annotated with the requested season parameter.
+    """
     teams = data.get("teams", [])
     if not teams:
         return pl.DataFrame()
@@ -87,6 +94,13 @@ def parse_mlb_teams(data: dict[str, Any], season: int | None) -> pl.DataFrame:
 
 
 def parse_mlb_divisions(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse divisions from MLB Stats API /divisions response.
+
+    Each division entry flattens league and sport sub-objects.
+
+    Note:
+        Non-dict entries in the divisions array are silently skipped.
+    """
     divisions = data.get("divisions", [])
     if not divisions:
         return pl.DataFrame()
@@ -97,6 +111,13 @@ def parse_mlb_divisions(data: dict[str, Any]) -> pl.DataFrame:
 
 
 def parse_mlb_leagues(data: dict[str, Any]) -> pl.DataFrame:
+    """Parse leagues from MLB Stats API /leagues response.
+
+    Each league entry flattens the sport sub-object.
+
+    Note:
+        Non-dict entries in the leagues array are silently skipped.
+    """
     leagues = data.get("leagues", [])
     if not leagues:
         return pl.DataFrame()

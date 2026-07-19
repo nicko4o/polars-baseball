@@ -20,7 +20,7 @@ async def statcast_sprint_speed(
     min_opp: int = 10,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast sprint speed leaderboard data."""
+    """Fetch sprint speed leaderboard data."""
     return await get_leaderboard("sprint_speed", context=context, year=str(year), min=str(min_opp))
 
 
@@ -32,7 +32,7 @@ async def statcast_running_splits(
 ) -> pl.DataFrame:
     """Fetch Statcast running splits data.
 
-    Edge Cases: When raw_splits is True, returns raw split times;
+    Note: When raw_splits is True, returns raw split times;
     when False, returns percentile-based splits.
     """
     split_type = "raw" if raw_splits else "percent"
@@ -44,7 +44,7 @@ async def statcast_base_stealing(
     min_attempts: int | str = "q",
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast base stealing run value leaderboard data."""
+    """Fetch base stealing leaderboard data."""
     return await get_leaderboard("base_stealing", context=context, year=str(year), min=str(min_attempts))
 
 
@@ -63,7 +63,7 @@ async def statcast_outs_above_average(
 ) -> pl.DataFrame:
     """Fetch Statcast Outs Above Average (OAA) leaderboard data.
 
-    Edge Cases:
+    Note:
       - Does not support catchers (position code "2"); raises InvalidParameterError.
       - Does not support aggregate codes ("IF", "OF", "ALL"); the Savant OAA endpoint
         only accepts single numeric position codes (3–9). Use a specific position instead.
@@ -93,7 +93,7 @@ async def statcast_fielding_run_value(
     min_inn: int = 100,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast fielding run value leaderboard data for a given position."""
+    """Fetch fielding run value (DEF, RAA) leaderboard data."""
     pos_code = pos_to_numeric(pos)
     return await get_leaderboard(
         "fielding_run_value",
@@ -119,7 +119,7 @@ async def statcast_outfield_catch_prob(
     min_opp: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast outfield catch probability leaderboard data."""
+    """Fetch outfield catch probability leaderboard data."""
     return await get_leaderboard("catch_probability", context=context, min=str(min_opp), year=str(year))
 
 
@@ -138,7 +138,7 @@ async def statcast_catcher_poptime(
     min_3b_att: int = 0,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast catcher pop time leaderboard data."""
+    """Fetch catcher pop time leaderboard data."""
     return await get_leaderboard(
         "poptime", context=context, year=str(year), min2b=str(min_2b_att), min3b=str(min_3b_att)
     )
@@ -151,7 +151,7 @@ async def statcast_catcher_framing(
 ) -> pl.DataFrame:
     """Fetch Statcast catcher framing leaderboard data.
 
-    Edge Cases: Filters out rows with null/empty player name.
+    Note: Filters out rows with null/empty player name.
     """
     df = await get_leaderboard(
         "catcher_framing", context=context, seasonStart=str(year), seasonEnd=str(year), min=str(min_called_p)
@@ -166,7 +166,7 @@ async def statcast_catcher_blocking(
     min_chances: int = SAVANT_DEFAULT_CATCHER_BLOCKING_MIN,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast catcher blocking leaderboard data."""
+    """Fetch catcher blocking leaderboard data."""
     return await get_leaderboard("catcher_blocking", context=context, year=str(year), min_chances=str(min_chances))
 
 
@@ -175,7 +175,7 @@ async def statcast_arm_strength(
     min_throws: int = SAVANT_DEFAULT_ARM_STRENGTH_MIN,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast arm strength leaderboard data for fielders."""
+    """Fetch arm strength leaderboard data."""
     return await get_leaderboard("arm_strength", context=context, year=str(year), min=str(min_throws))
 
 
@@ -184,7 +184,7 @@ async def statcast_baserunning_run_value(
     min_opp: int = SAVANT_DEFAULT_BASERUNNING_MIN,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast baserunning run value leaderboard data."""
+    """Fetch baserunning run value leaderboard data."""
     return await get_leaderboard("baserunning_run_value", context=context, year=str(year), min=str(min_opp))
 
 
@@ -193,7 +193,7 @@ async def statcast_catcher_throwing(
     min_att: int = SAVANT_DEFAULT_CATCHER_THROWING_MIN,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast catcher throwing leaderboard data."""
+    """Fetch catcher throwing leaderboard data."""
     return await get_leaderboard("catcher_throwing", context=context, year=str(year), min_att=str(min_att))
 
 
@@ -201,5 +201,5 @@ async def statcast_catcher_stance(
     year: int,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast catcher stance leaderboard data."""
+    """Fetch catcher stance leaderboard data."""
     return await get_leaderboard("catcher_stance", context=context, year=str(year))

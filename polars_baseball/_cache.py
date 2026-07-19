@@ -101,17 +101,33 @@ def _set_default_cache_context_resolver(resolver: Callable[[], CacheContext]) ->
 
 
 class CacheAdapter(ABC):
+    """Pluggable cache backend for storing and retrieving DataFrames.
+
+    Implementations must handle parquet-level I/O, key-based lookups,
+    and optional time-based staleness checks. Subclasses are responsible
+    for thread safety and atomic writes.
+    """
+
     @abstractmethod
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        pass
+        """Retrieve a cached DataFrame by key.
+
+        Note:
+            Returns None when the key is missing, the file is corrupt,
+            or the cached entry exceeds max_age.
+        """
 
     @abstractmethod
     def set(self, key: str, value: pl.DataFrame) -> None:
-        pass
+        """Store a DataFrame under the given key.
+
+        Note:
+            Must be atomic — partial writes should not leave a corrupt cache entry.
+        """
 
     @abstractmethod
     def clear(self) -> None:
-        pass
+        """Remove all cached entries."""
 
     async def get_or_fetch(
         self,
@@ -135,6 +151,12 @@ class CacheAdapter(ABC):
             return df
 
     def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
+        """Retrieve a list of partitioned DataFrames stored under a single key.
+
+        Note:
+            Returns None when the key is missing. Returns an empty list
+            when the partition table is empty (previously set with an empty list).
+        """
         df = self.get(key, max_age=max_age)
         if df is None:
             return None
@@ -146,6 +168,12 @@ class CacheAdapter(ABC):
         return [p.drop(_CACHE_PARTITION_KEY) for p in parts]
 
     def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
+        """Store a list of DataFrames as a single partitioned cache entry.
+
+        Note:
+            An empty list produces a sentinel partition table so that
+            get_list can distinguish "never set" from "empty list".
+        """
         if not dfs:
             self.set(key, pl.DataFrame({_CACHE_PARTITION_KEY: pl.Series([], dtype=pl.Int64)}))
             return
@@ -154,6 +182,12 @@ class CacheAdapter(ABC):
 
 
 class FileCacheAdapter(CacheAdapter):
+    """File-based cache backend that stores DataFrames as Parquet files.
+
+    Uses atomic writes via temp-file-then-replace to prevent corruption.
+    Thread-safe via per-key locks and a shared/exclusive lock for clearing.
+    """
+
     def __init__(self, cache_dir: Path | None = None) -> None:
         self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -232,6 +266,11 @@ class FileCacheAdapter(CacheAdapter):
 
 
 class NullCacheAdapter(CacheAdapter):
+    """No-op cache backend. Every get returns None; set/clear are no-ops.
+
+    Used as the default when no cache directory has been configured.
+    """
+
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         return None
 
@@ -249,6 +288,13 @@ class NullCacheAdapter(CacheAdapter):
 
 
 class GlobalCache(CacheAdapter):
+    """Thread-safe process-wide cache adapter with dynamic backend switching.
+
+    Starts as a NullCacheAdapter. Call configure() to switch to a
+    FileCacheAdapter at runtime. All operations are protected by a
+    shared/exclusive lock for safe concurrent access.
+    """
+
     def __init__(self, cache_dir: Path | None = None) -> None:
         self._adapter: CacheAdapter = FileCacheAdapter(cache_dir) if cache_dir is not None else NullCacheAdapter()
         self._adapter_lock = SharedExclusiveLock()
@@ -390,6 +436,15 @@ def cached(
     key: str | CacheKeyBuilder,
     max_age: timedelta | None | CacheMaxAgeResolver = None,
 ) -> Callable[[Callable[P, Awaitable[pl.DataFrame]]], Callable[P, Awaitable[pl.DataFrame]]]:
+    """Cache a single DataFrame result, keyed by the decorated function's arguments.
+
+    Args:
+        key: Static cache key string, or a CacheKeyBuilder that receives
+            CacheCallArgs and returns a key.
+        max_age: Optional TTL. Can be a timedelta, None (no expiry), or
+            a CacheMaxAgeResolver callback.
+    """
+
     def decorator(fn: Callable[P, Awaitable[pl.DataFrame]]) -> Callable[P, Awaitable[pl.DataFrame]]:
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> pl.DataFrame:
@@ -412,6 +467,13 @@ def cached_list(
     key: str | CacheKeyBuilder,
     max_age: timedelta | None | CacheMaxAgeResolver = None,
 ) -> Callable[[Callable[P, Awaitable[list[pl.DataFrame]]]], Callable[P, Awaitable[list[pl.DataFrame]]]]:
+    """Cache a list of DataFrames under a single partitioned key.
+
+    Args:
+        key: Static cache key string, or a CacheKeyBuilder callback.
+        max_age: Optional TTL.
+    """
+
     def decorator(fn: Callable[P, Awaitable[list[pl.DataFrame]]]) -> Callable[P, Awaitable[list[pl.DataFrame]]]:
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> list[pl.DataFrame]:

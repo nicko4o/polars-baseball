@@ -1,3 +1,5 @@
+"""MLB Stats API parser for roster data."""
+
 from typing import Any
 
 import polars as pl
@@ -26,6 +28,12 @@ def parse_roster_member(roster_data: dict[str, Any], team_id: int) -> RosterMemb
 
 
 def parse_mlb_roster(data: dict[str, Any], team_id: int) -> pl.DataFrame:
+    """Parse roster from MLB Stats API /teams/{id}/roster response.
+
+    Each roster member's person, position, and status sub-objects are
+    flattened into a single row. Returns an empty DataFrame when the
+    roster array is empty.
+    """
     roster = data.get("roster", [])
     if not roster:
         return pl.DataFrame()

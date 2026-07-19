@@ -73,10 +73,20 @@ async def _bwar_generic(
 
 
 async def bwar_bat(return_all: bool = False, context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch batting WAR from BRef."""
+    """Fetch batting WAR from BRef.
+
+    Note:
+        When return_all is False (default), returns only the columns defined
+        in BWAR_BAT_REQUIRED. Pass return_all=True for all available columns.
+    """
     return await _bwar_generic("bat", BWAR_BAT_REQUIRED, BWAR_BAT_TYPES, return_all, context=context)
 
 
 async def bwar_pitch(return_all: bool = False, context: BaseballContext | None = None) -> pl.DataFrame:
-    """Fetch pitching WAR from BRef."""
+    """Fetch pitching WAR from BRef.
+
+    Note:
+        When return_all is False (default), returns only the columns defined
+        in BWAR_PITCH_REQUIRED. Pass return_all=True for all available columns.
+    """
     return await _bwar_generic("pitch", BWAR_PITCH_REQUIRED, BWAR_PITCH_TYPES, return_all, context=context)

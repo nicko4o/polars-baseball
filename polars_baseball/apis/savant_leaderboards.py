@@ -65,7 +65,7 @@ async def statcast_exitvelo_barrels(
     minBBE: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast exit velocity and barrel rate leaderboard data."""
+    """Fetch exit velocity and barrel rate leaderboard data."""
     return await get_leaderboard("exitvelo_barrels", context=context, type=player_type, year=str(year), min=str(minBBE))
 
 
@@ -103,7 +103,7 @@ async def statcast_run_value(
     player_type: Literal["batter", "pitcher"] = "batter",
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast run value leaderboard data."""
+    """Fetch run value (run expectancy) leaderboard data."""
     group = "Batter" if player_type == "batter" else "Pitcher"
     return await get_leaderboard("run_value", context=context, year=str(year), group=group)
 
@@ -114,7 +114,7 @@ async def statcast_pitch_arsenal_stats(
     min_count: int = 25,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast pitch arsenal stats leaderboard data."""
+    """Fetch pitch arsenal usage and performance leaderboard data."""
     return await get_leaderboard(
         "pitch_arsenal_stats", context=context, type=player_type, year=str(year), min=str(min_count)
     )
@@ -128,7 +128,7 @@ async def statcast_batter_exitvelo_barrels(
     minBBE: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast exit velocity and barrel rate for batters."""
+    """Fetch exit velocity and barrel rate leaderboard for batters."""
     return await statcast_exitvelo_barrels(year, "batter", minBBE, context=context)
 
 
@@ -147,7 +147,7 @@ async def statcast_batter_percentile_ranks(
 ) -> pl.DataFrame:
     """Fetch Statcast percentile rankings for batters.
 
-    Edge Cases: Filters out rows with null/empty player_name and invalid player_id.
+    Note: Filters out rows with null/empty player_name and invalid player_id.
     """
     return await _percentile_ranks_generic("batter", year, context=context)
 
@@ -157,7 +157,7 @@ async def statcast_batter_pitch_arsenal(
     minPA: int = 25,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast pitch arsenal data for batters."""
+    """Fetch pitch arsenal stats for batters."""
     return await statcast_pitch_arsenal_stats(year, "batter", minPA, context=context)
 
 
@@ -166,7 +166,7 @@ async def statcast_batter_bat_tracking(
     minSwings: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast bat tracking data for batters."""
+    """Fetch bat tracking (swing path, attack angle) data for batters."""
     return await statcast_bat_tracking(year, "batter", minSwings, context=context)
 
 
@@ -174,7 +174,7 @@ async def statcast_batter_run_value(
     year: int,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast run value data for batters."""
+    """Fetch run value leaderboard for batters."""
     return await statcast_run_value(year, "batter", context=context)
 
 
@@ -186,7 +186,7 @@ async def statcast_pitcher_exitvelo_barrels(
     minBBE: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast exit velocity and barrel rate for pitchers."""
+    """Fetch exit velocity and barrel rate leaderboard for pitchers."""
     return await statcast_exitvelo_barrels(year, "pitcher", minBBE, context=context)
 
 
@@ -207,7 +207,7 @@ async def statcast_pitcher_pitch_arsenal(
 ) -> pl.DataFrame:
     """Fetch Statcast pitch arsenal data for pitchers.
 
-    Edge Cases: arsenal_type must be an ArsenalType enum; raises InvalidParameterError otherwise.
+    Note: arsenal_type must be an ArsenalType enum; raises InvalidParameterError otherwise.
     """
     if not isinstance(arsenal_type, ArsenalType):
         raise InvalidParameterError("arsenal_type must be an ArsenalType enum value.")
@@ -227,7 +227,7 @@ async def statcast_pitcher_arsenal_stats(
     minPA: int = 25,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast pitcher arsenal stats leaderboard data."""
+    """Fetch pitch arsenal stats for pitchers."""
     return await statcast_pitch_arsenal_stats(year, "pitcher", minPA, context=context)
 
 
@@ -239,7 +239,7 @@ async def statcast_pitcher_pitch_movement(
 ) -> pl.DataFrame:
     """Fetch Statcast pitch movement data for a given pitch type.
 
-    Edge Cases: pitch_type is normalized via norm_pitch_code; defaults to "FF" (four-seam fastball).
+    Note: pitch_type is normalized via norm_pitch_code; defaults to "FF" (four-seam fastball).
     """
     pitch_code = norm_pitch_code(pitch_type)
     url = f"{SAVANT_ROOT}{PATH_PITCH_MOVEMENT}"
@@ -283,7 +283,7 @@ async def statcast_pitcher_active_spin(
 ) -> pl.DataFrame:
     """Fetch Statcast active spin leaderboard data for pitchers.
 
-    Edge Cases: Tries "spin-based" results first, falls back to "observed";
+    Note: Tries "spin-based" results first, falls back to "observed";
     raises UpstreamParseError if neither variant returns data.
     """
     for idx, spin_type in enumerate(_ACTIVE_SPIN_TYPE_ORDER):
@@ -305,7 +305,7 @@ async def statcast_pitcher_percentile_ranks(
 ) -> pl.DataFrame:
     """Fetch Statcast percentile rankings for pitchers.
 
-    Edge Cases: Filters out rows with null/empty player_name and invalid player_id.
+    Note: Filters out rows with null/empty player_name and invalid player_id.
     """
     return await _percentile_ranks_generic("pitcher", year, context=context)
 
@@ -320,7 +320,7 @@ async def statcast_pitcher_spin_dir_comp(
 ) -> pl.DataFrame:
     """Fetch Statcast spin direction comparison between two pitch types.
 
-    Edge Cases: pitch_a and pitch_b are normalized via norm_pitch_code;
+    Note: pitch_a and pitch_b are normalized via norm_pitch_code;
     pitcher_pov controls the perspective (True = Pitcher view, False = Batter view).
     """
     code_a = norm_pitch_code(pitch_a, to_word=True)
@@ -345,7 +345,7 @@ async def statcast_pitcher_bat_tracking(
     minSwings: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast bat tracking data for pitchers."""
+    """Fetch bat tracking (swing path, attack angle) data for pitchers."""
     return await statcast_bat_tracking(year, "pitcher", minSwings, context=context)
 
 
@@ -353,7 +353,7 @@ async def statcast_pitcher_run_value(
     year: int,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast run value data for pitchers."""
+    """Fetch run value leaderboard for pitchers."""
     return await statcast_run_value(year, "pitcher", context=context)
 
 
@@ -362,5 +362,5 @@ async def statcast_pitch_tempo(
     min_pitches: int = SAVANT_DEFAULT_PITCH_TEMPO_MIN,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast pitch tempo leaderboard data."""
+    """Fetch pitch tempo (pace-of-game) leaderboard data."""
     return await get_leaderboard("pitch_tempo", context=context, year=str(year), min=str(min_pitches))
