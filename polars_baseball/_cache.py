@@ -231,14 +231,33 @@ class FileCacheAdapter(CacheAdapter):
                 raise CacheClearError(f"Failed to remove cache directory {self.cache_dir}: {e}") from e
 
 
+class NullCacheAdapter(CacheAdapter):
+    def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+        return None
+
+    def set(self, key: str, value: pl.DataFrame) -> None:
+        return None
+
+    def clear(self) -> None:
+        return None
+
+    def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
+        return None
+
+    def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
+        return None
+
+
 class GlobalCache(CacheAdapter):
     def __init__(self, cache_dir: Path | None = None) -> None:
-        self._adapter = FileCacheAdapter(cache_dir)
+        self._adapter: CacheAdapter = FileCacheAdapter(cache_dir) if cache_dir is not None else NullCacheAdapter()
         self._adapter_lock = SharedExclusiveLock()
 
     @property
     def cache_dir(self) -> Path:
         with self._adapter_lock.shared():
+            if not isinstance(self._adapter, FileCacheAdapter):
+                raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
             return self._adapter.cache_dir
 
     def configure(self, cache_dir: Path) -> None:

@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `UpstreamUnavailableError` exception to distinguish empty upstream responses from empty result sets.
+- Add `player_name_suggestions()` public API for fuzzy name matching, split from `playerid_lookup()`.
+- Add `concurrency_limit` parameter to `statcast()`, `events()`, and `rosters()` to bound parallel requests.
+- Make `HttpClient` constructor parameters configurable: `max_retries`, `retry_backoff_base_seconds`, `timeout`, `impersonate`, `default_headers`, `bref_requests_per_minute`.
+
 ### Changed
 - Deprecate and remove Traditional Chinese reference documentation and guides under `docs/zh-tw/` to establish a single source of truth (SSOT) and reduce maintenance overhead.
+- **Default cache changed to NullCacheAdapter**: `GlobalCache` no longer creates a file-backed cache directory on import. Call `configure_cache(Path)` or pass `FileCacheAdapter(...)` to `BaseballContext(cache=...)` explicitly.
+- Gateway (`BRefGateway`, `SavantGateway`) empty upstream responses now raise `UpstreamUnavailableError` instead of silently returning empty DataFrames.
+- Retrosheet `github_token` is now read explicitly from `BaseballContext.github_token` instead of environment variables.
+- `playerid_lookup(fuzzy=True)` emits `DeprecationWarning`; fuzzy matching moved to `player_name_suggestions()`.
+- `default_context()` emits `DeprecationWarning`; prefer `async with BaseballContext() as ctx:`.
+- Concurrency bounded by `asyncio.Semaphore` in `statcast()`, `events()`, `rosters()`.
 
 ### Fixed
 - Fix type hint contract and argument fallback logic in `CacheCallArgs.argument()`.

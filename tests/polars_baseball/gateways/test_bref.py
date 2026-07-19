@@ -10,7 +10,7 @@ import pytest
 from polars_baseball._cache import FileCacheAdapter
 from polars_baseball._client import HttpClient
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamStructureChangedError
+from polars_baseball.exceptions import UpstreamStructureChangedError, UpstreamUnavailableError
 from polars_baseball.gateways.bref import BRefGateway
 from polars_baseball.parsers.bref import BRefHTMLParser
 
@@ -24,9 +24,8 @@ async def test_get_dataset_no_cache_empty_response() -> None:
     ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
-    df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
-    assert isinstance(df, pl.DataFrame)
-    assert df.height == 0
+    with pytest.raises(UpstreamUnavailableError):
+        await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
 
 
 @pytest.mark.asyncio
@@ -49,9 +48,8 @@ async def test_get_dataset_cached_fetcher_empty_response() -> None:
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
     gateway = BRefGateway(ctx)
 
-    df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=True)
-    assert isinstance(df, pl.DataFrame)
-    assert df.height == 0
+    with pytest.raises(UpstreamUnavailableError):
+        await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=True)
 
 
 @pytest.mark.asyncio
@@ -133,12 +131,8 @@ async def test_get_splits_no_cache_empty_html() -> None:
     ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
-    df_main, info, df_level = await gateway.get_splits("troutmi01", year=2026, use_cache=False)
-    assert isinstance(df_main, pl.DataFrame)
-    assert df_main.is_empty()
-    assert isinstance(df_level, pl.DataFrame)
-    assert df_level.is_empty()
-    assert info == {"Position": "", "Bats": "", "Throws": ""}
+    with pytest.raises(UpstreamUnavailableError):
+        await gateway.get_splits("troutmi01", year=2026, use_cache=False)
 
 
 @pytest.mark.asyncio
@@ -150,12 +144,8 @@ async def test_get_splits_cached_empty_html() -> None:
     ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
 
-    df_main, info, df_level = await gateway.get_splits("troutmi01", year=2026, use_cache=True)
-    assert isinstance(df_main, pl.DataFrame)
-    assert df_main.is_empty()
-    assert isinstance(df_level, pl.DataFrame)
-    assert df_level.is_empty()
-    assert info == {"Position": "", "Bats": "", "Throws": ""}
+    with pytest.raises(UpstreamUnavailableError):
+        await gateway.get_splits("troutmi01", year=2026, use_cache=True)
 
 
 @pytest.mark.asyncio

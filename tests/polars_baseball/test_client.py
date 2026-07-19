@@ -15,6 +15,21 @@ def client() -> HttpClient:
     return HttpClient()
 
 
+def test_http_client_accepts_explicit_timeout() -> None:
+    client = HttpClient(timeout=3.5)
+
+    with patch("polars_baseball._client.httpx.AsyncClient") as mock_httpx_client:
+        client.get_httpx_client()
+
+    mock_httpx_client.assert_called_once()
+    assert mock_httpx_client.call_args.kwargs["timeout"] == 3.5
+
+
+def test_http_client_rejects_non_positive_timeout() -> None:
+    with pytest.raises(ValueError, match="timeout must be greater than 0"):
+        HttpClient(timeout=0)
+
+
 @pytest.mark.asyncio
 async def test_get_text_httpx_success(client: HttpClient) -> None:
     mock_response = MagicMock(spec=httpx.Response)
@@ -130,6 +145,25 @@ async def test_get_bref_uses_cffi_and_rate_limiting() -> None:
     assert results == ["bref_result", "bref_result", "bref_result"]
     assert mock_session.get.call_count == 3
     assert elapsed >= 0.19
+
+
+@pytest.mark.asyncio
+async def test_get_bref_does_not_rate_limit_by_default() -> None:
+    client = HttpClient()
+    mock_resp = MagicMock()
+    mock_resp.text = "bref_result"
+    mock_resp.raise_for_status.return_value = None
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(return_value=mock_resp)
+
+    with (
+        patch.object(client, "_cffi_session", mock_session),
+        patch.object(client, "_rate_limit", AsyncMock()) as mock_rate_limit,
+    ):
+        result = await client.get_text("https://www.baseball-reference.com/data")
+
+    assert result == "bref_result"
+    mock_rate_limit.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -261,8 +295,31 @@ async def test_get_text_cffi_http_status_error(client: HttpClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_httpx_retries_transient_status_before_success() -> None:
+async def test_httpx_does_not_retry_transient_status_by_default() -> None:
     client = HttpClient(retry_backoff_base_seconds=0)
+
+    error_response = MagicMock(spec=httpx.Response)
+    error_response.status_code = 503
+    error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        message="Service Unavailable",
+        request=MagicMock(),
+        response=error_response,
+    )
+
+    mock_httpx = MagicMock(spec=httpx.AsyncClient)
+    mock_httpx.get = AsyncMock(return_value=error_response)
+
+    with patch.object(client, "_httpx_client", mock_httpx):
+        with pytest.raises(PolarsBaseballHttpError) as exc_info:
+            await client.get_text("https://baseballsavant.mlb.com/api")
+
+    assert exc_info.value.status_code == 503
+    assert mock_httpx.get.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_httpx_retries_transient_status_before_success_when_configured() -> None:
+    client = HttpClient(max_retries=1, retry_backoff_base_seconds=0)
 
     error_response = MagicMock(spec=httpx.Response)
     error_response.status_code = 503
@@ -309,7 +366,7 @@ async def test_httpx_does_not_retry_non_transient_status() -> None:
 
 @pytest.mark.asyncio
 async def test_httpx_retries_request_error_before_success() -> None:
-    client = HttpClient(retry_backoff_base_seconds=0)
+    client = HttpClient(max_retries=1, retry_backoff_base_seconds=0)
     success_response = MagicMock(spec=httpx.Response)
     success_response.status_code = 200
     success_response.text = "ok"
@@ -355,7 +412,7 @@ async def test_httpx_retry_exhaustion_raises_last_status() -> None:
 
 @pytest.mark.asyncio
 async def test_cffi_retries_transient_status_before_success() -> None:
-    client = HttpClient(retry_backoff_base_seconds=0)
+    client = HttpClient(max_retries=1, retry_backoff_base_seconds=0)
     transient_response = MagicMock(status_code=429)
     success_response = MagicMock()
     success_response.text = "ok"
@@ -374,3 +431,47 @@ async def test_cffi_retries_transient_status_before_success() -> None:
 
     assert result == "ok"
     assert mock_session.get.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_http_client_custom_impersonate_and_headers() -> None:
+    client = HttpClient(impersonate=None, default_headers={"Custom-UA": "MyAgent"})
+
+    with patch("polars_baseball._client.httpx.AsyncClient") as mock_httpx_client:
+        client.get_httpx_client()
+    mock_httpx_client.assert_called_once()
+    assert mock_httpx_client.call_args.kwargs["headers"] == {"Custom-UA": "MyAgent"}
+
+    with patch("polars_baseball._client.AsyncSession") as mock_session_class:
+        client.get_cffi_session()
+    mock_session_class.assert_called_once()
+    assert "impersonate" not in mock_session_class.call_args.kwargs
+    assert mock_session_class.call_args.kwargs["timeout"] == client._timeout
+
+
+@pytest.mark.asyncio
+async def test_http_client_default_behavior_impersonation() -> None:
+    client = HttpClient()
+
+    with patch("polars_baseball._client.AsyncSession") as mock_session_class:
+        client.get_cffi_session()
+    mock_session_class.assert_called_once()
+    assert mock_session_class.call_args.kwargs["impersonate"] == "chrome"
+
+
+@pytest.mark.asyncio
+async def test_cffi_request_merges_default_headers() -> None:
+    client = HttpClient(default_headers={"Header-A": "ValA"})
+    mock_resp = MagicMock()
+    mock_resp.text = "ok"
+    mock_resp.raise_for_status.return_value = None
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(return_value=mock_resp)
+
+    with patch.object(client, "_cffi_session", mock_session):
+        await client.get_text("https://www.fangraphs.com/leaders", headers={"Header-B": "ValB"})
+
+    mock_session.get.assert_called_once()
+    _, kwargs = mock_session.get.call_args
+    assert kwargs["headers"]["Header-A"] == "ValA"
+    assert kwargs["headers"]["Header-B"] == "ValB"

@@ -26,7 +26,7 @@ from polars_baseball.apis.savant_leaderboards import (
 )
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.savant import ArsenalType
-from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError, UpstreamUnavailableError
 
 _MOCK_CSV = "player_name,player_id,year,stat_value\nOhtani Shohei,660271,2026,99.9\nTrout Mike,545361,2026,95.5\n"
 
@@ -65,7 +65,7 @@ async def test_savant_leaderboard_empty_response_fails_fast() -> None:
     mock_http.get_text.return_value = ""
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    with pytest.raises(UpstreamParseError, match="empty"):
+    with pytest.raises(UpstreamUnavailableError, match="empty"):
         await statcast_batter_exitvelo_barrels(2026, context=ctx)
 
 

@@ -1,10 +1,15 @@
 import sys
+import tempfile
+from pathlib import Path
 
 import polars as pl
 
-from polars_baseball._cache import global_cache
+from polars_baseball._cache import configure_cache, global_cache
 
 if __name__ == "__main__":
+    cache_dir = Path(tempfile.mkdtemp(prefix="cache_validate_"))
+    configure_cache(cache_dir)
+
     test_df = pl.DataFrame({"a": [1, 2, 3]})
     key = "ci_validation_test_key"
 
@@ -31,6 +36,10 @@ if __name__ == "__main__":
     if cleared_df is not None:
         print("Cache clear failed to remove entry")
         sys.exit(1)
+
+    # Cleanup temp dir
+    if cache_dir.exists():
+        cache_dir.rmdir()
 
     print("Cache validation passed successfully!")
     sys.exit(0)

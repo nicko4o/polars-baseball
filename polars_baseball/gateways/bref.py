@@ -8,7 +8,7 @@ import polars as pl
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import BREF_ROOT
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamStructureChangedError
+from polars_baseball.exceptions import UpstreamStructureChangedError, UpstreamUnavailableError
 from polars_baseball.parsers._strategy import ProviderChain
 from polars_baseball.parsers.base import BaseParser
 from polars_baseball.parsers.bref import BRefHTMLParser, BRefSplitsParser
@@ -52,7 +52,7 @@ class BRefGateway:
         if not use_cache:
             raw_text = await self._context.http.get_text(url, params=params, headers=headers)
             if not raw_text:
-                return pl.DataFrame()
+                raise UpstreamUnavailableError("Baseball Reference returned empty response.")
             return self._parse_response(raw_text, parser, chain)
         return await self._context.cache.get_or_fetch(
             key,
@@ -96,7 +96,7 @@ class BRefGateway:
     ) -> pl.DataFrame:
         raw_text = await self._context.http.get_text(url, params=params, headers=headers)
         if not raw_text:
-            return pl.DataFrame()
+            raise UpstreamUnavailableError("Baseball Reference returned empty response.")
         return self._parse_response(raw_text, parser, chain)
 
     async def get_splits(
@@ -118,10 +118,14 @@ class BRefGateway:
 
         if not use_cache:
             html = await self._context.http.get_text(url, headers=headers)
+            if not html:
+                raise UpstreamUnavailableError("Baseball Reference returned empty response.")
             return BRefSplitsParser(playerid, year, pitching).parse(html)
 
         async def fetch_splits_raw() -> pl.DataFrame:
             html = await self._context.http.get_text(url, headers=headers)
+            if not html:
+                raise UpstreamUnavailableError("Baseball Reference returned empty response.")
             return pl.DataFrame({"html": [html]})
 
         html_df = await self._context.cache.get_or_fetch(
@@ -131,4 +135,6 @@ class BRefGateway:
             force_update=force_update,
         )
         html = html_df["html"][0] if html_df.height > 0 and "html" in html_df.columns else ""
+        if not html:
+            raise UpstreamUnavailableError("Baseball Reference returned empty response.")
         return BRefSplitsParser(playerid, year, pitching).parse(html)

@@ -126,6 +126,11 @@ async def playerid_lookup(
     return await _module_client.search(last, first, fuzzy, ignore_accents)
 
 
+async def player_name_suggestions(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame:
+    """Return fuzzy player name suggestions without treating them as exact lookup results."""
+    return await _module_client.suggest(last, first, ignore_accents)
+
+
 async def player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame:
     """Batch lookup for multiple player name pairs.
 

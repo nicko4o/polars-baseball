@@ -1,7 +1,7 @@
 import asyncio
-import logging
 import threading
 import unicodedata
+import warnings
 import weakref
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
@@ -18,7 +18,6 @@ from polars_baseball._config import (
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import InvalidParameterError
 
-logger = logging.getLogger(__name__)
 LookupTableLoader = Callable[[], Awaitable[pl.DataFrame]]
 PlayerId = int | str
 _NORMALIZED_LAST_COLUMN = "name_last_normalized"
@@ -109,6 +108,12 @@ class PlayerLookupService:
     async def search(
         self, last: str, first: str | None = None, fuzzy: bool = False, ignore_accents: bool = False
     ) -> pl.DataFrame:
+        if fuzzy:
+            warnings.warn(
+                "fuzzy=True no longer returns suggestions from search(); call player_name_suggestions() instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         last_clean = last.lower()
         first_clean = first.lower() if first else None
         table = await self._ensure_table()
@@ -123,9 +128,19 @@ class PlayerLookupService:
         if first_clean is not None:
             predicate &= pl.col(first_column) == first_clean
         results = table.filter(predicate)
-        if not results.is_empty() or not fuzzy:
-            return _without_normalized_names(results)
-        logger.warning("No names found. Returning closest Chadwick register matches.")
+        return _without_normalized_names(results)
+
+    async def suggest(self, last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame:
+        last_clean = last.lower()
+        first_clean = first.lower() if first else None
+        table = await self._ensure_table()
+        last_column = "name_last"
+        first_column = "name_first"
+        if ignore_accents:
+            last_clean = normalize_accents(last_clean)
+            first_clean = normalize_accents(first_clean) if first_clean else None
+            last_column = _NORMALIZED_LAST_COLUMN
+            first_column = _NORMALIZED_FIRST_COLUMN
         matches = get_closest_names(last_clean, first_clean or "", table, last_column, first_column)
         return _without_normalized_names(matches)
 

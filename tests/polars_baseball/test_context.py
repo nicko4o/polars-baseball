@@ -1,11 +1,12 @@
 import asyncio
 import threading
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 import polars_baseball.context as _ctx_module
-from polars_baseball._cache import CacheAdapter
+from polars_baseball._cache import CacheAdapter, FileCacheAdapter, global_cache
 from polars_baseball._client import HttpClient
 from polars_baseball.context import BaseballContext, cleanup, default_context
 
@@ -22,6 +23,14 @@ def test_baseball_context_defaults() -> None:
     ctx = BaseballContext()
     assert isinstance(ctx.http, HttpClient)
     assert isinstance(ctx.cache, CacheAdapter)
+    assert ctx.cache is global_cache
+
+
+def test_baseball_context_with_file_cache(tmp_path: Path) -> None:
+    ctx = BaseballContext.with_file_cache(tmp_path)
+    assert isinstance(ctx.http, HttpClient)
+    assert isinstance(ctx.cache, FileCacheAdapter)
+    assert ctx.cache.cache_dir == tmp_path
 
 
 def test_baseball_context_injection() -> None:

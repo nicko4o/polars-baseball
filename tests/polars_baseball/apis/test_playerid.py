@@ -8,9 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball._cache import FileCacheAdapter
+from polars_baseball._cache import FileCacheAdapter, NullCacheAdapter
 from polars_baseball.apis.playerid import (
     chadwick_register,
+    player_name_suggestions,
     player_search_list,
     playerid_lookup,
     playerid_reverse_lookup,
@@ -96,6 +97,19 @@ async def test_chadwick_register_save_false_skips_cache(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_chadwick_register_null_cache_fetches_without_file_cache() -> None:
+    mock_http = MagicMock()
+    mock_http.get_bytes = AsyncMock(return_value=_register_zip(_REGISTER_CSV))
+    ctx = BaseballContext(http=mock_http, cache=NullCacheAdapter())
+
+    first = await chadwick_register(context=ctx)
+    second = await chadwick_register(context=ctx)
+
+    assert first.equals(second)
+    assert mock_http.get_bytes.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_chadwick_register_fails_when_archive_has_no_people_csv(tmp_path: Path) -> None:
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=_register_zip("unused\n", filename="register-master/README.md"))
@@ -126,6 +140,18 @@ async def test_playerid_lookup_fuzzy(mock_get_table: MagicMock, mock_player_tabl
     mock_get_table.return_value = mock_player_table
 
     df = await playerid_lookup(last="Trut", first="Mike", fuzzy=True)
+    assert df.is_empty()
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.playerid.get_lookup_table")
+async def test_player_name_suggestions_returns_fuzzy_matches(
+    mock_get_table: MagicMock, mock_player_table: pl.DataFrame
+) -> None:
+    mock_get_table.return_value = mock_player_table
+
+    df = await player_name_suggestions(last="Trut", first="Mike")
+
     assert df.height == 3
     assert 545361 in df["key_mlbam"].to_list()
 

@@ -1,7 +1,14 @@
 import threading
+import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 
-from polars_baseball._cache import CacheAdapter, _set_default_cache_context_resolver, global_cache
+from polars_baseball._cache import (
+    CacheAdapter,
+    FileCacheAdapter,
+    _set_default_cache_context_resolver,
+    global_cache,
+)
 from polars_baseball._client import HttpClient
 
 
@@ -20,6 +27,11 @@ class BaseballContext:
 
     http: HttpClient = field(default_factory=HttpClient)
     cache: CacheAdapter = field(default_factory=lambda: global_cache)
+    github_token: str | None = None
+
+    @classmethod
+    def with_file_cache(cls, cache_dir: Path, *, http: HttpClient | None = None) -> "BaseballContext":
+        return cls(http=http or HttpClient(), cache=FileCacheAdapter(cache_dir))
 
     async def __aenter__(self) -> "BaseballContext":
         return self
@@ -45,6 +57,12 @@ _default_ctx_lock = threading.Lock()
 
 
 def default_context() -> BaseballContext:
+    warnings.warn(
+        "default_context() is deprecated and will be removed in a future release. "
+        "Use `async with BaseballContext() as ctx:` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     global _default_ctx
     # Fast path: already initialized, no lock acquisition needed.
     if _default_ctx is not None:

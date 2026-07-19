@@ -7,7 +7,7 @@ from polars_baseball import statcast, statcast_single_game
 from polars_baseball._client import HttpClient
 from polars_baseball.apis.statcast import statcast_batter, statcast_pitcher
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import InvalidParameterError
+from polars_baseball.exceptions import InvalidParameterError, UpstreamUnavailableError
 
 
 @pytest.fixture
@@ -128,15 +128,14 @@ async def test_statcast_single_game_empty_returns_dataframe(mock_default_ctx: Ma
 
 @pytest.mark.asyncio
 @patch("polars_baseball.apis.statcast.default_context")
-async def test_statcast_single_game_no_response_returns_dataframe(mock_default_ctx: MagicMock) -> None:
-    """No HTTP response should return an empty DataFrame instead of None."""
+async def test_statcast_single_game_no_response_raises(mock_default_ctx: MagicMock) -> None:
+    """No HTTP response should raise UpstreamUnavailableError."""
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="")
     mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
-    result = await statcast_single_game(999999)
-
-    assert isinstance(result, pl.DataFrame), f"Expected DataFrame, got {type(result)}"
+    with pytest.raises(UpstreamUnavailableError):
+        await statcast_single_game(999999)
 
 
 @pytest.mark.asyncio

@@ -56,3 +56,9 @@ class CacheClearError(ServerError):
     """Exception raised when clearing the cache fails (5xx equivalent)."""
 
     pass
+
+
+class UpstreamUnavailableError(ServerError):
+    """Exception raised when upstream service returns empty response or is unavailable."""
+
+    pass
