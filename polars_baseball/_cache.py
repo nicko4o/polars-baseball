@@ -284,13 +284,16 @@ class NullCacheAdapter(CacheAdapter):
 class GlobalCache(CacheAdapter):
     """Thread-safe process-wide cache adapter with dynamic backend switching.
 
-    Starts as a NullCacheAdapter. Call configure() to switch to a
-    FileCacheAdapter at runtime. All operations are protected by a
-    shared/exclusive lock for safe concurrent access.
+    Defaults to a FileCacheAdapter using DEFAULT_CACHE_DIR (~/.polars_baseball/cache).
+    Call configure() to switch to another cache directory at runtime. All operations
+    are protected by a shared/exclusive lock for safe concurrent access.
     """
 
-    def __init__(self, cache_dir: Path | None = None) -> None:
-        self._adapter: CacheAdapter = FileCacheAdapter(cache_dir) if cache_dir is not None else NullCacheAdapter()
+    def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
+        if use_null_default and cache_dir is None:
+            self._adapter: CacheAdapter = NullCacheAdapter()
+        else:
+            self._adapter = FileCacheAdapter(cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR)
         self._adapter_lock = SharedExclusiveLock()
 
     @property

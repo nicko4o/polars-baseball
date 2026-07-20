@@ -7,7 +7,11 @@ from typing import Literal
 
 import polars as pl
 
-from polars_baseball._config import OVERSIZE_DAYS_THRESHOLD, SAVANT_STATCAST_SEARCH_URL
+from polars_baseball._config import (
+    DEFAULT_STATCAST_CONCURRENCY_LIMIT,
+    OVERSIZE_DAYS_THRESHOLD,
+    SAVANT_STATCAST_SEARCH_URL,
+)
 from polars_baseball._season import sanitize_date_range, statcast_date_range
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
@@ -172,7 +176,7 @@ async def statcast(
     *,
     start_date: str | None = None,
     end_date: str | None = None,
-    concurrency_limit: int = 5,
+    concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
 ) -> pl.DataFrame:
     """Fetch Statcast pitch-level data for a date range.
 

@@ -295,7 +295,7 @@ async def test_get_text_cffi_http_status_error(client: HttpClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_httpx_does_not_retry_transient_status_by_default() -> None:
+async def test_httpx_retries_transient_status_by_default() -> None:
     client = HttpClient(retry_backoff_base_seconds=0)
 
     error_response = MagicMock(spec=httpx.Response)
@@ -314,7 +314,45 @@ async def test_httpx_does_not_retry_transient_status_by_default() -> None:
             await client.get_text("https://baseballsavant.mlb.com/api")
 
     assert exc_info.value.status_code == 503
+    assert mock_httpx.get.await_count == 3  # Initial + 2 retries (DEFAULT_MAX_RETRIES=2)
+
+
+@pytest.mark.asyncio
+async def test_httpx_does_not_retry_transient_status_when_max_retries_zero() -> None:
+    client = HttpClient(max_retries=0, retry_backoff_base_seconds=0)
+
+    error_response = MagicMock(spec=httpx.Response)
+    error_response.status_code = 503
+    error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        message="Service Unavailable",
+        request=MagicMock(),
+        response=error_response,
+    )
+
+    mock_httpx = MagicMock(spec=httpx.AsyncClient)
+    mock_httpx.get = AsyncMock(return_value=error_response)
+
+    with patch.object(client, "_httpx_client", mock_httpx):
+        with pytest.raises(PolarsBaseballHttpError) as exc_info:
+            await client.get_text("https://baseballsavant.mlb.com/api")
+
+    assert exc_info.value.status_code == 503
     assert mock_httpx.get.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cffi_bref_403_includes_cloudflare_guidance() -> None:
+    client = HttpClient()
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(side_effect=CurlHTTPError("Forbidden", response=MagicMock(status_code=403)))
+
+    with patch.object(client, "_cffi_session", mock_session):
+        with pytest.raises(PolarsBaseballHttpError) as exc_info:
+            await client.get_text("https://www.baseball-reference.com/data/war_daily_bat.txt")
+
+    assert exc_info.value.status_code == 403
+    assert "Cloudflare Turnstile" in str(exc_info.value)
+    assert "CF_CLEARANCE" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
