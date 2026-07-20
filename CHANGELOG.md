@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-07-20
+
 ### Fixed
 - Make `FileCacheAdapter` fail-safe against read-only filesystems, permission issues, or disk-full conditions (`OSError`): on init directory creation failure the adapter disables itself with a logged warning; on write failure the adapter transitions to disabled mode so subsequent I/O operations are skipped entirely. `set()` no longer propagates `OSError` to callers (non-`OSError` exceptions still propagate).
 
