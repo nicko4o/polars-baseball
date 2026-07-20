@@ -82,8 +82,8 @@ def test_null_cache_adapter_never_stores_values() -> None:
     assert adapter.get_list("list-key") is None
 
 
-def test_global_cache_starts_as_noop_until_configured() -> None:
-    adapter = GlobalCache()
+def test_global_cache_starts_as_noop_when_explicitly_configured() -> None:
+    adapter = GlobalCache(use_null_default=True)
     df = pl.DataFrame({"col1": [1]})
 
     adapter.set("key", df)
@@ -91,6 +91,13 @@ def test_global_cache_starts_as_noop_until_configured() -> None:
     assert adapter.get("key") is None
     with pytest.raises(RuntimeError, match="not configured"):
         _ = adapter.cache_dir
+
+
+def test_global_cache_defaults_to_file_cache() -> None:
+    from polars_baseball._config import DEFAULT_CACHE_DIR
+
+    adapter = GlobalCache()
+    assert adapter.cache_dir == DEFAULT_CACHE_DIR
 
 
 @pytest.mark.asyncio

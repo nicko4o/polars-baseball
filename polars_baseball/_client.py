@@ -7,7 +7,7 @@ import httpx
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
-from polars_baseball._config import DEFAULT_TIMEOUT
+from polars_baseball._config import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT
 from polars_baseball._http_policy import TransportKind, resolve_request_policy
 from polars_baseball.exceptions import PolarsBaseballHttpError, PolarsBaseballTransportError
 
@@ -18,7 +18,6 @@ _BROWSER_HEADERS: Mapping[str, str] = {
 }
 
 SECONDS_PER_MINUTE = 60.0
-DEFAULT_MAX_RETRIES = 0
 DEFAULT_RETRY_BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_MULTIPLIER = 2.0
 TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
@@ -161,8 +160,11 @@ class HttpClient:
                 response.raise_for_status()
                 return response.text if as_text else response.content
             except httpx.HTTPStatusError as e:
+                msg = f"HTTP status error: {e}"
+                if e.response.status_code == 403:
+                    msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
                 raise PolarsBaseballHttpError(
-                    f"HTTP status error: {e}",
+                    msg,
                     status_code=e.response.status_code,
                 ) from e
             except httpx.RequestError as e:
@@ -212,8 +214,11 @@ class HttpClient:
         label = resolve_request_policy(url).provider_label
         if response is None:
             return PolarsBaseballTransportError(f"{label} network request failed: {error}")
+        msg = f"{label} HTTP request failed: {error}"
+        if response.status_code == 403 and label in ("BRef", "FanGraphs"):
+            msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers or use cached data)"
         return PolarsBaseballHttpError(
-            f"{label} HTTP request failed: {error}",
+            msg,
             status_code=response.status_code,
         )
 
