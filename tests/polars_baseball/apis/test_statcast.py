@@ -161,8 +161,9 @@ async def test_statcast_player_cross_year_with_empty_chunk(
     df_2025 = pl.DataFrame({"game_date": ["2025-06-01"], "game_pk": [111], "at_bat_number": [1], "pitch_number": [1]})
     df_2026 = pl.DataFrame()
     mock_get_dataset.side_effect = [df_2025, df_2026]
+    ctx = BaseballContext()
 
-    df = await statcast_batter(start_dt="2025-06-01", end_dt="2026-06-01", player_id=123456)
+    df = await statcast_batter(start_dt="2025-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1

@@ -40,10 +40,15 @@ class TestLiveFetchAndValidate:
     def _fetch_and_check(
         self, builder: typing.Callable[..., FanGraphsRequest], critical: set[str], **kwargs: int
     ) -> pl.DataFrame:
-        from polars_baseball import fg_data
+        from polars_baseball import BaseballContext, fg_data
 
         request = builder(**kwargs)
-        df = run_async(fg_data(request))
+
+        async def run() -> pl.DataFrame:
+            async with BaseballContext() as ctx:
+                return await fg_data(request, context=ctx)
+
+        df = run_async(run())
         missing = critical - set(df.columns)
         assert not missing, f"Missing critical columns: {missing}"
         return df
@@ -102,10 +107,15 @@ class TestLiveCodeToNameMapping:
     def _fetch_and_check(
         codes: dict[str, str], builder: typing.Callable[..., FanGraphsRequest], enum_class: type[FangraphsStatsBase]
     ) -> None:
-        from polars_baseball import fg_data
+        from polars_baseball import BaseballContext, fg_data
 
         request = builder(start_season=2024, stat_columns=[enum_class.parse(c) for c in codes])
-        df = run_async(fg_data(request))
+
+        async def run() -> pl.DataFrame:
+            async with BaseballContext() as ctx:
+                return await fg_data(request, context=ctx)
+
+        df = run_async(run())
         for expected_name in codes.values():
             assert expected_name in df.columns, f"Missing column: {expected_name}"
 
