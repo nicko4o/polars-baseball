@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add docstrings to `parsers/retrosheet.py` (6 parsing functions) and all `parsers/mlb/` modules (9 files, 15+ parse functions).
 - Document docstring convention (`Note:` section) in `MAINTAINING.md`.
 
+### Fixed
+- Fix HTTP 403 Forbidden blocks when fetching FanGraphs data by excluding default `User-Agent` headers when `curl_cffi` browser impersonation is active.
+- Fix all deprecation warnings in the test suite by explicitly using `BaseballContext` in contract tests, monkeypatching default context resolvers during test runs, and asserting warnings in fuzzy lookup tests.
+
 ### Changed
 - Standardize docstring format: replace project-invented `Edge Cases:` sections with standard `Note:` across 24 files (~40 functions).
 - Fix `add_spray_angle` removal version reference in `docs/reference/statcast.md` (was "version 2", never released).

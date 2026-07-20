@@ -139,7 +139,8 @@ async def test_playerid_lookup_exact(mock_get_table: MagicMock, mock_player_tabl
 async def test_playerid_lookup_fuzzy(mock_get_table: MagicMock, mock_player_table: pl.DataFrame) -> None:
     mock_get_table.return_value = mock_player_table
 
-    df = await playerid_lookup(last="Trut", first="Mike", fuzzy=True)
+    with pytest.warns(DeprecationWarning, match="fuzzy=True no longer returns suggestions"):
+        df = await playerid_lookup(last="Trut", first="Mike", fuzzy=True)
     assert df.is_empty()
 
 
