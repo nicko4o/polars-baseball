@@ -184,7 +184,12 @@ class FileCacheAdapter(CacheAdapter):
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self._disabled = False
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.warning("Failed to create cache directory %s, cache disabled: %s", self.cache_dir, e)
+            self._disabled = True
         self._key_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
         self._meta_lock = threading.Lock()
         self._rw_lock = SharedExclusiveLock()
@@ -202,6 +207,8 @@ class FileCacheAdapter(CacheAdapter):
             return lock
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+        if self._disabled:
+            return None
         with self._rw_lock.shared():
             with self._lock_for(key):
                 path = self._get_path(key)
@@ -226,20 +233,31 @@ class FileCacheAdapter(CacheAdapter):
                     return None
 
     def set(self, key: str, value: pl.DataFrame) -> None:
+        if self._disabled:
+            return
         with self._rw_lock.shared():
             with self._lock_for(key):
                 path = self._get_path(key)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
-                    tmp_path = Path(tmp.name)
+                tmp_path: Path | None = None
                 try:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
+                        tmp_path = Path(tmp.name)
                     value.write_parquet(tmp_path)
                     tmp_path.replace(path)
+                except OSError as e:
+                    logger.warning("Failed to write cache entry for %s to %s: %s", key, path, e)
+                    if tmp_path is not None and tmp_path.exists():
+                        tmp_path.unlink(missing_ok=True)
+                    self._disabled = True
                 except Exception:
-                    tmp_path.unlink(missing_ok=True)
+                    if tmp_path is not None and tmp_path.exists():
+                        tmp_path.unlink(missing_ok=True)
                     raise
 
     def clear(self) -> None:
+        if self._disabled:
+            return
         with self._rw_lock.exclusive():
             if not self.cache_dir.exists():
                 return
