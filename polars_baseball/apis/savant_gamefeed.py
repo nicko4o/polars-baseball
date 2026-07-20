@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 import polars as pl
 
 from polars_baseball._config import SAVANT_GAMEFEED_URL
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.savant import SavantGateway
 from polars_baseball.parsers.savant_gamefeed import EXIT_VELOCITY_SCHEMA, PITCH_DATA_SCHEMA, SavantGamefeedParser
@@ -26,7 +26,7 @@ async def savant_gamefeed_exit_velocity(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch exit velocity data for a single game."""
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     parser = SavantGamefeedParser()
     return await SavantGateway(ctx).get_gamefeed_dataset(
         SAVANT_GAMEFEED_URL,
@@ -41,7 +41,7 @@ async def savant_gamefeed_pitch_data(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch pitch-by-pitch data for a single game."""
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     parser = SavantGamefeedParser()
     return await SavantGateway(ctx).get_gamefeed_dataset(
         SAVANT_GAMEFEED_URL,
@@ -61,7 +61,7 @@ async def _fetch_many_gamefeed(
     if not game_pks:
         return pl.DataFrame(schema=empty_schema)
 
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     validated = [_validate_game_pk(pk) for pk in game_pks]
     tasks = [single_fetcher(pk, ctx) for pk in validated]
 

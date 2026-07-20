@@ -8,7 +8,7 @@ from polars_baseball.apis.mlb._contracts import (
     people_cache_key,
     people_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_people, parse_mlb_people_awards
@@ -21,7 +21,7 @@ async def _fetch_mlb_people(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     ids_str = ",".join(map(str, person_ids)) if isinstance(person_ids, list) else str(person_ids)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     params = {"personIds": ids_str}
     return await MlbStatsGateway(ctx).fetch(
         people_url(), params, "Failed to fetch or parse MLB people data", parse_mlb_people
@@ -35,7 +35,7 @@ async def _fetch_mlb_people_awards(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = people_awards_url(person_id)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         None,

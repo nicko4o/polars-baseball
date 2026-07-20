@@ -1,6 +1,6 @@
 import json
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import polars as pl
 import pytest
@@ -220,13 +220,12 @@ _MOCK_BOXSCORE_JSON = {
 
 # ── Unit Tests ─────────────────────────────────────────────────────────
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.people.default_context")
-async def test_mlb_people_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_people_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PEOPLE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_people(person_ids=545361)
+    df = await mlb_people(person_ids=545361, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["id"][0] == 545361
@@ -249,13 +248,12 @@ async def test_mlb_people_invalid_parameters() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.people.default_context")
-async def test_mlb_people_awards_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_people_awards_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PEOPLE_AWARDS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_people_awards(person_id=660271)
+    df = await mlb_people_awards(person_id=660271, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["personId"][0] == 660271
@@ -267,13 +265,12 @@ async def test_mlb_people_awards_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.people.default_context")
-async def test_mlb_people_awards_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_people_awards_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"awards": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_people_awards(person_id=660271)
+    df = await mlb_people_awards(person_id=660271, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -285,13 +282,12 @@ async def test_mlb_people_awards_invalid_params() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.schedule.default_context")
-async def test_mlb_schedule_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_schedule_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_schedule(season=2026)
+    df = await mlb_schedule(season=2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["gamePk"][0] == 715789
@@ -312,13 +308,12 @@ async def test_mlb_schedule_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.schedule.default_context")
-async def test_mlb_schedule_with_hydrate_probable_pitchers(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_schedule_with_hydrate_probable_pitchers() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_schedule(season=2026, hydrate="probablePitcher")
+    df = await mlb_schedule(season=2026, hydrate="probablePitcher", context=ctx)
 
     assert df["awayProbablePitcherId"][0] == 669022
     assert df["awayProbablePitcherName"][0] == "Yoshinobu Yamamoto"
@@ -347,13 +342,12 @@ async def test_mlb_schedule_invalid_parameters() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.roster.default_context")
-async def test_mlb_roster_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_roster_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_ROSTER_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_roster(team_id=119, season=2026)
+    df = await mlb_roster(team_id=119, season=2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["teamId"][0] == 119
@@ -376,24 +370,22 @@ async def test_mlb_roster_invalid_parameters() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.people.default_context")
-async def test_mlb_api_upstream_error(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_api_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Connection reset"))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Connection reset"):
-        await mlb_people(person_ids=545361)
+        await mlb_people(person_ids=545361, context=ctx)
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_player_stats_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_player_stats_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_player_stats(person_id=545361, group="hitting", stats_type="season", season=2024)
+    df = await mlb_player_stats(person_id=545361, group="hitting", stats_type="season", season=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["personId"][0] == 545361
@@ -427,11 +419,10 @@ async def test_mlb_player_stats_invalid_parameters() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_player_stats_with_dates(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_player_stats_with_dates() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     df = await mlb_player_stats(
         person_id=545361,
@@ -439,6 +430,7 @@ async def test_mlb_player_stats_with_dates(mock_default_ctx: MagicMock) -> None:
         stats_type="season",
         start_date="2026-04-01",
         end_date="2026-04-30",
+        context=ctx,
     )
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -451,13 +443,12 @@ async def test_mlb_player_stats_with_dates(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_boxscore_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_boxscore_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_BOXSCORE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_boxscore(game_pk=715789)
+    df = await mlb_game_boxscore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     # Check away team player
@@ -479,13 +470,12 @@ async def test_mlb_game_boxscore_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_boxscore_stats_schema(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_boxscore_stats_schema() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_BOXSCORE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_boxscore_stats(game_pk=715789)
+    df = await mlb_game_boxscore_stats(game_pk=715789, context=ctx)
 
     assert df.schema["batting_atBats"] == pl.Int64
     assert df.schema["pitching_inningsPitched"] == pl.String
@@ -542,13 +532,12 @@ _MOCK_TEAMS_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_teams_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_teams_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TEAMS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_teams(season=2025)
+    df = await mlb_teams(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     dodgers = df.filter(pl.col("id") == 119)
@@ -559,26 +548,24 @@ async def test_mlb_teams_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_teams_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_teams_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"teams": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_teams(season=2025)
+    df = await mlb_teams(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_teams_upstream_error(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_teams_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("API timeout"))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="API timeout"):
-        await mlb_teams(season=2025)
+        await mlb_teams(season=2025, context=ctx)
 
 
 @pytest.mark.asyncio
@@ -632,13 +619,12 @@ _MOCK_LEAGUES_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_divisions_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_divisions_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_DIVISIONS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_divisions()
+    df = await mlb_divisions(context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["id"][0] == 201
@@ -649,13 +635,12 @@ async def test_mlb_divisions_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_divisions_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_divisions_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"divisions": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_divisions()
+    df = await mlb_divisions(context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -667,13 +652,12 @@ async def test_mlb_divisions_invalid_params() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_leagues_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_leagues_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LEAGUES_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_leagues()
+    df = await mlb_leagues(context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["id"][0] == 103
@@ -684,13 +668,12 @@ async def test_mlb_leagues_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.taxonomy.default_context")
-async def test_mlb_leagues_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_leagues_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"leagues": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_leagues()
+    df = await mlb_leagues(context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -727,13 +710,12 @@ _MOCK_PBP_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_play_by_play_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_play_by_play_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PBP_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_play_by_play(game_pk=715789)
+    df = await mlb_game_play_by_play(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["gamePk"][0] == 715789
@@ -751,26 +733,24 @@ async def test_mlb_game_play_by_play_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_play_by_play_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_play_by_play_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"allPlays": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_play_by_play(game_pk=715789)
+    df = await mlb_game_play_by_play(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_play_by_play_upstream_error(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_play_by_play_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Bad Gateway"))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Bad Gateway"):
-        await mlb_game_play_by_play(game_pk=715789)
+        await mlb_game_play_by_play(game_pk=715789, context=ctx)
 
 
 @pytest.mark.asyncio
@@ -806,13 +786,12 @@ _MOCK_WP_JSON = [
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_play_by_play_with_win_probability(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_play_by_play_with_win_probability() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_WP_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_play_by_play(game_pk=715789, win_probability=True)
+    df = await mlb_game_play_by_play(game_pk=715789, win_probability=True, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["homeTeamWinProbability"][0] == 52.3
@@ -825,13 +804,12 @@ async def test_mlb_game_play_by_play_with_win_probability(mock_default_ctx: Magi
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_win_probability_public_api(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_win_probability_public_api() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_WP_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_win_probability(game_pk=715789)
+    df = await mlb_game_win_probability(game_pk=715789, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -847,15 +825,12 @@ async def test_mlb_game_win_probability_invalid_parameters() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_play_by_play_with_win_probability_empty(
-    mock_default_ctx: MagicMock,
-) -> None:
+async def test_mlb_game_play_by_play_with_win_probability_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps([]))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_play_by_play(game_pk=715789, win_probability=True)
+    df = await mlb_game_play_by_play(game_pk=715789, win_probability=True, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -880,13 +855,12 @@ _MOCK_LEADERS_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_stat_leaders_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_stat_leaders_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LEADERS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_stat_leaders(season=2025, categories=["homeRuns"])
+    df = await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["personId"][0] == 660271
@@ -898,26 +872,24 @@ async def test_mlb_stat_leaders_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_stat_leaders_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_stat_leaders_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"leagueLeaders": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_stat_leaders(season=2025, categories=["homeRuns"])
+    df = await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_stat_leaders_upstream_error(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_stat_leaders_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Server Error"))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Server Error"):
-        await mlb_stat_leaders(season=2025, categories=["homeRuns"])
+        await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
 
 
 @pytest.mark.asyncio
@@ -948,13 +920,12 @@ _MOCK_TEAM_STATS_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_team_stats_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_team_stats_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TEAM_STATS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_team_stats(team_id=119, season=2025, group="hitting")
+    df = await mlb_team_stats(team_id=119, season=2025, group="hitting", context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["teamId"][0] == 119
@@ -966,13 +937,12 @@ async def test_mlb_team_stats_basic(mock_default_ctx: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_team_stats_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_team_stats_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"stats": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_team_stats(team_id=119, season=2025)
+    df = await mlb_team_stats(team_id=119, season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -1024,13 +994,12 @@ _MOCK_POSTSEASON_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.schedule.default_context")
-async def test_mlb_postseason_schedule_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_postseason_schedule_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_POSTSEASON_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_postseason_schedule(season=2025)
+    df = await mlb_postseason_schedule(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["gamePk"][0] == 715790
@@ -1041,13 +1010,12 @@ async def test_mlb_postseason_schedule_basic(mock_default_ctx: MagicMock) -> Non
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.schedule.default_context")
-async def test_mlb_postseason_schedule_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_postseason_schedule_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"dates": []}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_postseason_schedule(season=2025)
+    df = await mlb_postseason_schedule(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.is_empty()
 
@@ -1090,14 +1058,13 @@ _MOCK_DRAFT_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.draft.default_context")
-async def test_mlb_draft_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_draft_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_DRAFT_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     # 1. Fetch entire draft
-    df = await mlb_draft(year=2019)
+    df = await mlb_draft(year=2019, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert df["year"][0] == 2019
@@ -1109,11 +1076,11 @@ async def test_mlb_draft_basic(mock_default_ctx: MagicMock) -> None:
     assert df["homeSchool"][0] == "Oregon State"
 
     # 2. Filter by draft round
-    df_r1 = await mlb_draft(year=2019, draft_round=1)
+    df_r1 = await mlb_draft(year=2019, draft_round=1, context=ctx)
     assert df_r1.height == 2
 
     # 3. Filter by team
-    df_team = await mlb_draft(year=2019, team_id=118)
+    df_team = await mlb_draft(year=2019, team_id=118, context=ctx)
     assert df_team.height == 1
     assert df_team["playerName"][0] == "Bobby Witt Jr."
 
@@ -1147,13 +1114,12 @@ _MOCK_PITCH_ARSENAL_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_pitch_arsenal_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_pitch_arsenal_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PITCH_ARSENAL_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_pitch_arsenal(person_id=545361, season=2024)
+    df = await mlb_pitch_arsenal(person_id=545361, season=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["personId"][0] == 545361
@@ -1189,13 +1155,12 @@ _MOCK_TRANSACTIONS_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.transactions.default_context")
-async def test_mlb_transactions_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_transactions_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_transactions(date="2024-05-01")
+    df = await mlb_transactions(date="2024-05-01", context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["id"][0] == 12345
@@ -1230,14 +1195,13 @@ _MOCK_VENUES_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.venues.default_context")
-async def test_mlb_venues_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_venues_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_VENUES_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     # 1. Single ID
-    df = await mlb_venues(venue_ids=10)
+    df = await mlb_venues(venue_ids=10, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["id"][0] == 10
@@ -1245,7 +1209,7 @@ async def test_mlb_venues_basic(mock_default_ctx: MagicMock) -> None:
     assert df["active"][0] is True
 
     # 2. List of IDs
-    df_list = await mlb_venues(venue_ids=[10, 20])
+    df_list = await mlb_venues(venue_ids=[10, 20], context=ctx)
     assert df_list.height == 1
 
 
@@ -1296,13 +1260,12 @@ _MOCK_LIVE_FEED_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_feed_live_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_feed_live_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LIVE_FEED_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_feed_live(game_pk=715789)
+    df = await mlb_game_feed_live(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["gamePk"][0] == 715789
@@ -1324,8 +1287,7 @@ async def test_mlb_game_feed_live_invalid_params() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.draft.default_context")
-async def test_mlb_draft_fail_fast(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_draft_fail_fast() -> None:
     bad_json = {
         "drafts": {
             "rounds": [
@@ -1343,15 +1305,14 @@ async def test_mlb_draft_fail_fast(mock_default_ctx: MagicMock) -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
-        await mlb_draft(year=2019)
+        await mlb_draft(year=2019, context=ctx)
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.stats.default_context")
-async def test_mlb_pitch_arsenal_fail_fast(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_pitch_arsenal_fail_fast() -> None:
     bad_json = {
         "stats": [
             {
@@ -1362,15 +1323,14 @@ async def test_mlb_pitch_arsenal_fail_fast(mock_default_ctx: MagicMock) -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
-        await mlb_pitch_arsenal(person_id=545361, season=2024)
+        await mlb_pitch_arsenal(person_id=545361, season=2024, context=ctx)
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.transactions.default_context")
-async def test_mlb_transactions_fail_fast(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_transactions_fail_fast() -> None:
     bad_json = {
         "transactions": [
             {
@@ -1382,10 +1342,10 @@ async def test_mlb_transactions_fail_fast(mock_default_ctx: MagicMock) -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
-        await mlb_transactions(date="2024-05-01")
+        await mlb_transactions(date="2024-05-01", context=ctx)
 
 
 _MOCK_LINESCORE_JSON = {
@@ -1405,13 +1365,12 @@ _MOCK_LINESCORE_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_linescore_basic(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_linescore_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LINESCORE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_linescore(game_pk=715789)
+    df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert df["gamePk"][0] == 715789
@@ -1439,36 +1398,34 @@ async def test_mlb_game_linescore_invalid_params() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_linescore_empty(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_linescore_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({}))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_linescore(game_pk=715789)
+    df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 0
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_linescore_caching_and_force_update(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_linescore_caching_and_force_update() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LINESCORE_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     # 1. First fetch (cache miss)
-    df1 = await mlb_game_linescore(game_pk=715789)
+    df1 = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert df1.height == 2
     assert mock_http.get_text.call_count == 1
 
     # 2. Second fetch within TTL (cache hit)
-    df2 = await mlb_game_linescore(game_pk=715789)
+    df2 = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert df2.height == 2
     assert mock_http.get_text.call_count == 1
 
     # 3. Third fetch with force_update=True (bypasses cache)
-    df3 = await mlb_game_linescore(game_pk=715789, force_update=True)
+    df3 = await mlb_game_linescore(game_pk=715789, force_update=True, context=ctx)
     assert df3.height == 2
     assert mock_http.get_text.call_count == 2
 
@@ -1491,8 +1448,7 @@ async def test_mlb_game_linescore_accepts_custom_cache_max_age() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.mlb.game.default_context")
-async def test_mlb_game_linescore_bad_home_away(mock_default_ctx: MagicMock) -> None:
+async def test_mlb_game_linescore_bad_home_away() -> None:
     bad_json = {
         "innings": [
             {
@@ -1504,9 +1460,9 @@ async def test_mlb_game_linescore_bad_home_away(mock_default_ctx: MagicMock) -> 
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await mlb_game_linescore(game_pk=715789)
+    df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["homeRuns"][0] is None

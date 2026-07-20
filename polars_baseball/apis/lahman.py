@@ -3,7 +3,7 @@ from typing import Final
 import polars as pl
 
 from polars_baseball._config import LAHMAN_ARCHIVE_URL
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.gateways.compiled import CompiledDatasetGateway, CompiledTable
 
 LAHMAN_DATASET = "lahman"
@@ -41,7 +41,7 @@ LAHMAN_TABLE_FILES: Final[tuple[str, ...]] = (
 
 
 def _resolve_context(context: BaseballContext | None) -> BaseballContext:
-    return context or default_context()
+    return context or BaseballContext.default()
 
 
 def _lahman_table(filepath: str, quote_char: str) -> CompiledTable:

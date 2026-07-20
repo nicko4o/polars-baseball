@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Replace `default_context()` (deprecated) + `_default_ctx` singleton with a thread-safe `BaseballContext.default()` classmethod and `reset_default()`; remove `_default_ctx`, `_default_ctx_lock`, `_default_context_resolver`, and `_set_default_cache_context_resolver()`. (Breaking change: internal only — `default_context()` not in `__all__`.)
+- Ensure thread-safety of the context singleton and cleanup lifecycle operations using `threading.Lock`.
+- Remove `default_context()` re-export from `polars_baseball/__init__.py`; re-export `cleanup` directly.
+- Use `importlib.import_module` in `_cache.py` to avoid circular import of context module.
+- Remove all `mock_default_ctx` / `@patch("polars_baseball.context.default_context")` patterns from tests; inject `BaseballContext` instances explicitly.
+
 ## [0.7.1] - 2026-07-20
 
 ### Added

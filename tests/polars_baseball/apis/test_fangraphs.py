@@ -68,18 +68,16 @@ def _make_mock_fg_html() -> str:
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.fangraphs.default_context")
 async def test_fg_data_with_batting_request(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     request = FanGraphsRequest.batting(start_season=2019)
-    df = await fg_data(request)
+    df = await fg_data(request, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
@@ -95,17 +93,15 @@ async def test_fg_data_with_batting_request(
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.fangraphs.default_context")
 async def test_fangraphs_batting_wrapper(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await fg.batting(start_season=2019, league="AL", max_results=20)
+    df = await fg.batting(start_season=2019, league="AL", max_results=20, context=ctx)
 
     assert df.height == 2
     mock_http.get_text.assert_called_once()
@@ -119,17 +115,15 @@ async def test_fangraphs_batting_wrapper(
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.fangraphs.default_context")
 async def test_namespace_batting_wrapper(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await fg.batting(start_season=2019)
+    df = await fg.batting(start_season=2019, context=ctx)
 
     assert df.height == 2
     mock_http.get_text.assert_called_once()

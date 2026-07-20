@@ -3,7 +3,6 @@
 import asyncio
 import typing
 
-import polars_baseball.context as pb_context
 from polars_baseball.context import cleanup
 
 T = typing.TypeVar("T")
@@ -21,5 +20,4 @@ def run_async(coro: typing.Awaitable[T]) -> T:
         return loop.run_until_complete(coro)
     finally:
         loop.run_until_complete(cleanup())
-        pb_context._default_ctx = None
         loop.close()

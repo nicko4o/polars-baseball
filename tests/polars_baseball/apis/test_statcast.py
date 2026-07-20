@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import polars as pl
 import pytest
@@ -26,13 +26,12 @@ def mock_statcast_csv_game2() -> str:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
-async def test_statcast_single_game(mock_default_ctx: MagicMock, mock_statcast_csv: str) -> None:
+async def test_statcast_single_game(mock_statcast_csv: str) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_single_game(123456)
+    df = await statcast_single_game(123456, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert df["game_pk"][0] == 123456
@@ -41,17 +40,14 @@ async def test_statcast_single_game(mock_default_ctx: MagicMock, mock_statcast_c
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
 @patch("polars_baseball._cache.global_cache.get")
 @patch("polars_baseball._cache.global_cache.set")
 async def test_statcast_date_range(
     mock_cache_set: AsyncMock,
     mock_cache_get: AsyncMock,
-    mock_default_ctx: MagicMock,
 ) -> None:
     mock_cache_get.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
-    # 8 days → step=7 produces 2 sub-queries: (Jun 1-7), (Jun 8-8)
     csv_part1 = (
         "game_date,game_pk,at_bat_number,pitch_number,pitch_type,release_speed\n"
         "2026-06-01,123456,1,1,FF,95.5\n"
@@ -59,9 +55,9 @@ async def test_statcast_date_range(
     )
     csv_part2 = "game_date,game_pk,at_bat_number,pitch_number,pitch_type,release_speed\n2026-06-08,123457,2,1,FF,98.1\n"
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False)
+    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False, context=ctx)
     assert df.height == 3
     assert df["game_date"][0] == "2026-06-08"
     assert df["game_date"][1] == "2026-06-01"
@@ -70,21 +66,19 @@ async def test_statcast_date_range(
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
 @patch("polars_baseball._cache.global_cache.get")
 @patch("polars_baseball._cache.global_cache.set")
 async def test_statcast_accepts_date_aliases(
     mock_cache_set: AsyncMock,
     mock_cache_get: AsyncMock,
-    mock_default_ctx: MagicMock,
     mock_statcast_csv: str,
 ) -> None:
     mock_cache_get.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_date="2026-06-01", end_date="2026-06-01", verbose=False)
+    df = await statcast(start_date="2026-06-01", end_date="2026-06-01", verbose=False, context=ctx)
 
     assert df.height == 2
     mock_cache_set.assert_called_once()
@@ -97,17 +91,16 @@ async def test_statcast_rejects_conflicting_date_aliases() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
-async def test_statcast_player_lookups(mock_default_ctx: MagicMock, mock_statcast_csv: str) -> None:
+async def test_statcast_player_lookups(mock_statcast_csv: str) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df_bat = await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456)
+    df_bat = await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
     assert df_bat.height == 2
     assert df_bat["game_pk"][0] == 123456
 
-    df_pit = await statcast_pitcher(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456)
+    df_pit = await statcast_pitcher(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
     assert df_pit.height == 2
     assert df_pit["game_pk"][0] == 123456
 
@@ -116,29 +109,24 @@ async def test_statcast_player_lookups(mock_default_ctx: MagicMock, mock_statcas
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
-async def test_statcast_single_game_empty_returns_dataframe(mock_default_ctx: MagicMock) -> None:
-    """Empty game results should return an empty DataFrame instead of None."""
+async def test_statcast_single_game_empty_returns_dataframe() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="game_date,game_pk,pitch_type\n")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    result = await statcast_single_game(999999)
+    result = await statcast_single_game(999999, context=ctx)
 
     assert isinstance(result, pl.DataFrame), f"Expected DataFrame, got {type(result)}"
     assert result.is_empty()
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
-async def test_statcast_single_game_no_response_raises(mock_default_ctx: MagicMock) -> None:
-    """No HTTP response should raise UpstreamUnavailableError."""
+async def test_statcast_single_game_no_response_raises() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
 
     with pytest.raises(UpstreamUnavailableError):
-        await statcast_single_game(999999)
+        await statcast_single_game(999999, context=BaseballContext(http=mock_http))
 
 
 @pytest.mark.asyncio
@@ -201,28 +189,22 @@ def test_align_schemas() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.statcast.default_context")
 @patch("polars_baseball._cache.global_cache.get")
 @patch("polars_baseball._cache.global_cache.set")
 async def test_statcast_concat_path_with_schema_alignment(
     mock_cache_set: AsyncMock,
     mock_cache_get: AsyncMock,
-    mock_default_ctx: MagicMock,
 ) -> None:
-    """Verify public statcast() API endpoint triggers schema alignment when merging chunks with mismatched schemas."""
     mock_cache_get.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
 
-    # part 1 (Jun 1-7): bat_speed is Float64
     csv_part1 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-01,123456,70.5,1.2\n2026-06-02,123457,72.3,2.1\n"
-    # part 2 (Jun 8): bat_speed is empty string (making Polars infer it differently)
     csv_part2 = "game_date,game_pk,bat_speed,miss_distance\n2026-06-08,123458,,\n"
 
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    # Query 8 days to force 2 sub-queries with step=7
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False)
+    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 3

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import polars as pl
 import pytest
@@ -27,65 +27,49 @@ def mock_csv_data() -> bytes:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis._leaderboard_registry.default_context")
-async def test_running_apis(mock_default_ctx: MagicMock, mock_csv_data: bytes) -> None:
+async def test_running_apis(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    # Sprint Speed
-    df1 = await statcast_sprint_speed(2026)
+    df1 = await statcast_sprint_speed(2026, context=ctx)
     assert isinstance(df1, pl.DataFrame)
     assert df1.height == 2
 
-    # Running Splits
-    df2 = await statcast_running_splits(2026)
+    df2 = await statcast_running_splits(2026, context=ctx)
     assert df2.height == 2
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis._leaderboard_registry.default_context")
-@patch("polars_baseball.apis.savant_leaderboards.default_context")
-async def test_fielding_apis(mock_sl_ctx: MagicMock, mock_reg_ctx: MagicMock, mock_csv_data: bytes) -> None:
+async def test_fielding_apis(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    mock_reg_ctx.return_value = BaseballContext(http=mock_http)
-    mock_sl_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    # Outs Above Average (pos=3 is 1B, valid)
-    df1 = await statcast_outs_above_average(2026, pos=3)
+    df1 = await statcast_outs_above_average(2026, pos=3, context=ctx)
     assert df1.height == 2
 
-    # Catcher pos=2 should raise InvalidParameterError for outs above average
     with pytest.raises(InvalidParameterError, match="This particular leaderboard does not include catchers"):
-        await statcast_outs_above_average(2026, pos=2)
+        await statcast_outs_above_average(2026, pos=2, context=ctx)
 
-    # Fielding Run Value
-    df2 = await statcast_fielding_run_value(2026, pos=3)
+    df2 = await statcast_fielding_run_value(2026, pos=3, context=ctx)
     assert df2.height == 2
 
-    # Outfield Directional OAA
-    df3 = await statcast_outfield_directional_oaa(2026)
+    df3 = await statcast_outfield_directional_oaa(2026, context=ctx)
     assert df3.height == 2
 
-    # Outfield Catch Prob
-    df4 = await statcast_outfield_catch_prob(2026)
+    df4 = await statcast_outfield_catch_prob(2026, context=ctx)
     assert df4.height == 2
 
-    # Outfielder Jump
-    df5 = await statcast_outfielder_jump(2026)
+    df5 = await statcast_outfielder_jump(2026, context=ctx)
     assert df5.height == 2
 
-    # Catcher Poptime
-    df6 = await statcast_catcher_poptime(2026)
+    df6 = await statcast_catcher_poptime(2026, context=ctx)
     assert df6.height == 2
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis._leaderboard_registry.default_context")
-@patch("polars_baseball.apis.savant_leaderboards.default_context")
-async def test_oaa_fallback_on_html_response(mock_sl_ctx: MagicMock, mock_reg_ctx: MagicMock) -> None:
-    """When Savant returns HTML instead of CSV for a valid pos, OAA should fall back to HTML table parsing."""
+async def test_oaa_fallback_on_html_response() -> None:
     html_data = b"""<!DOCTYPE html>
 <html><head><title>Statcast Outs Above Average Leaderboard</title></head>
 <body><div class="leaderboard-container">
@@ -97,11 +81,9 @@ async def test_oaa_fallback_on_html_response(mock_sl_ctx: MagicMock, mock_reg_ct
 </tbody></table></div></body></html>"""
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=html_data)
-    mock_reg_ctx.return_value = BaseballContext(http=mock_http)
-    mock_sl_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    # pos="CF" (code=8) is valid; the mock returns HTML, triggering the HTML fallback path
-    df = await statcast_outs_above_average(2023, pos="CF")
+    df = await statcast_outs_above_average(2023, pos="CF", context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert "player_id" in df.columns
@@ -119,28 +101,26 @@ async def test_oaa_rejects_aggregate_pos() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis._leaderboard_registry.default_context")
-async def test_catcher_framing_filtering(mock_default_ctx: MagicMock) -> None:
+async def test_catcher_framing_filtering() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=b"name,player_id,year,rv_tot\nRealmuto J.T.,592663,2026,10\n,,2026,0\n")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_catcher_framing(2026)
+    df = await statcast_catcher_framing(2026, context=ctx)
     assert df.height == 1
     assert df["player_id"][0] == 592663
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis._leaderboard_registry.default_context")
-async def test_catcher_blocking_and_base_stealing(mock_default_ctx: MagicMock, mock_csv_data: bytes) -> None:
+async def test_catcher_blocking_and_base_stealing(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df_blocking = await statcast_catcher_blocking(2026)
+    df_blocking = await statcast_catcher_blocking(2026, context=ctx)
     assert isinstance(df_blocking, pl.DataFrame)
     assert df_blocking.height == 2
 
-    df_stealing = await statcast_base_stealing(2026)
+    df_stealing = await statcast_base_stealing(2026, context=ctx)
     assert isinstance(df_stealing, pl.DataFrame)
     assert df_stealing.height == 2
