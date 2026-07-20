@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-20
+
 ### Added
 - Add `team_ids` to root public API (`pb.team_ids`).
 - Add docstrings to `CacheAdapter` ABC (get/set/clear/get_or_fetch/get_list/set_list), `FileCacheAdapter`, `NullCacheAdapter`, `GlobalCache`, and `cached`/`cached_list` decorators in `_cache.py`.
