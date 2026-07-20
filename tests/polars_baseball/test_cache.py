@@ -369,20 +369,45 @@ def test_shared_exclusive_lock_concurrency() -> None:
     assert "exclusive-acquired" in state
 
 
-def test_file_cache_adapter_set_os_error_cleanup(tmp_path: Path) -> None:
-    """When FileCacheAdapter.set encounters an OSError, it should clean up tmp files and raise."""
+def test_file_cache_adapter_set_os_error_cleanup(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """When FileCacheAdapter.set encounters an OSError, it should clean up tmp files, log warning, and disable cache."""
     from unittest.mock import patch
 
     adapter = FileCacheAdapter(cache_dir=tmp_path)
+    assert not adapter._disabled
     key = "failing-key"
     df = pl.DataFrame({"a": [1]})
 
     with patch.object(pl.DataFrame, "write_parquet", side_effect=OSError("Disk full")):
-        with pytest.raises(OSError, match="Disk full"):
-            adapter.set(key, df)
+        adapter.set(key, df)
 
+    # Adapter disables itself after write failure
+    assert adapter._disabled
     # Verify no temp files exist in the cache directory
     tmp_files = list(tmp_path.glob("*.tmp"))
     assert len(tmp_files) == 0
     # Target file should not have been created
     assert not adapter._get_path(key).exists()
+    assert "Failed to write cache entry" in caplog.text
+
+    # Subsequent operations are no-ops
+    adapter.set("another-key", df)
+    assert adapter.get("another-key") is None
+
+
+def test_file_cache_adapter_init_os_error_defensive(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """When FileCacheAdapter.__init__ fails to mkdir, it disables cache, logs warning, and does not crash."""
+    from unittest.mock import patch
+
+    read_only_dir = tmp_path / "read_only"
+    with patch.object(Path, "mkdir", side_effect=PermissionError("Read-only file system")):
+        adapter = FileCacheAdapter(cache_dir=read_only_dir)
+
+    assert adapter._disabled
+    assert adapter.cache_dir == read_only_dir
+    assert "Failed to create cache directory" in caplog.text
+
+    # All operations are no-ops when disabled
+    adapter.set("k", pl.DataFrame({"a": [1]}))
+    assert adapter.get("k") is None
+    adapter.clear()  # should not raise

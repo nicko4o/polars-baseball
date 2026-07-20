@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-07-20
+
 ### Added
 - Add actionable Cloudflare Turnstile remediation guidance to `PolarsBaseballHttpError` messages when 403 Forbidden is returned from Baseball Reference or FanGraphs.
+
+### Fixed
+- Make `FileCacheAdapter` fail-safe against read-only filesystems, permission issues, or disk-full conditions (`OSError`): on init directory creation failure the adapter disables itself with a logged warning; on write failure the adapter transitions to disabled mode so subsequent I/O operations are skipped entirely. `set()` no longer propagates `OSError` to callers (non-`OSError` exceptions still propagate).
 
 ### Changed
 - Increase default HTTP client retries (`DEFAULT_MAX_RETRIES`) from `0` to `2` to automatically recover from transient network drops and server resets.
