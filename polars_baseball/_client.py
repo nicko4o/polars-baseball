@@ -181,7 +181,14 @@ class HttpClient:
         if rate_limited and self._bref_delay is not None:
             await self._rate_limit()
         str_params = self._str_params(params)
-        merged_headers = dict(self._default_headers)
+        merged_headers = {}
+        if self._impersonate is None:
+            merged_headers.update(self._default_headers)
+        else:
+            # Exclude default User-Agent to avoid interfering with curl-cffi impersonation
+            for k, v in self._default_headers.items():
+                if k.lower() != "user-agent":
+                    merged_headers[k] = v
         merged_headers.update(self._extra_headers)
         if headers is not None:
             merged_headers.update(headers)

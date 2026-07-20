@@ -2,6 +2,7 @@ import polars as pl
 import pytest
 
 from polars_baseball import (
+    BaseballContext,
     standings,
     statcast,
     statcast_single_game,
@@ -13,7 +14,11 @@ from tests._async_utils import run_async
 @pytest.mark.live
 def test_live_mlb_standings() -> None:
     # Fetch historical standings for 2023 season
-    df = run_async(standings(season=2023))
+    async def run() -> pl.DataFrame:
+        async with BaseballContext() as ctx:
+            return await standings(season=2023, context=ctx)
+
+    df = run_async(run())
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
     assert "Tm" in df.columns
@@ -24,7 +29,11 @@ def test_live_mlb_standings() -> None:
 @pytest.mark.live
 def test_live_savant_statcast_single_game() -> None:
     # Fetch a single real game from 2024 (game_pk=747046)
-    df = run_async(statcast_single_game(game_pk=747046))
+    async def run() -> pl.DataFrame:
+        async with BaseballContext() as ctx:
+            return await statcast_single_game(game_pk=747046, context=ctx)
+
+    df = run_async(run())
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
     assert "pitch_type" in df.columns
@@ -34,7 +43,11 @@ def test_live_savant_statcast_single_game() -> None:
 @pytest.mark.live
 def test_live_savant_exit_velo_barrels() -> None:
     # Fetch batter exit velocity leaderboard for 2023 season
-    df = run_async(statcast_batter_exitvelo_barrels(year=2023))
+    async def run() -> pl.DataFrame:
+        async with BaseballContext() as ctx:
+            return await statcast_batter_exitvelo_barrels(year=2023, context=ctx)
+
+    df = run_async(run())
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
     assert ("player_name" in df.columns) or ("last_name, first_name" in df.columns)
@@ -47,7 +60,12 @@ def test_live_fangraphs_batting() -> None:
 
     # Request batting stats for 2023 season with custom columns
     request = FanGraphsRequest.batting(start_season=2023, stat_columns=["WAR", "OPS"])
-    df = run_async(fg_data(request))
+
+    async def run() -> pl.DataFrame:
+        async with BaseballContext() as ctx:
+            return await fg_data(request, context=ctx)
+
+    df = run_async(run())
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
     # Confirm contract: must contain standard columns + requested columns
@@ -59,12 +77,15 @@ def test_live_fangraphs_batting() -> None:
 @pytest.mark.live
 def test_live_statcast_benchmark_range_does_not_schema_error() -> None:
     # Benchmark date range from 2024 to verify alignment and guard against upstream schema drift
-    df = run_async(
-        statcast(
-            start_dt="2024-04-01",
-            end_dt="2024-04-07",
-            verbose=False,
-        )
-    )
+    async def run() -> pl.DataFrame:
+        async with BaseballContext() as ctx:
+            return await statcast(
+                start_dt="2024-04-01",
+                end_dt="2024-04-07",
+                verbose=False,
+                context=ctx,
+            )
+
+    df = run_async(run())
     assert isinstance(df, pl.DataFrame)
     assert df.height > 0
