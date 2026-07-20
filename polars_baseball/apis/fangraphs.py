@@ -7,7 +7,7 @@ import polars as pl
 from typing_extensions import Unpack
 
 from polars_baseball._config import FG_LEADERS_URL, FG_MAX_RESULTS
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
     FangraphsMonth,
@@ -227,5 +227,5 @@ async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = N
         - Returns empty DataFrame when the upstream HTML contains no data table.
         - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await FanGraphsGateway(ctx).get_leaderboard(FG_LEADERS_URL, _build_fg_url_options(request))

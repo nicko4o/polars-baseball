@@ -11,9 +11,7 @@ from polars_baseball.context import BaseballContext
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get")
-@patch("polars_baseball.apis.bref.default_context")
 async def test_bwar_bat_cache_hit(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
@@ -28,11 +26,10 @@ async def test_bwar_bat_cache_hit(
         }
     )
     mock_cache_get.return_value = cached_df
-    mock_default_ctx.return_value = BaseballContext()
+    ctx = BaseballContext()
 
-    df = await bwar_bat()
+    df = await bwar_bat(context=ctx)
 
     assert df.height == 1
     assert "name_common" in df.columns
     assert "WAR" in df.columns
-    mock_default_ctx.assert_called_once()

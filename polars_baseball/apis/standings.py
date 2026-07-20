@@ -3,7 +3,7 @@ import polars as pl
 from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
 from polars_baseball._season import most_recent_season
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.standings import parse_standings_payload
@@ -19,7 +19,7 @@ def _standings_cache_key(call: CacheCallArgs) -> str:
 
 @cached(key=_standings_cache_key)
 async def _fetch_standings(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
     return await MlbStatsGateway(ctx).fetch(
         url,

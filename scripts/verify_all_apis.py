@@ -42,7 +42,7 @@ from polars_baseball.apis.fangraphs import FanGraphsRequest
 from polars_baseball.apis.lahman import people as lahman_people
 from polars_baseball.apis.playerid import chadwick_register, playerid_lookup
 from polars_baseball.apis.retrosheet import schedules as retrosheet_schedules
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 
 GAME_PK = 823359
 PLAYER_ID = 660271
@@ -207,7 +207,7 @@ async def main() -> int:
     tmp_dir = Path(tempfile.mkdtemp(prefix="pbb_verify_"))
     configure_cache(tmp_dir)
 
-    ctx = default_context()
+    ctx = BaseballContext()
     _configure_http_client(ctx)
 
     tests = _build_tests()

@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import polars as pl
 import pytest
@@ -51,13 +51,12 @@ _MOCK_STANDINGS_JSON = {
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.standings.default_context")
-async def test_standings_modern(mock_default_ctx: MagicMock) -> None:
+async def test_standings_modern() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_STANDINGS_JSON))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await standings(season=2023)
+    df = await standings(season=2023, context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 3
     assert df["season"][0] == 2023
@@ -87,10 +86,9 @@ async def test_standings_too_early() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.standings.default_context")
-async def test_standings_upstream_failure(mock_default_ctx: MagicMock) -> None:
+async def test_standings_upstream_failure() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Timeout"))
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
     with pytest.raises(PolarsBaseballTransportError, match="Timeout"):
-        await standings(season=2023)
+        await standings(season=2023, context=ctx)

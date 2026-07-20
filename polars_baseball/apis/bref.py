@@ -4,7 +4,7 @@ import polars as pl
 
 from polars_baseball._config import BREF_ROOT
 from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.gateways.bref import BRefGateway
 
 # BWAR batting schema
@@ -61,7 +61,7 @@ async def _bwar_generic(
     return_all: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     url = f"{BREF_ROOT}/data/war_daily_{stat_type}.txt"
     gateway = BRefGateway(ctx)
     df = await gateway.get_dataset(url, params={"return_all": return_all})

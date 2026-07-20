@@ -13,7 +13,7 @@ from polars_baseball.apis.mlb._contracts import (
     schedule_cache_key,
     schedule_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_schedule
@@ -37,7 +37,7 @@ async def _fetch_mlb_schedule(
         params["teamId"] = team_id
     if hydrate is not None:
         params["hydrate"] = hydrate
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         schedule_url(), params, "Failed to fetch or parse MLB schedule data", parse_mlb_schedule
     )
@@ -54,7 +54,7 @@ async def _fetch_mlb_postseason_schedule(
         "sportId": MLB_DEFAULT_SPORT_ID,
         "season": season,
     }
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         schedule_url(), params, "Failed to fetch or parse MLB postseason schedule", parse_mlb_schedule
     )

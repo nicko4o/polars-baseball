@@ -60,18 +60,12 @@ from polars_baseball.apis.standings import standings
 from polars_baseball.apis.statcast import statcast, statcast_batter, statcast_pitcher, statcast_single_game
 from polars_baseball.apis.teamid import team_ids
 from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
-from polars_baseball.context import BaseballContext
-from polars_baseball.context import cleanup as _cleanup
+from polars_baseball.context import BaseballContext, cleanup
 from polars_baseball.enums import ArsenalType, KeyType
 
 __version__ = "0.7.1"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
-
-
-async def cleanup() -> None:
-    """Close default HTTP resources held by the package-level context."""
-    await _cleanup()
 
 
 __all__ = [

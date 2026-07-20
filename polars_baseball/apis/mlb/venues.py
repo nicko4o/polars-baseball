@@ -7,7 +7,7 @@ from polars_baseball.apis.mlb._contracts import (
     venues_cache_key,
     venues_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_venues
@@ -28,7 +28,7 @@ async def _fetch_mlb_venues(
     else:
         url = venues_url()
 
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         params,

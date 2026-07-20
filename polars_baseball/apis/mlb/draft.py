@@ -4,7 +4,7 @@ from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
 from polars_baseball._season import most_recent_season
 from polars_baseball.apis.mlb._contracts import MLB_CACHE_MAX_AGE, draft_cache_key, draft_url
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_draft
@@ -17,7 +17,7 @@ async def _fetch_mlb_draft(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = draft_url(year)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         None,

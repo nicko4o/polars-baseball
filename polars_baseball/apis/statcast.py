@@ -9,7 +9,7 @@ import polars as pl
 
 from polars_baseball._config import OVERSIZE_DAYS_THRESHOLD, SAVANT_STATCAST_SEARCH_URL
 from polars_baseball._season import sanitize_date_range, statcast_date_range
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.savant import SavantGateway
 
@@ -94,7 +94,7 @@ async def _small_request(
         "game_date_lt": str(end_dt),
         "team": team if team else "",
     }
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await SavantGateway(ctx).get_dataset(
         SAVANT_STATCAST_SEARCH_URL,
         params=params,
@@ -117,7 +117,7 @@ async def _player_request(
         lookup_key: str(player_id),
         "team": "",
     }
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await SavantGateway(ctx).get_dataset(
         SAVANT_STATCAST_SEARCH_URL,
         params=params,
@@ -216,7 +216,7 @@ async def statcast_single_game(game_pk: str | int, context: BaseballContext | No
         - Postponed or cancelled games return an empty DataFrame.
     """
     url = _SC_SINGLE_GAME_REQUEST.format(game_pk=game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     df = await SavantGateway(ctx).get_dataset(url)
     if df.is_empty():
         return pl.DataFrame()

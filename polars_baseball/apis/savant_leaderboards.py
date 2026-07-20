@@ -5,7 +5,7 @@ import polars as pl
 
 from polars_baseball._config import SAVANT_INVALID_PLAYER_ID, SAVANT_ROOT
 from polars_baseball.apis._leaderboard_registry import get_leaderboard
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.enums.pitch import norm_pitch_code
 from polars_baseball.enums.savant import ArsenalType
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
@@ -30,7 +30,7 @@ async def _get_savant_leaderboard(
     params: dict[str, str] | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await SavantGateway(ctx).get_leaderboard(url, params)
 
 
@@ -265,7 +265,7 @@ async def _try_fetch_active_spin(
     spin_type: str,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame | None:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     url = f"{SAVANT_ROOT}{PATH_ACTIVE_SPIN}"
     params = {
         "year": f"{year}_{spin_type}",
