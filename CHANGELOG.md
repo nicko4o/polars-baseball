@@ -7,13 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Add actionable Cloudflare Turnstile remediation guidance to `PolarsBaseballHttpError` messages when 403 Forbidden is returned from Baseball Reference or FanGraphs.
-
-### Changed
-- Increase default HTTP client retries (`DEFAULT_MAX_RETRIES`) from `0` to `2` to automatically recover from transient network drops and server resets.
-- Set `GlobalCache` default back to a file-backed cache (`FileCacheAdapter` at `~/.polars_baseball/cache`) for out-of-the-box caching and seamless Lahman dataset access without manual configuration.
-- Reduce default Statcast request `concurrency_limit` from `5` to `3` to decrease upstream rate-limiting and connection resets on large queries.
+### Fixed
+- Make `FileCacheAdapter` fail-safe against read-only filesystems, permission issues, or disk-full conditions (`OSError`): on init directory creation failure the adapter disables itself with a logged warning; on write failure the adapter transitions to disabled mode so subsequent I/O operations are skipped entirely. `set()` no longer propagates `OSError` to callers (non-`OSError` exceptions still propagate).
 
 ## [0.7.2] - 2026-07-20
 
