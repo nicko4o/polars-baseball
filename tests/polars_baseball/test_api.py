@@ -12,17 +12,15 @@ from polars_baseball.context import BaseballContext
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.statcast.default_context")
 async def test_statcast_batter_api(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="pitcher,release_speed,pitch_type\n123456,95.5,FF\n")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-02", player_id=123456)
+    df = await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-02", player_id=123456, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -32,17 +30,15 @@ async def test_statcast_batter_api(
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.statcast.default_context")
 async def test_statcast_pitcher_api(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="pitcher,release_speed,pitch_type\n789012,84.2,SL\n")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_pitcher(start_dt="2026-06-01", end_dt="2026-06-02", player_id=789012)
+    df = await statcast_pitcher(start_dt="2026-06-01", end_dt="2026-06-02", player_id=789012, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -52,25 +48,23 @@ async def test_statcast_pitcher_api(
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get")
-@patch("polars_baseball.apis.statcast.default_context")
 async def test_statcast_api_cache_hit(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
     cached_df = pl.DataFrame({"pitcher": [111], "release_speed": [99.9], "pitch_type": ["FF"]})
     mock_cache_get.return_value = cached_df
-    mock_default_ctx.return_value = BaseballContext()
+    ctx = BaseballContext()
 
     df = await statcast_batter(
         start_dt="2026-06-01",
         end_dt="2026-06-02",
         player_id=111,
+        context=ctx,
     )
 
     assert isinstance(df, pl.DataFrame)
     assert df.equals(cached_df)
-    mock_default_ctx.assert_called_once()
 
 
 @pytest.mark.asyncio

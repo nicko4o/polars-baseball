@@ -1,7 +1,7 @@
 import io
 import zipfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import polars as pl
 import pytest
@@ -35,16 +35,15 @@ def create_mock_lahman_zip() -> bytes:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.lahman.default_context")
-async def test_lahman_apis_use_compiled_table_cache(mock_default_ctx: MagicMock, tmp_path: Path) -> None:
+async def test_lahman_apis_use_compiled_table_cache(tmp_path: Path) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_bytes = AsyncMock(return_value=create_mock_lahman_zip())
-    mock_default_ctx.return_value = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
 
-    df_parks = await parks()
-    df_people = await people()
-    df_schools = await schools()
-    df_batting = await batting()
+    df_parks = await parks(context=ctx)
+    df_people = await people(context=ctx)
+    df_schools = await schools(context=ctx)
+    df_batting = await batting(context=ctx)
 
     assert isinstance(df_parks, pl.DataFrame)
     assert df_parks.height == 1

@@ -92,12 +92,6 @@ def generate_cache_key(
 
 
 _CACHE_PARTITION_KEY = "__cache_partition__"
-_default_context_resolver: Callable[[], CacheContext] | None = None
-
-
-def _set_default_cache_context_resolver(resolver: Callable[[], CacheContext]) -> None:
-    global _default_context_resolver
-    _default_context_resolver = resolver
 
 
 class CacheAdapter(ABC):
@@ -350,9 +344,10 @@ def _resolve_context_from_arguments(arguments: Mapping[str, object]) -> CacheCon
         if not hasattr(ctx, "cache"):
             raise TypeError("context must expose a cache attribute")
         return cast(CacheContext, ctx)
-    if _default_context_resolver is None:
-        raise RuntimeError("Default cache context resolver has not been configured.")
-    return _default_context_resolver()
+    import importlib
+
+    BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
+    return cast(CacheContext, BaseballContext.default())
 
 
 def _bind_call_arguments(

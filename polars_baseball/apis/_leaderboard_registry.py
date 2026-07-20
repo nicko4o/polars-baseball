@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import polars as pl
 
 from polars_baseball._config import SAVANT_ROOT
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.gateways.savant import SavantGateway
 
 
@@ -169,7 +169,7 @@ async def get_leaderboard(
     context: BaseballContext | None = None,
     **kwargs: object,
 ) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     reg = LEADERBOARDS.get(name)
     if reg is None:
         msg = f"Unknown leaderboard: {name}"

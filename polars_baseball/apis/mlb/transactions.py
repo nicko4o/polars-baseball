@@ -9,7 +9,7 @@ from polars_baseball.apis.mlb._contracts import (
     transactions_cache_key,
     transactions_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_transactions
@@ -32,7 +32,7 @@ async def _fetch_mlb_transactions(
         params["startDate"] = start_date
     if end_date:
         params["endDate"] = end_date
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         params,

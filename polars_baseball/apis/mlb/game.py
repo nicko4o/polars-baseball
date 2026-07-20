@@ -18,7 +18,7 @@ from polars_baseball.apis.mlb._contracts import (
     win_probability_cache_key,
     win_probability_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
@@ -38,7 +38,7 @@ async def _fetch_mlb_game_boxscore(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = boxscore_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url, None, "Failed to fetch or parse MLB game boxscore", lambda d: parse_mlb_boxscore(d, game_pk)
     )
@@ -51,7 +51,7 @@ async def _fetch_mlb_game_boxscore_stats(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = boxscore_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url, None, "Failed to fetch or parse MLB game boxscore stats", lambda d: parse_mlb_boxscore_stats(d, game_pk)
     )
@@ -96,7 +96,7 @@ async def _fetch_mlb_game_play_by_play(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = play_by_play_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url, None, "Failed to fetch or parse MLB play-by-play data", lambda d: parse_mlb_play_by_play(d, game_pk)
     )
@@ -109,7 +109,7 @@ async def _fetch_mlb_game_win_probability(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = win_probability_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch_payload(
         url,
         None,
@@ -174,7 +174,7 @@ async def _fetch_mlb_game_feed_live(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = live_feed_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         {},
@@ -217,7 +217,7 @@ async def _fetch_mlb_game_linescore(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     url = linescore_url(game_pk)
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url,
         None,

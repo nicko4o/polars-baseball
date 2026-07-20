@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import polars as pl
 import pytest
@@ -47,13 +47,10 @@ def test_retrosheet_schema_columns_are_immutable() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
 async def test_retrosheet_rosters_uses_supplied_context(
-    mock_default_ctx: MagicMock,
     mock_seasons_contents: bytes,
     mock_roster_data: bytes,
 ) -> None:
-    mock_default_ctx.side_effect = AssertionError("default_context must not be used when context is supplied")
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(
         side_effect=[
@@ -72,9 +69,7 @@ async def test_retrosheet_rosters_uses_supplied_context(
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
 async def test_retrosheet_rosters(
-    mock_default_ctx: MagicMock,
     mock_seasons_contents: bytes,
     mock_roster_data: bytes,
 ) -> None:
@@ -86,9 +81,9 @@ async def test_retrosheet_rosters(
             mock_roster_data,
         ]
     )
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await rosters(2026)
+    df = await rosters(2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
     # 2 rows per roster file * 2 files = 4 rows
     assert df.height == 4
@@ -104,21 +99,19 @@ async def test_retrosheet_rosters(
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
-async def test_retrosheet_park_codes(mock_default_ctx: MagicMock) -> None:
+async def test_retrosheet_park_codes() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(
         return_value=b"park_id,name,nickname,city,state,open,close,league,notes\nBOS07,Fenway Park,Fenway,Boston,MA,1912,2026,AL,\n"
     )
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
-    df = await park_codes()
+    ctx = BaseballContext(http=mock_http)
+    df = await park_codes(context=ctx)
     assert df.height == 1
     assert df["name"][0] == "Fenway Park"
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
-async def test_retrosheet_schedules(mock_default_ctx: MagicMock, mock_seasons_contents: bytes) -> None:
+async def test_retrosheet_schedules(mock_seasons_contents: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(
         side_effect=[
@@ -126,16 +119,15 @@ async def test_retrosheet_schedules(mock_default_ctx: MagicMock, mock_seasons_co
             b"2026-04-01,0,Wed,NYA,AL,1,BOS,AL,1,D,,\n",
         ]
     )
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
-    df = await schedules(2026)
+    ctx = BaseballContext(http=mock_http)
+    df = await schedules(2026, context=ctx)
     assert df.height == 1
     assert df.columns == list(SCHEDULE_COLUMNS)
     assert df["visiting_team"][0] == "NYA"
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
-async def test_retrosheet_game_logs(mock_default_ctx: MagicMock, mock_seasons_contents: bytes) -> None:
+async def test_retrosheet_game_logs(mock_seasons_contents: bytes) -> None:
     populated_values = ["20260401", "0", "Wed", "NYA", "AL", "1", "BOS", "AL", "1", "5", "4"]
     dummy_row = ",".join([*populated_values, *([""] * (len(GAMELOG_COLUMNS) - len(populated_values)))]).encode()
     dummy_row += b"\n"
@@ -146,9 +138,9 @@ async def test_retrosheet_game_logs(mock_default_ctx: MagicMock, mock_seasons_co
             dummy_row,
         ]
     )
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await season_game_logs(2026)
+    df = await season_game_logs(2026, context=ctx)
     assert df.height == 1
     assert df.columns == list(GAMELOG_COLUMNS)
     assert df["visiting_team"][0] == "NYA"
@@ -156,31 +148,28 @@ async def test_retrosheet_game_logs(mock_default_ctx: MagicMock, mock_seasons_co
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
-async def test_world_series_logs(mock_default_ctx: MagicMock) -> None:
+async def test_world_series_logs() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=b"20261025,0,Sun,NYA,AL,1,BOS,AL,1,5,4," + b"," * 150 + b"\n")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
-    df = await world_series_logs()
+    ctx = BaseballContext(http=mock_http)
+    df = await world_series_logs(context=ctx)
     assert df.height == 1
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.retrosheet.default_context")
-async def test_retrosheet_empty_responses_raise(mock_default_ctx: MagicMock, mock_seasons_contents: bytes) -> None:
+async def test_retrosheet_empty_responses_raise(mock_seasons_contents: bytes) -> None:
     from polars_baseball.exceptions import UpstreamUnavailableError
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=b"")
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
     with pytest.raises(UpstreamUnavailableError):
-        await park_codes()
+        await park_codes(context=ctx)
 
     mock_http.get_text = AsyncMock(side_effect=[mock_seasons_contents, b""])
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
     with pytest.raises(UpstreamUnavailableError):
-        await schedules(2026)
+        await schedules(2026, context=ctx)
 
 
 @pytest.mark.asyncio

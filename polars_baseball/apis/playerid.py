@@ -7,7 +7,7 @@ from polars_baseball._config import (
     CHADWICK_REGISTER_ARCHIVE_URL,
 )
 from polars_baseball._player_lookup import PlayerId, PlayerLookupService
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.compiled import CompiledDatasetGateway, CompiledTable
@@ -86,7 +86,7 @@ async def chadwick_register(save: bool = True, context: BaseballContext | None =
         - Raises ``UpstreamParseError`` if the upstream people table is empty.
         - Missing MLB IDs default to ``-1``.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await _fetch_and_parse_chadwick(ctx, use_cache=save)
 
 

@@ -6,7 +6,7 @@ import polars as pl
 from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
 from polars_baseball._config import MILB_ROOT, MLB_ROOT
 from polars_baseball.apis.mlb.team_lookup import resolve_team_id
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 from polars_baseball.parsers.mlb import MLBApiParser
 from polars_baseball.parsers.pipeline import MLBPipelineParser
@@ -94,7 +94,7 @@ async def top_prospects(
     if player_type is not None and player_type not in _VALID_PLAYER_TYPES:
         raise InvalidParameterError("player_type must be one of: batters, pitchers.")
 
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     url = await _resolve_prospects_url(team_name, context=ctx)
     html_str = await ctx.http.get_text(url)
     if not html_str:
@@ -157,7 +157,7 @@ async def prospect_rankings(
 
     url = base_path if list_type_clean == "top100" else f"{base_path}/{list_type_clean}"
 
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     html_str = await ctx.http.get_text(url)
     if not html_str:
         raise UpstreamParseError(f"MLB pipeline prospects returned empty response for: {url}")

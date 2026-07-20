@@ -9,7 +9,7 @@ from polars_baseball.apis.mlb._contracts import (
     roster_cache_key,
     roster_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_roster
@@ -27,7 +27,7 @@ async def _fetch_mlb_roster(
     params: dict[str, object] = {"rosterType": roster_type}
     if season is not None:
         params["season"] = season
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url, params, "Failed to fetch or parse MLB roster data", lambda d: parse_mlb_roster(d, team_id)
     )

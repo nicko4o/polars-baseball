@@ -55,9 +55,7 @@ def test_fangraphs_parser_raises_for_empty_player_data() -> None:
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.fangraphs.default_context")
 async def test_fg_data_uses_injected_context(
-    mock_default_context: MagicMock,
     _mock_cache_get: MagicMock,
     _mock_cache_set: MagicMock,
 ) -> None:
@@ -71,7 +69,6 @@ async def test_fg_data_uses_injected_context(
     assert df.height == 1
     assert df["Name"][0] == "Mike Trout"
     mock_http.get_text.assert_awaited_once()
-    mock_default_context.assert_not_called()
 
 
 def test_fangraphs_parser_raises_on_invalid_queries_entry_type() -> None:

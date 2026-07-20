@@ -56,9 +56,7 @@ def test_bref_html_parser_batting() -> None:
 @pytest.mark.asyncio
 @patch.object(GlobalCache, "set")
 @patch.object(GlobalCache, "get", return_value=None)
-@patch("polars_baseball.apis.bref.default_context")
 async def test_bref_bwar_bat_api(
-    mock_default_ctx: MagicMock,
     mock_cache_get: MagicMock,
     mock_cache_set: MagicMock,
 ) -> None:
@@ -66,9 +64,9 @@ async def test_bref_bwar_bat_api(
     mock_http.get_text = AsyncMock(
         return_value="name_common,mlb_ID,player_ID,year_ID,team_ID,WAR\nMike Trout,545361,troutmi01,2026,LAA,8.5\n"
     )
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await bwar_bat(return_all=False)
+    df = await bwar_bat(return_all=False, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1

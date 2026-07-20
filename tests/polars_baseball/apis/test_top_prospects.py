@@ -24,13 +24,12 @@ _MOCK_PROSPECT_HTML = (
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.top_prospects.default_context")
-async def test_top_prospects_basic(mock_default_ctx: MagicMock) -> None:
+async def test_top_prospects_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_MOCK_PROSPECT_HTML)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await top_prospects()
+    df = await top_prospects(context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert "Player" in df.columns
@@ -41,17 +40,15 @@ async def test_top_prospects_basic(mock_default_ctx: MagicMock) -> None:
 
 @pytest.mark.asyncio
 @patch("polars_baseball.apis.top_prospects.resolve_team_id")
-@patch("polars_baseball.apis.top_prospects.default_context")
 async def test_top_prospects_team(
-    mock_default_ctx: MagicMock,
     mock_resolve_team_id: AsyncMock,
 ) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_MOCK_PROSPECT_HTML)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
     mock_resolve_team_id.return_value = 147
+    ctx = BaseballContext(http=mock_http)
 
-    df = await top_prospects(team_name="Yankees", player_type="batters")
+    df = await top_prospects(team_name="Yankees", player_type="batters", context=ctx)
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     assert df["Player"][1] == "Bobby Witt Jr."
@@ -84,8 +81,7 @@ async def test_top_prospects_missing_tables_fails_fast() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.top_prospects.default_context")
-async def test_prospect_rankings_basic(mock_default_ctx: MagicMock) -> None:
+async def test_prospect_rankings_basic() -> None:
     mock_html = '<html><body><span data-init-state="{}"></span></body></html>'.format(
         html.escape(
             json.dumps(
@@ -100,16 +96,15 @@ async def test_prospect_rankings_basic(mock_default_ctx: MagicMock) -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_html)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await prospect_rankings()
+    df = await prospect_rankings(context=ctx)
     assert isinstance(df, pl.DataFrame)
     mock_http.get_text.assert_called_once_with("https://www.mlb.com/milb/prospects")
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.apis.top_prospects.default_context")
-async def test_prospect_rankings_with_year_and_type(mock_default_ctx: MagicMock) -> None:
+async def test_prospect_rankings_with_year_and_type() -> None:
     mock_html = '<html><body><span data-init-state="{}"></span></body></html>'.format(
         html.escape(
             json.dumps(
@@ -124,9 +119,9 @@ async def test_prospect_rankings_with_year_and_type(mock_default_ctx: MagicMock)
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_html)
-    mock_default_ctx.return_value = BaseballContext(http=mock_http)
+    ctx = BaseballContext(http=mock_http)
 
-    df = await prospect_rankings(list_type="rhp", year=2025)
+    df = await prospect_rankings(list_type="rhp", year=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
     mock_http.get_text.assert_called_once_with("https://www.mlb.com/milb/prospects/2025/rhp")
 

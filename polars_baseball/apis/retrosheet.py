@@ -12,7 +12,7 @@ from polars_baseball._config import (
     RETROSHEET_SCHEDULE_URL,
     RETROSHEET_SEASON_GAMELOG_URL,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import (
     InvalidParameterError,
     ServerError,
@@ -56,7 +56,7 @@ async def events(
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     file_extension: tuple[str, ...]
     if type == "regular":
@@ -105,7 +105,7 @@ async def rosters(
     Note: Returns an empty DataFrame with the correct schema if no roster
     files are available or all fetch attempts return no data.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     ros_files = [f for f in files if f.endswith(".ROS")]
     if not ros_files:
@@ -141,7 +141,7 @@ async def park_codes(context: BaseballContext | None = None) -> pl.DataFrame:
 
     Column names are mapped from the raw CSV header to canonical PARK_CODE_COLUMNS.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     raw_bytes = await ctx.http.get_text(RETROSHEET_PARKID_URL)
     if not raw_bytes:
         raise UpstreamUnavailableError("Retrosheet park codes file is empty.")
@@ -160,7 +160,7 @@ async def schedules(season: int, context: BaseballContext | None = None) -> pl.D
     Note: Raises ServerError if the schedule file is not found in the
     season directory.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     file_name = f"{season}schedule.csv"
     if file_name not in files:
@@ -184,7 +184,7 @@ async def season_game_logs(season: int, context: BaseballContext | None = None) 
 
     Note: Raises ServerError if the game log file is not found.
     """
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     gamelog_file_name = f"GL{season}.TXT"
     if gamelog_file_name not in files:
@@ -204,7 +204,7 @@ def _gamelog_cache_key(call: CacheCallArgs) -> str:
 
 @cached(key=_gamelog_cache_key)
 async def _get_gamelog_generic(suffix: str, context: BaseballContext | None = None) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     url = RETROSHEET_GAMELOG_URL.format(suffix)
     raw_bytes = await ctx.http.get_text(url)
     if not raw_bytes:

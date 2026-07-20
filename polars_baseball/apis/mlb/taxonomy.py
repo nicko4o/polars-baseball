@@ -13,7 +13,7 @@ from polars_baseball.apis.mlb._contracts import (
     teams_cache_key,
     teams_url,
 )
-from polars_baseball.context import BaseballContext, default_context
+from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
@@ -37,7 +37,7 @@ async def _fetch_mlb_teams(
         params["season"] = season
     if league_id is not None:
         params["leagueId"] = league_id
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         url, params, "Failed to fetch or parse MLB teams data", lambda d: parse_mlb_teams(d, season)
     )
@@ -49,7 +49,7 @@ async def _fetch_mlb_divisions(
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         divisions_url(),
         {"sportId": sport_id},
@@ -64,7 +64,7 @@ async def _fetch_mlb_leagues(
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    ctx = context or default_context()
+    ctx = context or BaseballContext.default()
     return await MlbStatsGateway(ctx).fetch(
         leagues_url(),
         {"sportId": sport_id},
