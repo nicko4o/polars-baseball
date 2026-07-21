@@ -1443,8 +1443,9 @@ async def test_mlb_game_linescore_accepts_custom_cache_max_age() -> None:
     df = await mlb_game_linescore(game_pk=715789, cache_max_age=cache_max_age, context=ctx)
 
     assert df.height == 2
-    mock_cache.get.assert_called_once()
-    assert mock_cache.get.call_args.kwargs["max_age"] == cache_max_age
+    assert mock_cache.get.call_count >= 1
+    for call in mock_cache.get.call_args_list:
+        assert call.kwargs["max_age"] == cache_max_age
 
 
 @pytest.mark.asyncio

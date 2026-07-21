@@ -434,6 +434,12 @@ def _cached_execute(
     cache_call = resolve_cache_call(fn, key, max_age, args, kwargs)
 
     async def run() -> R:
+        if not cache_call.force_update:
+            cached_val = await asyncio.to_thread(
+                cache_get, cache_call.context.cache, cache_call.key, cache_call.max_age
+            )
+            if cached_val is not None:
+                return cached_val
         async with _in_flight_lock_for(cache_call.context.cache, cache_call.key):
             if not cache_call.force_update:
                 cached_val = await asyncio.to_thread(

@@ -79,7 +79,7 @@ async def test_cached_with_dynamic_key() -> None:
 
     assert result["year"][0] == 2026
     assert result["team"][0] == "BOS"
-    mock_cache.get.assert_called_once_with("standings-2026-BOS", max_age=None)
+    mock_cache.get.assert_any_call("standings-2026-BOS", max_age=None)
     mock_cache.set.assert_called_once()
 
 
@@ -181,7 +181,7 @@ async def test_cached_dynamic_key_receives_cache_call_args() -> None:
 
     await query(2026, "BOS", context=BaseballContext(cache=mock_cache))
 
-    mock_cache.get.assert_called_once_with("year-2026", max_age=None)
+    mock_cache.get.assert_any_call("year-2026", max_age=None)
 
 
 @pytest.mark.asyncio
@@ -200,7 +200,7 @@ async def test_cached_dynamic_key_reads_named_arguments() -> None:
 
     await query(2026, "BOS", context=BaseballContext(cache=mock_cache))
 
-    mock_cache.get.assert_called_once_with("2026-BOS", max_age=None)
+    mock_cache.get.assert_any_call("2026-BOS", max_age=None)
 
 
 @pytest.mark.asyncio
@@ -219,7 +219,7 @@ async def test_cached_dynamic_key_uses_context_from_cache_call_args() -> None:
 
     await query(2026, context=BaseballContext(cache=mock_cache))
 
-    mock_cache.get.assert_called_once_with("context-2026", max_age=None)
+    mock_cache.get.assert_any_call("context-2026", max_age=None)
 
 
 @pytest.mark.asyncio
@@ -237,7 +237,7 @@ async def test_cached_dynamic_max_age_uses_context_from_cache_call_args() -> Non
 
     await query(context=BaseballContext(cache=mock_cache))
 
-    mock_cache.get.assert_called_once_with("context-max-age", max_age=timedelta(minutes=5))
+    mock_cache.get.assert_any_call("context-max-age", max_age=timedelta(minutes=5))
 
 
 @pytest.mark.asyncio

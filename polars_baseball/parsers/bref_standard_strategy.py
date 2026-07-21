@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import io
 from typing import TYPE_CHECKING, cast
 
@@ -104,20 +105,26 @@ class BRefCSVExportStrategy:
 
     @staticmethod
     def _parse_csv_table(table: _Element) -> pl.DataFrame:
-        """Parse a <table id="csv_..."> where each <tr> has <td> cells."""
-        rows: list[str] = []
+        """Parse a <table id="csv_..."> where each <tr> has <td> or <th> cells."""
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        has_rows = False
         tr_elements = cast(list[_Element], table.xpath(".//tr"))
         for tr in tr_elements:
-            cells = ["".join(str(x) for x in td.itertext()).strip() for td in cast(list[_Element], tr.xpath("./td"))]
+            cells = [
+                "".join(str(x) for x in cell.itertext()).strip()
+                for cell in cast(list[_Element], tr.xpath("./td | ./th"))
+            ]
             if not cells:
                 continue
-            rows.append(",".join(cells))
+            writer.writerow(cells)
+            has_rows = True
 
-        if not rows:
+        if not has_rows:
             return pl.DataFrame()
 
-        csv_text = "\n".join(rows)
-        return pl.read_csv(io.StringIO(csv_text), null_values="NULL")
+        buf.seek(0)
+        return pl.read_csv(buf, null_values="NULL")
 
     @staticmethod
     def _parse_csv_div(div: _Element) -> pl.DataFrame:
