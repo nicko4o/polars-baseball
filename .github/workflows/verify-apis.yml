@@ -6,8 +6,13 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  issues: write
 
 jobs:
   verify:
@@ -40,3 +45,27 @@ jobs:
         with:
           name: api-verification-log
           path: api_verification.log
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-breakage',
+            });
+            if (existing.length > 0) {
+              console.log(`Issue already exists: #${existing[0].number}`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'API verification failure detected',
+              body: 'The nightly API verification check failed. This may indicate an upstream MLB data source outage or breaking change.\n\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+              labels: ['upstream-breakage'],
+            });

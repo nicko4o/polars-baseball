@@ -8,9 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Add `.codecov.yml` with 90% patch coverage gate to prevent coverage regression on PRs.
+- Add `uv audit` dependency vulnerability scan to CI lint pipeline.
+- Add `py_compile` syntax check for all `examples/*.py` in CI lint pipeline.
+- Add `concurrency` config with `cancel-in-progress: true` to all workflows (pytest, publish, nightly, verify-apis, compile-datasets).
+- Add auto-issue creation on failure for nightly upstream contract and API verification workflows.
+- Add `test_ci_workflows.py` test suite to validate CI workflow structure.
 - Add `test_version_in_pyproject_matches_package_init` test to enforce version synchronization between `pyproject.toml` and `polars_baseball.__version__`.
 
+### Changed
+- Decouple static analysis from test matrix: extract `lint` job (Python 3.13 only, no matrix) from `pytest.yml`; `test` job now depends on `needs: [lint]`.
+- Reuse build artifacts in `python-publish.yml`: `validate` job uploads `dist/`, `deploy` job downloads instead of rebuilding.
+
 ### Fixed
+- Upgrade `pillow` (12.2.0 -> 12.3.0) and `pytest` (8.3.5 -> 9.1.1) to resolve 23 known CVE vulnerabilities detected by `uv audit`.
 - Synchronize `[tool.bumpversion].current_version` in `pyproject.toml` to `"0.7.3"` matching `polars_baseball.__version__`, and configure `pyproject.toml` in `[[tool.bumpversion.files]]` for automated version bumps.
 
 ### Changed
