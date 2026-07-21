@@ -1,7 +1,7 @@
 import enum
 
 
-class KeyType(str, enum.Enum):
+class KeyType(enum.StrEnum):
     """Player ID key type for reverse lookups.
 
     Use enum values at the public API boundary::

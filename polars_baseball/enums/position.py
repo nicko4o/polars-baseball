@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from polars_baseball.exceptions import InvalidParameterError
 
@@ -19,7 +19,7 @@ _POSITION_PAIRS: list[tuple[str, str]] = [
 ]
 
 
-class Position(str, Enum):
+class Position(StrEnum):
     IF = "IF"
     OF = "OF"
     C = "C"

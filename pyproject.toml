@@ -58,7 +58,6 @@ test = [
     "mypy>=1.8,<1.15",
     "pytest-cov>=2.10.1",
     "pytest-xdist>=2.1.0",
-    "types-requests>=2.18.1",
     "ruff>=0.1.0",
     "types-tqdm",
     "lxml-stubs",
