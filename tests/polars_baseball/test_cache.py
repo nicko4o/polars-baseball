@@ -3,6 +3,7 @@ import threading
 import weakref
 from datetime import timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import polars as pl
 import pytest
@@ -339,6 +340,81 @@ def test_file_cache_adapter_clear_error(tmp_path: Path) -> None:
     with patch.object(Path, "iterdir", side_effect=OSError("Permission denied")):
         with pytest.raises(CacheClearError, match="Failed to clear cache"):
             adapter.clear()
+
+
+class _LockInterrupted(BaseException):
+    """Simulates a KeyboardInterrupt during threading.Condition.wait()."""
+
+
+def test_shared_exclusive_lock_exclusive_interrupt_cleanup() -> None:
+    """exclusive() interrupted by BaseException must not corrupt _writer_waiting.
+
+    Without the fix, _writer_waiting stays >0 permanently, deadlocking all
+    future shared() calls.  This test forces contention so exclusive() enters
+    self._cond.wait(), then raises an interrupt inside it.
+    """
+    import threading
+
+    from polars_baseball._cache_locks import SharedExclusiveLock
+
+    original_wait = threading.Condition.wait
+    interrupt_raised = False
+
+    def _interrupting_wait(self: threading.Condition, timeout: float | None = None) -> bool:
+        nonlocal interrupt_raised
+        if not interrupt_raised:
+            interrupt_raised = True
+            raise _LockInterrupted("simulated Ctrl+C during wait()")
+        return original_wait(self, timeout)
+
+    lock = SharedExclusiveLock()
+    shared_held = threading.Event()
+    shared_continue = threading.Event()
+
+    def hold_shared() -> None:
+        with lock.shared():
+            shared_held.set()
+            shared_continue.wait(timeout=5)
+
+    holder = threading.Thread(target=hold_shared)
+    holder.start()
+    shared_held.wait(timeout=5)
+
+    with patch.object(threading.Condition, "wait", _interrupting_wait):
+        with pytest.raises(_LockInterrupted):
+            with lock.exclusive():
+                pass
+
+    shared_continue.set()
+    holder.join(timeout=5)
+
+    assert lock._writer_waiting == 0, f"_writer_waiting={lock._writer_waiting} (expected 0)"
+    assert lock._writers == 0
+
+    with lock.shared():
+        pass
+    with lock.exclusive():
+        pass
+
+
+@pytest.mark.asyncio
+async def test_cached_checks_cache_before_lock() -> None:
+    """Cache hits must return before acquiring the in-flight asyncio.Lock."""
+    from polars_baseball._cache_locks import _in_flight_lock_for as original_lock_for
+
+    context = _MemoryContext()
+
+    @cached("pre-lock-check-key")
+    async def fetch(context: _MemoryContext) -> pl.DataFrame:  # noqa: ARG001
+        return pl.DataFrame({"value": [1]})
+
+    await fetch(context)
+
+    with patch("polars_baseball._cache._in_flight_lock_for", wraps=original_lock_for) as mock_lock:
+        df = await fetch(context)
+
+    assert df["value"][0] == 1
+    assert mock_lock.call_count == 0, "Lock was acquired before cache check (pre-lock fast path missing)"
 
 
 def test_shared_exclusive_lock_concurrency() -> None:
