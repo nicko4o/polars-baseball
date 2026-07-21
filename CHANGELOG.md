@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Refactor `Makefile` according to GNU Make best practices: add `.PHONY` for all phony targets, add default `help` target, improve `git status` file detection for renamed files, and update `act` Docker runner image.
+
 ## [0.7.3] - 2026-07-20
 
 ### Fixed

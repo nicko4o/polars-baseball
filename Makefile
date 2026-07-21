@@ -1,3 +1,8 @@
+.PHONY: help install mypy vulture test validate-cache test-github-actions
+
+# ------------------------------------------------------------------------------
+# Configuration & Variables
+# ------------------------------------------------------------------------------
 ACT_FLAGS :=
 LOG_LEVEL := INFO
 MYPY_RUN_AGAINST_DEFAULT := polars_baseball/
@@ -6,13 +11,15 @@ ONLY_MODIFIED := 1
 TEST_RUN_AGAINST := tests/polars_baseball
 TEST_FLAGS := -n auto
 
-
+# ------------------------------------------------------------------------------
+# Dynamic Behavior Logic
+# ------------------------------------------------------------------------------
 ifeq ($(LOG_LEVEL), DEBUG)
 	TEST_FLAGS += -v --log-cli-level=DEBUG
 endif
 
 ifeq ($(ONLY_MODIFIED), 1)
-	_MODIFIED_FILES := $(shell git status --porcelain | awk '{print $$2}' | grep '\.py$$')
+	_MODIFIED_FILES := $(shell git status --porcelain | awk '{print $$NF}' | grep '\.py$$')
 	_EXISTING_MODIFIED_FILES := $(wildcard $(_MODIFIED_FILES))
 	_UNIQUE_MODIFIED_FILES := $(shell echo $(_EXISTING_MODIFIED_FILES) | sort | uniq)
 	ifeq ($(MYPY_RUN_AGAINST), $(MYPY_RUN_AGAINST_DEFAULT))
@@ -21,6 +28,18 @@ ifeq ($(ONLY_MODIFIED), 1)
 		endif
 	endif
 endif
+
+# ------------------------------------------------------------------------------
+# Targets
+# ------------------------------------------------------------------------------
+help:
+	@echo "Available Makefile targets:"
+	@echo "  install              Install dependencies via uv"
+	@echo "  mypy                 Run static type check (supports ONLY_MODIFIED=1)"
+	@echo "  vulture              Run dead code detection"
+	@echo "  test                 Run pytest with coverage and parallel workers"
+	@echo "  validate-cache       Validate cache structure (runs install first)"
+	@echo "  test-github-actions  Run GitHub Actions workflows locally via act"
 
 install:
 	uv sync --locked --all-extras
@@ -37,9 +56,7 @@ test:
 validate-cache: install
 	uv run python ./scripts/validate_cache.py
 
-# The test-github-actions is here to allow any local developer to test the GitHub actions on their code
-# before pushing and creating a PR. Just install act from https://github.com/nektos/act and run
-# make test-github-actions
+# Local GitHub Actions runner validation
 ACT_EXISTS := $(shell act --help 2> /dev/null)
 
 ifeq ($(ACT_EXISTS),)
@@ -47,5 +64,6 @@ test-github-actions:
 	@echo "Testing GitHub actions requires act to be installed. See: https://github.com/nektos/act"
 else
 test-github-actions:
-	act pull_request -P ubuntu-latest=nektos/act-environments-ubuntu:18.04 $(ACT_FLAGS)
+	act pull_request -P ubuntu-latest=catthehacker/ubuntu:act-latest $(ACT_FLAGS)
 endif
+
