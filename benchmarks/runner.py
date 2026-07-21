@@ -4,7 +4,7 @@ import gc
 import time
 import tracemalloc
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import polars as pl
 
@@ -55,6 +55,6 @@ async def run_benchmark(
             result_rows=rows,
             result_columns=cols,
         ),
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         version=__version__,
     )

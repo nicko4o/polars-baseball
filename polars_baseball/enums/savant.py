@@ -1,7 +1,7 @@
 import enum
 
 
-class ArsenalType(str, enum.Enum):
+class ArsenalType(enum.StrEnum):
     """Pitch arsenal stat type for statcast_pitcher_pitch_arsenal.
 
     Use enum values at the public API boundary::
