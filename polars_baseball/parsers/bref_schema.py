@@ -156,7 +156,7 @@ def _validate_cast(
             temp_val = df.select(expr).to_series()
         else:
             temp_val = series.cast(target_type, strict=False)
-    except Exception as e:
+    except (ValueError, TypeError, pl.exceptions.ComputeError) as e:
         raise UpstreamParseError(f"failed strict cast: Column '{col}' conversion to {target_type} failed: {e}") from e
 
     if temp_val.null_count() > orig_nulls:

@@ -1,3 +1,5 @@
+from typing import cast
+
 from .batting_data_enum import FangraphsBattingStats
 from .fangraphs_stats_base import FangraphsStatsBase, stat_list_to_str
 from .fangraphs_stats_category import FangraphsStatsCategory
@@ -44,7 +46,8 @@ def stat_list_from_str(
     obj_type = _category_enum_map[stat_category]
 
     if "ALL" in values or any(getattr(x, "name", None) == "ALL" for x in values):
-        return obj_type.ALL()  # type: ignore
+        all_members = cast("list[FangraphsStatColumn]", obj_type.ALL())
+        return all_members
 
     stat_list: list[FangraphsStatColumn] = []
     for x in values:

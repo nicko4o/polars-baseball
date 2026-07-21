@@ -1221,6 +1221,20 @@ async def test_mlb_venues_invalid_params() -> None:
         await mlb_venues(venue_ids=[10, -5])
 
 
+@pytest.mark.asyncio
+async def test_mlb_venues_validation_helper() -> None:
+    from polars_baseball.apis.mlb.venues import _validate_venue_ids
+
+    _validate_venue_ids(1)
+    _validate_venue_ids([1, 2, 3])
+    _validate_venue_ids(None)
+
+    with pytest.raises(InvalidParameterError, match="venue_ids must be a positive integer"):
+        _validate_venue_ids(0)
+    with pytest.raises(InvalidParameterError, match="All venue IDs in list must be positive integers"):
+        _validate_venue_ids([10, -5])
+
+
 _MOCK_LIVE_FEED_JSON = {
     "liveData": {
         "plays": {

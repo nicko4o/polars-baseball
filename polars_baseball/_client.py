@@ -84,10 +84,10 @@ class HttpClient:
 
     def get_cffi_session(self) -> AsyncSession:
         if self._cffi_session is None:
-            kwargs: dict[str, object] = {"timeout": self._timeout}
             if self._impersonate is not None:
-                kwargs["impersonate"] = self._impersonate
-            self._cffi_session = AsyncSession(**kwargs)  # type: ignore[arg-type]
+                self._cffi_session = AsyncSession(timeout=self._timeout, impersonate=self._impersonate)  # type: ignore[arg-type]  # curl_cffi stubs use Literal type
+            else:
+                self._cffi_session = AsyncSession(timeout=self._timeout)
         return self._cffi_session
 
     async def close(self) -> None:
@@ -199,7 +199,7 @@ class HttpClient:
             str_headers = merged_headers if merged_headers else None
             try:
                 response = await session.get(url, params=str_params, headers=str_headers)
-                response.raise_for_status()  # type: ignore[no-untyped-call]
+                response.raise_for_status()  # type: ignore[no-untyped-call]  # curl_cffi stubs missing return type
                 return response.text
             except CurlRequestException as e:
                 raise self._wrap_cffi_error(url, e) from e

@@ -37,6 +37,18 @@ async def _fetch_mlb_venues(
     )
 
 
+def _validate_venue_ids(venue_ids: int | list[int] | None) -> None:
+    if venue_ids is None:
+        return
+    if isinstance(venue_ids, int):
+        if venue_ids <= 0:
+            raise InvalidParameterError("venue_ids must be a positive integer.")
+        return
+    for v in venue_ids:
+        if not isinstance(v, int) or v <= 0:
+            raise InvalidParameterError("All venue IDs in list must be positive integers.")
+
+
 async def mlb_venues(
     venue_ids: int | list[int] | None = None,
     force_update: bool = False,
@@ -49,13 +61,7 @@ async def mlb_venues(
         force_update: Bypass cache and fetch fresh data.
         context: Optional BaseballContext.
     """
-    if isinstance(venue_ids, int):
-        if venue_ids <= 0:
-            raise InvalidParameterError("venue_ids must be a positive integer.")
-    elif isinstance(venue_ids, list):
-        for v in venue_ids:
-            if not isinstance(v, int) or v <= 0:
-                raise InvalidParameterError("All venue IDs in list must be positive integers.")
+    _validate_venue_ids(venue_ids)
 
     return await _fetch_mlb_venues(
         venue_ids=venue_ids,

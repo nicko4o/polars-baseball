@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from enum import Enum
-from typing import Final
+from typing import Final, cast
 
 from ..enum_base import EnumBase
 
@@ -25,8 +25,9 @@ class FangraphsStatsBase(EnumBase):
         column_list.sort(key=_sort_key)
         prepend: list[FangraphsStatsBase] = []
         # pylint: disable = no-member
-        if cls.safe_parse("COMMON") is not None and cls.COMMON not in column_list:  # type: ignore
-            prepend = [cls.COMMON]  # type: ignore
+        _common = cast("FangraphsStatsBase | None", getattr(cls, "COMMON", None))
+        if _common is not None and _common not in column_list:
+            prepend = [_common]
         return prepend + column_list
 
     @classmethod
@@ -34,7 +35,8 @@ class FangraphsStatsBase(EnumBase):
         stripped = [x for x in enum_values if str(x.value) not in cls.__COMMON_COLUMNS__]
 
         # pylint: disable = no-member
-        return [cls.COMMON] + stripped  # type: ignore
+        _common = cast("FangraphsStatsBase", getattr(cls, "COMMON", None))
+        return [_common] + stripped
 
     @classmethod
     def str_list(cls, enum_values: Sequence["FangraphsStatsBase"], replace_common: bool = True) -> str:
