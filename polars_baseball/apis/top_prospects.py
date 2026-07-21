@@ -22,34 +22,45 @@ def _postprocess(df: pl.DataFrame) -> pl.DataFrame:
     return df.drop(cols_to_drop) if cols_to_drop else df
 
 
-def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
-    if not dfs or len(dfs) == 1:
-        return dfs
-
+def _collect_col_types(dfs: list[pl.DataFrame]) -> dict[str, set[pl.DataType]]:
     col_types: dict[str, set[pl.DataType]] = {}
     for df in dfs:
         for col, dtype in df.schema.items():
             col_types.setdefault(col, set()).add(dtype)
+    return col_types
 
+
+def _resolve_cast_rules(col_types: dict[str, set[pl.DataType]]) -> dict[str, pl.DataType]:
     cast_rules: dict[str, pl.DataType] = {}
     for col, dtypes in col_types.items():
-        if len(dtypes) > 1:
-            if any(dt == pl.String or isinstance(dt, pl.String) for dt in dtypes):
-                cast_rules[col] = pl.String()
-            elif any(dt == pl.Float64 or isinstance(dt, pl.Float64) for dt in dtypes):
-                cast_rules[col] = pl.Float64()
-            else:
-                cast_rules[col] = pl.String()
+        if len(dtypes) <= 1:
+            continue
+        if any(dt == pl.String or isinstance(dt, pl.String) for dt in dtypes):
+            cast_rules[col] = pl.String()
+        elif any(dt == pl.Float64 or isinstance(dt, pl.Float64) for dt in dtypes):
+            cast_rules[col] = pl.Float64()
+        else:
+            cast_rules[col] = pl.String()
+    return cast_rules
 
+
+def _apply_cast_rules(dfs: list[pl.DataFrame], cast_rules: dict[str, pl.DataType]) -> list[pl.DataFrame]:
     if not cast_rules:
         return dfs
-
     return [
         df.with_columns(
             [pl.col(col).cast(target_dtype) for col, target_dtype in cast_rules.items() if col in df.columns]
         )
         for df in dfs
     ]
+
+
+def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
+    if not dfs or len(dfs) == 1:
+        return dfs
+    col_types = _collect_col_types(dfs)
+    cast_rules = _resolve_cast_rules(col_types)
+    return _apply_cast_rules(dfs, cast_rules)
 
 
 def _top_prospects_cache_key(call: CacheCallArgs) -> str:
