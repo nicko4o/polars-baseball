@@ -27,6 +27,7 @@ class EnumBase(Enum):
         try:
             return enum_class[value]
         except KeyError:
+            # Not found by name, fall through to value-based lookup below.
             pass
 
         parsed: _T | None = enum_class.safe_parse_by_value(value)

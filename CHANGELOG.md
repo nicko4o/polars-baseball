@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `_config.py`: Add `STATCAST_DATE_STEP` constant (was inline magic number `7` in `apis/statcast.py`).
+
 ### Fixed
 - `_cache.py`: Restrict cache-read exception handling to `ComputeError`/`OSError` instead of broad `Exception` — `MemoryError` and other critical exceptions now propagate correctly instead of being silently swallowed as cache misses.
+- `tests/polars_baseball/apis/test_retrosheet.py`: Replace `try/except Exception: pass` with explicit `pytest.raises(ServerError)` — bare except was silently swallowing all test errors.
+- `parsers/bref_schema.py`: Narrow `except Exception` to `except (ValueError, TypeError, pl.exceptions.ComputeError)` in `_validate_cast` — prevents masking of unexpected errors.
 
 ### Changed
+- `apis/statcast.py`: Replace inline `step=7` magic number with `STATCAST_DATE_STEP` from `_config.py` (SSOT compliance).
+- `apis/top_prospects.py`: Extract `_collect_col_types`, `_resolve_cast_rules`, `_apply_cast_rules` helpers from `_align_schemas` — reduces nesting depth from 5 to ≤2.
+- `apis/mlb/venues.py`: Extract `_validate_venue_ids()` from `mlb_venues()` — reduces nesting depth from 4 to 2.
+- `enums/fangraphs/fangraphs_stats_base.py`: Replace `cls.COMMON` direct access with `getattr(cls, "COMMON", None)` to remove 3x `# type: ignore` (now 0 in this file).
+- `enums/fangraphs/__init__.py`: Replace `# type: ignore` with `cast()` for `obj_type.ALL()` return type.
+- `_client.py`: Replace dynamic `kwargs` dict pattern with explicit keyword arguments in `get_cffi_session()` — removes 1x `# type: ignore[arg-type]`; annotate remaining suppressions with specific error codes.
+- `enums/enum_base.py`: Add explanatory comment to `except KeyError: pass` in `safe_parse()`.
 - `_cache.py`: Flatten `get()`/`set()`/`clear()` by extracting `_try_read_cached`, `_write_cached_file`, `_clear_cache_dir` module-level pure functions; maximum nesting depth reduced from 5 to ≤3.
 - `parsers/mlb/schedule.py`: Replace `_team_info()` return type from `tuple[Any, ...]` to `TeamInfo(NamedTuple)`; replace `_line_score()` return type from `tuple[Any, Any]` to `LineScore(NamedTuple)`; replace `_decision_pitcher()` return type from `tuple[Any, Any]` to `DecisionPitcher(NamedTuple)`; add guard clauses for dict validation across all three functions.
 - `_season.py`: Extract `_advance_to_season()` helper from `statcast_date_range()` to eliminate nested `if/elif` branching inside the while loop.

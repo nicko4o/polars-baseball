@@ -19,6 +19,7 @@ from polars_baseball.apis.retrosheet import (
     world_series_logs,
 )
 from polars_baseball.context import BaseballContext
+from polars_baseball.exceptions import ServerError
 
 
 @pytest.fixture
@@ -178,9 +179,7 @@ async def test_retrosheet_explicit_github_token() -> None:
     mock_http.get_text = AsyncMock(return_value=b"[]")
     ctx = BaseballContext(http=mock_http, github_token="my-test-token")
 
-    try:
+    with pytest.raises(ServerError, match="Rosters not available for 2026"):
         await rosters(2026, context=ctx)
-    except Exception:
-        pass
 
     assert mock_http.get_text.call_args[1]["headers"]["Authorization"] == "token my-test-token"
