@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Remove outdated `.codecov.yml` in favor of standard `codecov.yml`.
+- Remove unused `types-requests` optional test dependency from `pyproject.toml`.
+- Remove stale `mypy.ini` import ignores (`bs4`, `numpy`, `pandas`, `scipy`).
+- Upgrade Ruff `target-version` from `py310` to `py311` in `ruff.toml` and adapt enums (`KeyType`, `Position`, `ArsenalType`) to `enum.StrEnum`.
+- Clean up obsolete build artifacts in `dist/`.
+
 ## [0.7.4] - 2026-07-21
 
 ### Added
