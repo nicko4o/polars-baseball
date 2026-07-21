@@ -85,6 +85,31 @@ def sanitize_date_range(start_dt: str | None, end_dt: str | None) -> tuple[date,
     return start_dt_date, end_dt_date
 
 
+def _advance_to_season(low: date, verbose: bool) -> date:
+    fallback = (
+        low.replace(month=_OFFSEASON_START_MONTH, day=SEASON_MID_MARCH_DAY),
+        low.replace(month=_OFFSEASON_END_MONTH, day=SEASON_MID_MARCH_DAY),
+    )
+    season_start, season_end = STATCAST_VALID_DATES.get(low.year, fallback)
+    if low < season_start:
+        if verbose:
+            warnings.warn("Skipping offseason dates.", stacklevel=3)
+        return season_start
+    if low > season_end:
+        next_year = low.year + 1
+        next_season_start = STATCAST_VALID_DATES.get(
+            next_year,
+            (
+                date(month=_OFFSEASON_START_MONTH, day=SEASON_MID_MARCH_DAY, year=next_year),
+                date(month=_OFFSEASON_END_MONTH, day=SEASON_MID_MARCH_DAY, year=next_year),
+            ),
+        )[0]
+        if verbose:
+            warnings.warn("Skipping offseason dates.", stacklevel=3)
+        return next_season_start
+    return low
+
+
 def statcast_date_range(start: date, stop: date, step: int, verbose: bool = True) -> Iterator[tuple[date, date]]:
     """Yield date chunks of *step* days, skipping offseason dates per STATCAST_VALID_DATES.
 
@@ -93,31 +118,8 @@ def statcast_date_range(start: date, stop: date, step: int, verbose: bool = True
         periods are silently skipped or warned via verbose=True.
     """
     low = start
-
     while low <= stop:
-        fallback = (
-            low.replace(month=_OFFSEASON_START_MONTH, day=SEASON_MID_MARCH_DAY),
-            low.replace(month=_OFFSEASON_END_MONTH, day=SEASON_MID_MARCH_DAY),
-        )
-        season_start, season_end = STATCAST_VALID_DATES.get(low.year, fallback)
-        if low < season_start:
-            low = season_start
-            if verbose:
-                warnings.warn("Skipping offseason dates.", stacklevel=2)
-        elif low > season_end:
-            next_year = low.year + 1
-            next_fallback_start = date(
-                month=_OFFSEASON_START_MONTH,
-                day=SEASON_MID_MARCH_DAY,
-                year=next_year,
-            )
-            low = STATCAST_VALID_DATES.get(
-                next_year,
-                (next_fallback_start, next_fallback_start),
-            )[0]
-            if verbose:
-                warnings.warn("Skipping offseason dates.", stacklevel=2)
-
+        low = _advance_to_season(low, verbose)
         if low > stop:
             return
         high = min(low + timedelta(step - 1), stop)
