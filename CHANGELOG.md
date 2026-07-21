@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-07-21
+
 ### Added
 - Add `.codecov.yml` with 90% patch coverage gate to prevent coverage regression on PRs.
 - Add `uv audit` dependency vulnerability scan to CI lint pipeline.
