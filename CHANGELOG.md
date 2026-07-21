@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reuse build artifacts in `python-publish.yml`: `validate` job uploads `dist/`, `deploy` job downloads instead of rebuilding.
 
 ### Fixed
+- `SharedExclusiveLock.exclusive()`: wrap `_writer_waiting` bookkeeping in `try/except BaseException` so a signal or interruption during `Condition.wait()` does not permanently corrupt the lock state and deadlock all future cache reads.
+- `BRefCSVExportStrategy._parse_csv_table()`: use `csv.writer` for proper CSV field escaping (handles commas in values) and extend XPath to `./td | ./th` to support `<th>` header rows without data loss or column misalignment.
+- `_cached_execute`: add pre-lock fast-path cache check so concurrent callers of cached APIs with a hot cache return in parallel instead of queueing on the in-flight `asyncio.Lock`.
 - Upgrade `pillow` (12.2.0 -> 12.3.0) and `pytest` (8.3.5 -> 9.1.1) to resolve 23 known CVE vulnerabilities detected by `uv audit`.
 - Synchronize `[tool.bumpversion].current_version` in `pyproject.toml` to `"0.7.3"` matching `polars_baseball.__version__`, and configure `pyproject.toml` in `[[tool.bumpversion.files]]` for automated version bumps.
 

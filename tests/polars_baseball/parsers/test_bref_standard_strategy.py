@@ -47,3 +47,34 @@ def test_extract_propagates_os_error(strategy: BRefCSVExportStrategy, monkeypatc
 
     with pytest.raises(OSError):
         strategy.extract("<bad>html</bad>")
+
+
+def test_extract_from_csv_table_with_th_elements(strategy: BRefCSVExportStrategy) -> None:
+    """_parse_csv_table must handle <th> headers, not just <td>."""
+    html = """
+    <html><body>
+    <table id="csv_players_standard_batting">
+        <tr><th>Name</th><th>G</th><th>AB</th></tr>
+        <tr><td>Player A</td><td>100</td><td>400</td></tr>
+    </table>
+    </body></html>
+    """
+    df = strategy.extract(html)
+    assert df.height == 1
+    assert list(df.columns) == ["Name", "G", "AB"]
+    assert df["Name"][0] == "Player A"
+
+
+def test_extract_from_csv_table_with_comma_in_field(strategy: BRefCSVExportStrategy) -> None:
+    """_parse_csv_table must CSV-escape fields containing commas."""
+    html = """
+    <html><body>
+    <table id="csv_players_standard_batting">
+        <tr><td>Name</td><td>Note</td></tr>
+        <tr><td>Player A</td><td>Some, note</td></tr>
+    </table>
+    </body></html>
+    """
+    df = strategy.extract(html)
+    assert df.height == 1
+    assert df["Note"][0] == "Some, note"
