@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `test_version_in_pyproject_matches_package_init` test to enforce version synchronization between `pyproject.toml` and `polars_baseball.__version__`.
+
+### Fixed
+- Synchronize `[tool.bumpversion].current_version` in `pyproject.toml` to `"0.7.3"` matching `polars_baseball.__version__`, and configure `pyproject.toml` in `[[tool.bumpversion.files]]` for automated version bumps.
+
 ### Changed
+- Promote PyPI maturity classifier in `pyproject.toml` from `"Development Status :: 3 - Alpha"` to `"Development Status :: 4 - Beta"`.
 - Refactor `Makefile` according to GNU Make best practices: add `.PHONY` for all phony targets, add default `help` target, improve `git status` file detection for renamed files, and update `act` Docker runner image.
+
 
 ## [0.7.3] - 2026-07-20
 
