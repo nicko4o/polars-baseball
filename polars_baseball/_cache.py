@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import ParamSpec, Protocol, TypeVar, cast, overload
 
 import polars as pl
+from polars.exceptions import ComputeError
 
 from polars_baseball._cache_locks import (
     _IN_FLIGHT_LOCKS as _IN_FLIGHT_LOCKS,
@@ -175,6 +176,64 @@ class CacheAdapter(ABC):
         self.set(key, pl.concat(tagged))
 
 
+def _write_cached_file(path: Path, value: pl.DataFrame) -> bool:
+    tmp_path: Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        value.write_parquet(tmp_path)
+        tmp_path.replace(path)
+        return True
+    except OSError:
+        logger.exception("Failed to write cache entry to %s", path)
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        return False
+    except Exception:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+        raise
+
+
+def _clear_cache_dir(cache_dir: Path) -> None:
+    if not cache_dir.exists():
+        return
+    try:
+        for f in list(cache_dir.iterdir()):
+            if f.is_file():
+                f.unlink(missing_ok=True)
+    except OSError as e:
+        logger.error("Error clearing cache directory files: %s", cache_dir, exc_info=True)
+        raise CacheClearError(f"Failed to clear cache directory files at {cache_dir}: {e}") from e
+    try:
+        if cache_dir.exists() and next(cache_dir.iterdir(), None) is None:
+            cache_dir.rmdir()
+    except OSError as e:
+        logger.error("Error removing cache directory: %s", cache_dir, exc_info=True)
+        raise CacheClearError(f"Failed to remove cache directory {cache_dir}: {e}") from e
+
+
+def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+    if not path.exists():
+        return None
+    if max_age is not None:
+        try:
+            mtime = datetime.fromtimestamp(path.stat().st_mtime)
+            if datetime.now() - mtime > max_age:
+                path.unlink(missing_ok=True)
+                return None
+        except OSError:
+            logger.warning("Failed to check cache age for %s, treating as miss", key)
+            return None
+    try:
+        return pl.read_parquet(path)
+    except (ComputeError, OSError) as e:
+        logger.warning("Cache file corrupt for %s, deleting and treating as miss: %s", key, e)
+        path.unlink(missing_ok=True)
+        return None
+
+
 class FileCacheAdapter(CacheAdapter):
     """File-based cache backend that stores DataFrames as Parquet files.
 
@@ -211,70 +270,22 @@ class FileCacheAdapter(CacheAdapter):
             return None
         with self._rw_lock.shared():
             with self._lock_for(key):
-                path = self._get_path(key)
-                if not path.exists():
-                    return None
-
-                if max_age is not None:
-                    try:
-                        mtime = datetime.fromtimestamp(path.stat().st_mtime)
-                        if datetime.now() - mtime > max_age:
-                            path.unlink(missing_ok=True)
-                            return None
-                    except OSError:
-                        logger.warning("Failed to check cache age for %s, treating as miss", key)
-                        return None
-
-                try:
-                    return pl.read_parquet(path)
-                except Exception as e:
-                    logger.warning("Cache file corrupt for %s, deleting and treating as miss: %s", key, e)
-                    path.unlink(missing_ok=True)
-                    return None
+                return _try_read_cached(self._get_path(key), key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:
             return
         with self._rw_lock.shared():
             with self._lock_for(key):
-                path = self._get_path(key)
-                tmp_path: Path | None = None
-                try:
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
-                        tmp_path = Path(tmp.name)
-                    value.write_parquet(tmp_path)
-                    tmp_path.replace(path)
-                except OSError as e:
-                    logger.warning("Failed to write cache entry for %s to %s: %s", key, path, e)
-                    if tmp_path is not None and tmp_path.exists():
-                        tmp_path.unlink(missing_ok=True)
+                write_ok = _write_cached_file(self._get_path(key), value)
+                if not write_ok:
                     self._disabled = True
-                except Exception:
-                    if tmp_path is not None and tmp_path.exists():
-                        tmp_path.unlink(missing_ok=True)
-                    raise
 
     def clear(self) -> None:
         if self._disabled:
             return
         with self._rw_lock.exclusive():
-            if not self.cache_dir.exists():
-                return
-            try:
-                for f in list(self.cache_dir.iterdir()):
-                    if f.is_file():
-                        f.unlink(missing_ok=True)
-            except OSError as e:
-                logger.error("Error clearing cache directory files: %s", self.cache_dir, exc_info=True)
-                raise CacheClearError(f"Failed to clear cache directory files at {self.cache_dir}: {e}") from e
-
-            try:
-                if self.cache_dir.exists() and next(self.cache_dir.iterdir(), None) is None:
-                    self.cache_dir.rmdir()
-            except OSError as e:
-                logger.error("Error removing cache directory: %s", self.cache_dir, exc_info=True)
-                raise CacheClearError(f"Failed to remove cache directory {self.cache_dir}: {e}") from e
+            _clear_cache_dir(self.cache_dir)
 
 
 class NullCacheAdapter(CacheAdapter):

@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `_cache.py`: Restrict cache-read exception handling to `ComputeError`/`OSError` instead of broad `Exception` — `MemoryError` and other critical exceptions now propagate correctly instead of being silently swallowed as cache misses.
+
 ### Changed
+- `_cache.py`: Flatten `get()`/`set()`/`clear()` by extracting `_try_read_cached`, `_write_cached_file`, `_clear_cache_dir` module-level pure functions; maximum nesting depth reduced from 5 to ≤3.
+- `parsers/mlb/schedule.py`: Replace `_team_info()` return type from `tuple[Any, ...]` to `TeamInfo(NamedTuple)`; replace `_line_score()` return type from `tuple[Any, Any]` to `LineScore(NamedTuple)`; replace `_decision_pitcher()` return type from `tuple[Any, Any]` to `DecisionPitcher(NamedTuple)`; add guard clauses for dict validation across all three functions.
+- `_season.py`: Extract `_advance_to_season()` helper from `statcast_date_range()` to eliminate nested `if/elif` branching inside the while loop.
+- `parsers/pipeline.py`: Remove spurious `cast(str, ...)` and replace with explicit `isinstance(raw_state, str)` guard for safer HTML attribute parsing.
+- `apis/statcast.py`: Extract `_resolve_column_conflict()` from `_resolve_conflicts()` to flatten the `for`-loop body and eliminate nested `if/elif/else`.
 - Remove outdated `.codecov.yml` in favor of standard `codecov.yml`.
 - Remove unused `types-requests` optional test dependency from `pyproject.toml`.
 - Remove stale `mypy.ini` import ignores (`bs4`, `numpy`, `pandas`, `scipy`).

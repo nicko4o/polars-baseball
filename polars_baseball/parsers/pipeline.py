@@ -1,7 +1,7 @@
 import html
 import json
 import re
-from typing import Any, cast
+from typing import Any
 
 import lxml.etree
 import polars as pl
@@ -139,12 +139,11 @@ class MLBPipelineParser:
             raise UpstreamStructureChangedError("No data-init-state attribute found in HTML.")
 
         raw_state = raw_states[0]
-        if not raw_state:
+        if not isinstance(raw_state, str) or not raw_state:
             raise UpstreamStructureChangedError("data-init-state attribute is empty.")
 
         try:
-            # We cast to str because raw_state could technically be a list, but it's a string here
-            state: dict[str, Any] = json.loads(html.unescape(cast(str, raw_state)))
+            state: dict[str, Any] = json.loads(html.unescape(raw_state))
         except json.JSONDecodeError as err:
             raise UpstreamStructureChangedError(f"Failed to parse data-init-state as JSON: {err}") from err
 

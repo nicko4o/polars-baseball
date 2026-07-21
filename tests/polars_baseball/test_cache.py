@@ -487,3 +487,21 @@ def test_file_cache_adapter_init_os_error_defensive(tmp_path: Path, caplog: pyte
     adapter.set("k", pl.DataFrame({"a": [1]}))
     assert adapter.get("k") is None
     adapter.clear()  # should not raise
+
+
+def test_read_cache_memory_error_propagates(tmp_path: Path) -> None:
+    """MemoryError in pl.read_parquet must propagate, not be swallowed as cache miss.
+
+    Regression test: previous except Exception caught MemoryError, silently
+    deleting cache and returning None. Only ComputeError/OSError should be
+    treated as cache corruption.
+    """
+    from unittest.mock import patch
+
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key = "memfail-key"
+    adapter.set(key, pl.DataFrame({"a": [1]}))
+
+    with patch("polars_baseball._cache.pl.read_parquet", side_effect=MemoryError("OOM")):
+        with pytest.raises(MemoryError):
+            adapter.get(key)

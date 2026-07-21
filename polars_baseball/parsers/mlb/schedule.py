@@ -1,6 +1,6 @@
 """MLB Stats API parser for schedule data."""
 
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 
 import polars as pl
 
@@ -9,36 +9,71 @@ from polars_baseball._schemas.mlb import MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYP
 from polars_baseball.parsers.mlb.types import GameDict
 
 
-def _team_info(game_data: dict[str, Any], team_type: str) -> tuple[Any, Any, Any, Any, Any]:
-    teams = game_data.get("teams", {})
-    team_side = teams.get(team_type, {}) if isinstance(teams, dict) else {}
-    team = team_side.get("team", {}) if isinstance(team_side, dict) else {}
-    probable_pitcher = team_side.get("probablePitcher", {}) if isinstance(team_side, dict) else {}
-    return (
-        team.get("id"),
-        team.get("name"),
-        team_side.get("score") if isinstance(team_side, dict) else None,
-        probable_pitcher.get("id"),
-        probable_pitcher.get("fullName"),
+class TeamInfo(NamedTuple):
+    team_id: int | None
+    team_name: str | None
+    score: int | None
+    probable_pitcher_id: int | None
+    probable_pitcher_name: str | None
+
+
+def _team_info(game_data: dict[str, Any], team_type: str) -> TeamInfo:
+    teams = game_data.get("teams")
+    if not isinstance(teams, dict):
+        return TeamInfo(None, None, None, None, None)
+    team_side = teams.get(team_type)
+    if not isinstance(team_side, dict):
+        return TeamInfo(None, None, None, None, None)
+    team = team_side.get("team")
+    team = team if isinstance(team, dict) else {}
+    pitcher = team_side.get("probablePitcher")
+    pitcher = pitcher if isinstance(pitcher, dict) else {}
+    return TeamInfo(
+        team_id=team.get("id"),
+        team_name=team.get("name"),
+        score=team_side.get("score"),
+        probable_pitcher_id=pitcher.get("id"),
+        probable_pitcher_name=pitcher.get("fullName"),
     )
 
 
-def _line_score(game_data: dict[str, Any], team_type: str) -> tuple[Any, Any]:
-    linescore = game_data.get("linescore", {})
-    linescore_teams = linescore.get("teams", {}) if isinstance(linescore, dict) else {}
-    team_line = linescore_teams.get(team_type, {}) if isinstance(linescore_teams, dict) else {}
+class LineScore(NamedTuple):
+    hits: int | None
+    errors: int | None
+
+
+class DecisionPitcher(NamedTuple):
+    pitcher_id: int | None
+    pitcher_name: str | None
+
+
+def _line_score(game_data: dict[str, Any], team_type: str) -> LineScore:
+    linescore = game_data.get("linescore")
+    if not isinstance(linescore, dict):
+        return LineScore(None, None)
+    linescore_teams = linescore.get("teams")
+    if not isinstance(linescore_teams, dict):
+        return LineScore(None, None)
+    team_line = linescore_teams.get(team_type)
     if not isinstance(team_line, dict):
-        return None, None
-    return team_line.get("hits"), team_line.get("errors")
+        return LineScore(None, None)
+    return LineScore(
+        hits=team_line.get("hits"),
+        errors=team_line.get("errors"),
+    )
 
 
-def _decision_pitcher(game_data: dict[str, Any], decision_type: str) -> tuple[Any, Any]:
-    decisions = game_data.get("decisions", {})
-    decisions = decisions if isinstance(decisions, dict) else {}
-    pitcher = decisions.get(decision_type, {})
+def _decision_pitcher(game_data: dict[str, Any], decision_type: str) -> DecisionPitcher:
+    decisions = game_data.get("decisions")
+    if not isinstance(decisions, dict):
+        return DecisionPitcher(None, None)
+    pitcher = decisions.get(decision_type)
     if not isinstance(pitcher, dict):
-        return None, None
-    return pitcher.get("id"), pitcher.get("fullName")
+        return DecisionPitcher(None, None)
+    return DecisionPitcher(
+        pitcher_id=pitcher.get("id"),
+        pitcher_name=pitcher.get("fullName"),
+    )
 
 
 def _game_metadata(game_data: dict[str, Any]) -> dict[str, Any]:
@@ -70,37 +105,37 @@ def _game_metadata(game_data: dict[str, Any]) -> dict[str, Any]:
 
 
 def parse_game(game_data: dict[str, Any]) -> GameDict:
-    away_id, away_name, away_score, away_pitcher_id, away_pitcher_name = _team_info(game_data, "away")
-    home_id, home_name, home_score, home_pitcher_id, home_pitcher_name = _team_info(game_data, "home")
-    away_hits, away_errors = _line_score(game_data, "away")
-    home_hits, home_errors = _line_score(game_data, "home")
-    winner_id, winner_name = _decision_pitcher(game_data, "winner")
-    loser_id, loser_name = _decision_pitcher(game_data, "loser")
-    save_id, save_name = _decision_pitcher(game_data, "save")
+    away = _team_info(game_data, "away")
+    home = _team_info(game_data, "home")
+    away_line = _line_score(game_data, "away")
+    home_line = _line_score(game_data, "home")
+    winner = _decision_pitcher(game_data, "winner")
+    loser = _decision_pitcher(game_data, "loser")
+    save = _decision_pitcher(game_data, "save")
     return cast(
         GameDict,
         {
             **_game_metadata(game_data),
-            "awayTeamId": away_id,
-            "awayTeamName": away_name,
-            "awayScore": away_score,
-            "awayProbablePitcherId": away_pitcher_id,
-            "awayProbablePitcherName": away_pitcher_name,
-            "homeTeamId": home_id,
-            "homeTeamName": home_name,
-            "homeScore": home_score,
-            "homeProbablePitcherId": home_pitcher_id,
-            "homeProbablePitcherName": home_pitcher_name,
-            "awayHits": away_hits,
-            "awayErrors": away_errors,
-            "homeHits": home_hits,
-            "homeErrors": home_errors,
-            "winnerPitcherId": winner_id,
-            "winnerPitcherName": winner_name,
-            "loserPitcherId": loser_id,
-            "loserPitcherName": loser_name,
-            "savePitcherId": save_id,
-            "savePitcherName": save_name,
+            "awayTeamId": away.team_id,
+            "awayTeamName": away.team_name,
+            "awayScore": away.score,
+            "awayProbablePitcherId": away.probable_pitcher_id,
+            "awayProbablePitcherName": away.probable_pitcher_name,
+            "homeTeamId": home.team_id,
+            "homeTeamName": home.team_name,
+            "homeScore": home.score,
+            "homeProbablePitcherId": home.probable_pitcher_id,
+            "homeProbablePitcherName": home.probable_pitcher_name,
+            "awayHits": away_line.hits,
+            "awayErrors": away_line.errors,
+            "homeHits": home_line.hits,
+            "homeErrors": home_line.errors,
+            "winnerPitcherId": winner.pitcher_id,
+            "winnerPitcherName": winner.pitcher_name,
+            "loserPitcherId": loser.pitcher_id,
+            "loserPitcherName": loser.pitcher_name,
+            "savePitcherId": save.pitcher_id,
+            "savePitcherName": save.pitcher_name,
         },
     )
 

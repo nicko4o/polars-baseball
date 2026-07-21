@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import date
 from typing import Literal
 
@@ -253,35 +253,32 @@ def _collect_dtypes(dfs: list[pl.DataFrame]) -> dict[str, set[pl.DataType]]:
     return col_dtypes
 
 
+def _resolve_column_conflict(
+    dtypes: set[pl.DataType],
+    overrides: Mapping[str, pl.DataType | type[pl.DataType]],
+    col: str,
+) -> pl.DataType | type[pl.DataType] | None:
+    if len(dtypes) <= 1:
+        return None
+    if col in overrides:
+        return overrides[col]
+    has_string = any(dt == pl.String for dt in dtypes)
+    has_numeric = any(dt.is_numeric() for dt in dtypes)
+    if has_string and has_numeric:
+        return pl.Float64
+    if has_numeric:
+        return pl.Float64 if any(dt.is_float() for dt in dtypes) else pl.Int64
+    return pl.String
+
+
 def _resolve_conflicts(col_dtypes: dict[str, set[pl.DataType]]) -> dict[str, pl.DataType | type[pl.DataType]]:
     from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
 
     conflicts: dict[str, pl.DataType | type[pl.DataType]] = {}
     for col, dtypes in col_dtypes.items():
-        if len(dtypes) <= 1:
-            continue
-
-        # 1. Prioritize SAVANT_SCHEMA_OVERRIDES as the single source of truth (SSOT)
-        if col in SAVANT_SCHEMA_OVERRIDES:
-            conflicts[col] = SAVANT_SCHEMA_OVERRIDES[col]
-            continue
-
-        # 2. Fallback alignment for unknown fields not in overrides
-        has_string = any(dt == pl.String for dt in dtypes)
-        has_numeric = any(dt.is_numeric() for dt in dtypes)
-
-        if has_string and has_numeric:
-            # Mixed string and numeric (often drifting floats with empty values), cast to Float64
-            conflicts[col] = pl.Float64
-        elif has_numeric:
-            # Pure numeric conflicts
-            has_float = any(dt.is_float() for dt in dtypes)
-            if has_float:
-                conflicts[col] = pl.Float64
-            else:
-                conflicts[col] = pl.Int64
-        else:
-            conflicts[col] = pl.String
+        resolved = _resolve_column_conflict(dtypes, SAVANT_SCHEMA_OVERRIDES, col)
+        if resolved is not None:
+            conflicts[col] = resolved
     return conflicts
 
 
