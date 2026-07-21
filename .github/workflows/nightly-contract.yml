@@ -7,8 +7,13 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  issues: write
 
 jobs:
   contract-check:
@@ -31,3 +36,27 @@ jobs:
 
       - name: Run live contract tests
         run: uv run pytest tests/polars_baseball/test_live_contracts.py -m "live" -v
+
+      - name: Open issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-breakage',
+            });
+            if (existing.length > 0) {
+              console.log(`Issue already exists: #${existing[0].number}`);
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Upstream contract breakage detected',
+              body: 'The nightly upstream contract check failed. This may indicate a breaking change in MLB/Savant APIs.\n\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
+              labels: ['upstream-breakage'],
+            });
