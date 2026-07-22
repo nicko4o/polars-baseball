@@ -28,3 +28,8 @@ def test_ensure_bytes_with_str() -> None:
 def test_ensure_bytes_with_empty() -> None:
     assert ensure_bytes("") == b""
     assert ensure_bytes(b"") == b""
+
+
+def test_ensure_str_latin1_fallback() -> None:
+    latin1_bytes = b"Jos\xe9"
+    assert ensure_str(latin1_bytes) == "José"

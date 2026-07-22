@@ -118,3 +118,22 @@ def test_first_strategy_wins_if_both_can_handle() -> None:
     assert result.strategy_used == "AlwaysHandle"
     assert result.df is not None
     assert result.df["col"][0] == 1
+
+
+class _FailingExtractStrategy:
+    def can_handle(self, raw: str) -> ProbeResult:
+        return ProbeResult(can_handle=True, diagnostics="Matches test structure")
+
+    def extract(self, raw: str) -> pl.DataFrame:
+        raise ValueError("Extraction syntax error")
+
+    def fingerprint(self) -> StructureFingerprint:
+        return StructureFingerprint(source="FailingStrategy", required_indicators=())
+
+
+def test_extract_error_retains_diagnostics() -> None:
+    chain = ProviderChain([_FailingExtractStrategy()])
+    with pytest.raises(UpstreamStructureChangedError) as exc_info:
+        chain.execute("{}")
+    assert "FailingStrategy" in str(exc_info.value)
+    assert "Matches test structure" in str(exc_info.value)

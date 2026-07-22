@@ -202,3 +202,11 @@ async def test_savant_gateway_recovers_from_corrupt_cache_file(tmp_path: Path) -
     assert corrupt_file.exists()
     assert pl.read_parquet(corrupt_file).equals(df)
     mock_http.get_text.assert_awaited_once()
+
+
+def test_validate_and_cast_schema_empty_df_missing_columns() -> None:
+    from polars_baseball._schema_utils import validate_and_cast_schema
+
+    empty_df = pl.DataFrame()
+    with pytest.raises(InvalidSchemaError, match="Missing required columns"):
+        validate_and_cast_schema(empty_df, ["gamePk"], {"gamePk": pl.Int64})

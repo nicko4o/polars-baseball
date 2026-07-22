@@ -308,3 +308,19 @@ async def test_savant_gamefeed_many_invalid_game_pk_raises_error() -> None:
 async def test_savant_gamefeed_many_mixed_valid_invalid_fails_fast() -> None:
     with pytest.raises(InvalidParameterError, match="game_pk"):
         await savant_gamefeed_pitch_data_many([_GAME_PK, "bad", _GAME_PK_2], context=_context(_gamefeed_payload()))
+
+
+def test_savant_gamefeed_nan_parsing() -> None:
+    from polars_baseball.parsers.savant_gamefeed import _float_or_none, _int_or_none
+
+    assert _float_or_none("NaN") is None
+    assert _float_or_none("nan") is None
+    assert _float_or_none("N/A") is None
+    assert _float_or_none("null") is None
+    assert _float_or_none(float("nan")) is None
+
+    assert _int_or_none("NaN") is None
+    assert _int_or_none("nan") is None
+    assert _int_or_none("N/A") is None
+    assert _int_or_none("null") is None
+    assert _int_or_none(float("nan")) is None

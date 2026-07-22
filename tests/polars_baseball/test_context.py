@@ -136,3 +136,14 @@ def test_default_is_baseballcontext_instance() -> None:
     ctx = BaseballContext.default()
     assert isinstance(ctx, BaseballContext)
     assert isinstance(ctx.http, HttpClient)
+
+
+@pytest.mark.asyncio
+async def test_context_aexit_preserves_exception() -> None:
+    ctx = BaseballContext()
+    ctx.http = AsyncMock()
+    ctx.http.close.side_effect = RuntimeError("Close failed")
+
+    with pytest.raises(ValueError, match="Original error"):
+        async with ctx:
+            raise ValueError("Original error")

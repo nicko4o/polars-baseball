@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update all documentation examples and CLI defaults from 2024 to 2026 season.
 - Add player ID lookup guidance in Statcast and MLB API reference docs.
 
+### Fixed
+- Fix non-UTF-8 character parsing in Retrosheet datasets by adding fallback to Latin-1 decoding.
+- Fix string parsing for missing and NaN values in Savant gamefeed data.
+
 ## [0.7.5] - 2026-07-22
 
 ### Fixed

@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import TypeVar, cast
@@ -91,14 +92,27 @@ class HttpClient:
         return self._cffi_session
 
     async def close(self) -> None:
-        try:
-            if self._httpx_client is not None:
+        errors: list[Exception] = []
+        if self._httpx_client is not None:
+            try:
                 await self._httpx_client.aclose()
-            if self._cffi_session is not None:
+            except Exception as e:
+                errors.append(e)
+            finally:
+                self._httpx_client = None
+
+        if self._cffi_session is not None:
+            try:
                 await self._cffi_session.close()
-        finally:
-            self._httpx_client = None
-            self._cffi_session = None
+            except Exception as e:
+                errors.append(e)
+            finally:
+                self._cffi_session = None
+
+        if errors:
+            if len(errors) == 1:
+                raise errors[0]
+            raise ExceptionGroup("Errors occurred during HttpClient close", errors)
 
     @staticmethod
     def _str_params(params: Mapping[str, object] | None) -> dict[str, str] | None:
@@ -124,14 +138,24 @@ class HttpClient:
     def _retry_delay(self, attempt: int) -> float:
         return self._retry_backoff_base_seconds * (BACKOFF_MULTIPLIER**attempt)
 
+    @staticmethod
+    def _is_ssl_error(exc: BaseException) -> bool:
+        curr: BaseException | None = exc
+        while curr is not None:
+            if isinstance(curr, ssl.SSLError | ssl.CertificateError):
+                return True
+            curr = curr.__cause__ or curr.__context__
+        return False
+
     async def _with_retries(self, operation: Callable[[], Awaitable[_T]]) -> _T:
         for attempt in range(self._max_retries + 1):
             try:
                 return await operation()
             except (PolarsBaseballHttpError, PolarsBaseballTransportError) as exc:
-                should_retry = isinstance(exc, PolarsBaseballTransportError) or self._is_transient_status(
-                    exc.status_code
-                )
+                status_code = getattr(exc, "status_code", 0)
+                should_retry = (
+                    isinstance(exc, PolarsBaseballTransportError) and not self._is_ssl_error(exc)
+                ) or self._is_transient_status(status_code)
                 if attempt == self._max_retries or not should_retry:
                     raise
                 await asyncio.sleep(self._retry_delay(attempt))
