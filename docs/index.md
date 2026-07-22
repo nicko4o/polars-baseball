@@ -10,6 +10,14 @@ Start with the use-case index when you know the task but not the API name.
 - [Jupyter Notebook Usage](guides/jupyter.md)
 - [Data Visualization](guides/plotting.md)
 
+## Notebooks
+
+Interactive Jupyter notebooks demonstrating real workflows:
+
+- [`notebooks/statcast_pitch_mix_demo.ipynb`](../notebooks/statcast_pitch_mix_demo.ipynb)
+- [`notebooks/fangraphs_leaderboard_demo.ipynb`](../notebooks/fangraphs_leaderboard_demo.ipynb)
+- [`notebooks/mlb_schedule_demo.ipynb`](../notebooks/mlb_schedule_demo.ipynb)
+
 ## Reference
 
 - [Statcast / Savant](reference/statcast.md)

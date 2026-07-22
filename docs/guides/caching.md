@@ -95,7 +95,7 @@ Call `configure_cache()` or `BaseballContext.with_file_cache()` to enable file c
 ## Cache Behavior
 
 - **Parameter-level matching**: The cache key is based on the function and exact arguments. Identical calls reuse cached results.
-- **No subset matching**: A cached query for `statcast("2024-05-01", "2024-05-10")` is not reused for `statcast("2024-05-05", "2024-05-06")`.
+- **No subset matching**: A cached query for `statcast("2026-06-01", "2026-06-10")` is not reused for `statcast("2026-06-05", "2026-06-06")`.
 - **Compiled datasets**: Lahman and Chadwick Register tables are cached as per-table Parquet files under `compiled-datasets/`.
 - **Compiled dataset CDN**: Set `POLARS_BASEBALL_DATASETS_URL` to a hosted compiled dataset root. The client then downloads `dataset/table.parquet` files instead of compiling from upstream ZIP archives.
 

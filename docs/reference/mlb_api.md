@@ -21,6 +21,10 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 | Stats and leaderboards | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `standings` | You need official stat groups, league leaders, or standings. |
 | Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | You need roster movement, draft records, or postseason schedule rows. |
 
+> [!TIP]
+> Functions below require numeric `person_id` or `person_ids` (MLBAM ID).
+> Don't know the ID? Use `pb.playerid_lookup("Ohtani", "Shohei")` or `pb.player_name_suggestions("oht")` to find the `key_mlbam`.
+
 ## 1. Player Bios (`mlb.people`)
 
 `mlb.people(person_ids: list[int] | int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
@@ -52,7 +56,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.roster(121, season=2024)
+    df = await pb.mlb.roster(121, season=2026)
     print(df.select(["personId", "fullName", "jerseyNumber", "positionName"]))
 
 if __name__ == "__main__":
@@ -71,7 +75,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.schedule(date="2024-05-06")
+    df = await pb.mlb.schedule(date="2026-06-01")
     print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
 
 if __name__ == "__main__":
@@ -89,7 +93,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.player_stats(660271, group="hitting", stats_type="gameLog", season=2024)
+    df = await pb.mlb.player_stats(660271, group="hitting", stats_type="gameLog", season=2026)
     print(df.select(["season", "group", "statType", "gamesPlayed", "homeRuns"]))
 
 if __name__ == "__main__":
@@ -125,7 +129,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.teams(season=2024)
+    df = await pb.mlb.teams(season=2026)
     print(df.select(["id", "name", "abbreviation", "leagueId"]))
 
 if __name__ == "__main__":
@@ -143,7 +147,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.team_stats(121, season=2024, group="hitting")
+    df = await pb.mlb.team_stats(121, season=2026, group="hitting")
     print(df.head())
 
 if __name__ == "__main__":
@@ -161,7 +165,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.stat_leaders(2024, ["homeRuns"], stat_group="hitting")
+    df = await pb.mlb.stat_leaders(2026, ["homeRuns"], stat_group="hitting")
     print(df.head())
 
 if __name__ == "__main__":
@@ -241,7 +245,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.draft(year=2024)
+    df = await pb.mlb.draft(year=2026)
     print(df.head())
 
 if __name__ == "__main__":
@@ -259,7 +263,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.pitch_arsenal(person_id=545361, season=2024)
+    df = await pb.mlb.pitch_arsenal(person_id=545361, season=2026)
     print(df.head())
 
 if __name__ == "__main__":
@@ -277,7 +281,7 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.transactions(date="2024-05-01")
+    df = await pb.mlb.transactions(date="2026-06-01")
     print(df.head())
 
 if __name__ == "__main__":

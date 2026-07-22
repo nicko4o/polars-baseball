@@ -5,7 +5,7 @@ import asyncio
 
 import polars_baseball as pb
 
-DEFAULT_SEASON = 2024
+DEFAULT_SEASON = 2026
 DEFAULT_QUALIFICATION = 100
 DEFAULT_MAX_RESULTS = 20
 
