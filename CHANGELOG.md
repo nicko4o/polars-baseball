@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-07-22
+
 ### Fixed
 - Prevent silent swallowing of critical system exceptions (e.g. `MemoryError`) during cache reads and schema validation.
 - Harden error boundary handling during data parsing to ensure unexpected exceptions fail fast instead of resulting in corrupt state.
