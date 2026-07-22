@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -59,10 +60,8 @@ class BaseballContext:
     ) -> None:
         try:
             await self.close()
-        except BaseException as close_exc:
+        except Exception as close_exc:
             if _exc_val is not None:
-                import logging
-
                 logging.getLogger("polars_baseball").warning(
                     "Error closing BaseballContext during exception cleanup: %s", close_exc
                 )

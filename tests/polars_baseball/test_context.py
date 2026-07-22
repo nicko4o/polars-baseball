@@ -147,3 +147,14 @@ async def test_context_aexit_preserves_exception() -> None:
     with pytest.raises(ValueError, match="Original error"):
         async with ctx:
             raise ValueError("Original error")
+
+
+@pytest.mark.asyncio
+async def test_context_aexit_does_not_swallow_keyboard_interrupt() -> None:
+    ctx = BaseballContext()
+    ctx.http = AsyncMock()
+    ctx.http.close.side_effect = KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt):
+        async with ctx:
+            raise ValueError("Original error")

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add player ID lookup guidance in Statcast and MLB API reference docs.
 
 ### Fixed
+- Fix `BaseballContext.__aexit__` swallowing critical system exceptions (`KeyboardInterrupt`, `SystemExit`) during context manager cleanup.
 - Fix `playerid_reverse_lookup` to accept string-formatted player IDs for `MLBAM` and `FanGraphs` key types.
 - Fix non-UTF-8 character parsing in Retrosheet datasets by adding fallback to Latin-1 decoding.
 - Fix string parsing for missing and NaN values in Savant gamefeed data.
