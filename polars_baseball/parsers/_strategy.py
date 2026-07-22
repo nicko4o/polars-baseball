@@ -125,8 +125,15 @@ class ProviderChain:
             if not result.can_handle:
                 continue
 
-            df = strategy.extract(raw)
-            return ChainResult(strategy_used=name, probe_results=probe_results, df=df)
+            try:
+                df = strategy.extract(raw)
+                return ChainResult(strategy_used=name, probe_results=probe_results, df=df)
+            except Exception as exc:
+                diag_lines = [f"  [{n}] {'OK' if ok else 'FAIL'}: {msg}" for n, ok, msg in probe_results]
+                diag_summary = "\n".join(diag_lines)
+                raise UpstreamStructureChangedError(
+                    f"Strategy '{name}' failed during extraction: {exc}\nStrategy diagnostics:\n{diag_summary}"
+                ) from exc
 
         # All strategies rejected the input — build diagnostic summary and raise.
         diag_lines = [f"  [{name}] {'OK' if ok else 'FAIL'}: {msg}" for name, ok, msg in probe_results]

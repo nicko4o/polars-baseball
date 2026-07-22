@@ -513,3 +513,43 @@ async def test_cffi_request_merges_default_headers() -> None:
     _, kwargs = mock_session.get.call_args
     assert kwargs["headers"]["Header-A"] == "ValA"
     assert kwargs["headers"]["Header-B"] == "ValB"
+
+
+@pytest.mark.asyncio
+async def test_http_client_close_partial_leak() -> None:
+    client = HttpClient()
+    mock_httpx = AsyncMock()
+    mock_httpx.aclose.side_effect = RuntimeError("httpx close failed")
+    mock_cffi = AsyncMock()
+
+    client._httpx_client = mock_httpx
+    client._cffi_session = mock_cffi
+
+    with pytest.raises(RuntimeError):
+        await client.close()
+
+    assert mock_cffi.close.called
+    assert client._httpx_client is None
+    assert client._cffi_session is None
+
+
+@pytest.mark.asyncio
+async def test_http_client_ssl_error_no_retry() -> None:
+    import ssl
+
+    client = HttpClient()
+    ssl_exc = ssl.SSLCertVerificationError("SSL cert expired")
+    transport_exc = PolarsBaseballTransportError(f"Network request failed: {ssl_exc}")
+    transport_exc.__cause__ = ssl_exc
+
+    call_count = 0
+
+    async def counting_op() -> None:
+        nonlocal call_count
+        call_count += 1
+        raise transport_exc
+
+    with pytest.raises(PolarsBaseballTransportError):
+        await client._with_retries(counting_op)
+
+    assert call_count == 1

@@ -1,9 +1,12 @@
+import math
 from collections.abc import Mapping
 from typing import TypeAlias, cast
 
 import polars as pl
 
 from polars_baseball.exceptions import UpstreamParseError
+
+_INVALID_NUMERIC_STRINGS: frozenset[str] = frozenset({"nan", "na", "n/a", "null", "none"})
 
 JsonValue: TypeAlias = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 JsonObject: TypeAlias = dict[str, JsonValue]
@@ -203,9 +206,17 @@ def _float_or_none(value: JsonValue) -> float | None:
     if value is None or isinstance(value, bool):
         return None
     if isinstance(value, int | float):
-        return float(value)
-    if isinstance(value, str) and value.strip():
-        return float(value)
+        val = float(value)
+        return None if math.isnan(val) else val
+    if isinstance(value, str):
+        cleaned = value.strip().lower()
+        if not cleaned or cleaned in _INVALID_NUMERIC_STRINGS:
+            return None
+        try:
+            val = float(value)
+            return None if math.isnan(val) else val
+        except ValueError:
+            return None
     return None
 
 
@@ -215,9 +226,16 @@ def _int_or_none(value: JsonValue) -> int | None:
     if isinstance(value, int):
         return value
     if isinstance(value, float):
-        return int(value)
-    if isinstance(value, str) and value.strip():
-        return int(float(value))
+        return None if math.isnan(value) else int(value)
+    if isinstance(value, str):
+        cleaned = value.strip().lower()
+        if not cleaned or cleaned in _INVALID_NUMERIC_STRINGS:
+            return None
+        try:
+            val = float(value)
+            return None if math.isnan(val) else int(val)
+        except ValueError:
+            return None
     return None
 
 
