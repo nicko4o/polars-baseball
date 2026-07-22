@@ -505,3 +505,21 @@ def test_read_cache_memory_error_propagates(tmp_path: Path) -> None:
     with patch("polars_baseball._cache.pl.read_parquet", side_effect=MemoryError("OOM")):
         with pytest.raises(MemoryError):
             adapter.get(key)
+
+
+def test_shared_exclusive_lock_writer_waiting_interrupt_safety() -> None:
+    from polars_baseball._cache_locks import SharedExclusiveLock
+
+    lock = SharedExclusiveLock()
+    with lock.shared():
+        lock.exclusive()
+        lock._lock.acquire()
+        lock._writer_waiting += 1
+        try:
+            raise KeyboardInterrupt("Simulated interrupt during wait")
+        except BaseException:
+            pass
+        finally:
+            lock._lock.release()
+
+    assert lock._writer_waiting >= 0

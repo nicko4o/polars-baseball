@@ -4,7 +4,12 @@ _T = TypeVar("_T")
 
 
 def ensure_str(data: str | bytes) -> str:
-    return data if isinstance(data, str) else data.decode("utf-8", errors="strict")
+    if isinstance(data, str):
+        return data
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin-1")
 
 
 def ensure_bytes(data: str | bytes) -> bytes:

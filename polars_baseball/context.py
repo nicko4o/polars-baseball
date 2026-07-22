@@ -57,7 +57,17 @@ class BaseballContext:
         _exc_val: BaseException | None,
         _exc_tb: object | None,
     ) -> None:
-        await self.close()
+        try:
+            await self.close()
+        except BaseException as close_exc:
+            if _exc_val is not None:
+                import logging
+
+                logging.getLogger("polars_baseball").warning(
+                    "Error closing BaseballContext during exception cleanup: %s", close_exc
+                )
+            else:
+                raise
 
     async def close(self) -> None:
         """Close HTTP resources owned by this context and reset the default if this is it."""

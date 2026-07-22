@@ -36,12 +36,10 @@ class SharedExclusiveLock:
             try:
                 while self._readers > 0 or self._writers > 0:
                     self._cond.wait()
-                self._writer_waiting -= 1
-                self._writers += 1
-            except BaseException:
+            finally:
                 self._writer_waiting -= 1
                 self._cond.notify_all()
-                raise
+            self._writers += 1
         try:
             yield
         finally:
