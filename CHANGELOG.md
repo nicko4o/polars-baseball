@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `notebooks/` directory with interactive Jupyter demos for Statcast, FanGraphs, and MLB Stats API workflows.
+
+### Changed
+- Update all documentation examples and CLI defaults from 2024 to 2026 season.
+- Add player ID lookup guidance in Statcast and MLB API reference docs.
+
 ## [0.7.5] - 2026-07-22
 
 ### Fixed

@@ -5,7 +5,7 @@ import asyncio
 
 import polars_baseball as pb
 
-DEFAULT_DATE = "2024-05-06"
+DEFAULT_DATE = "2026-06-01"
 
 
 def _parse_args() -> argparse.Namespace:

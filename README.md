@@ -91,7 +91,7 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast(start_date="2024-05-06", end_date="2024-05-06")
+    df = await pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
     print(df.head(5))
 
 
@@ -110,8 +110,9 @@ import polars_baseball as pb
 
 async def main() -> None:
     df = await pb.statcast_pitcher(
-        start_date="2024-05-06",
-        end_date="2024-05-06",
+        start_date="2026-06-01",
+        end_date="2026-06-01",
+        # Use pb.playerid_lookup("Judge", "Aaron") to find player IDs
         player_id=506433,
     )
     summary = df.group_by("pitch_type").agg(
@@ -135,8 +136,8 @@ import polars_baseball as pb
 
 async def main() -> None:
     df = await pb.fangraphs.batting(
-        start_season=2024,
-        end_season=2024,
+        start_season=2026,
+        end_season=2026,
         qual=100,
         max_results=20,
     )
@@ -149,11 +150,21 @@ if __name__ == "__main__":
 
 ## Examples
 
-Runnable examples live in [`examples/`](examples/):
+### Scripts (CLI-ready)
+
+Runnable `.py` examples live in [`examples/`](examples/):
 
 - [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py): Statcast pitch mix with Polars.
 - [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py): FanGraphs batting leaderboard.
 - [`examples/mlb_schedule.py`](examples/mlb_schedule.py): MLB Stats API schedule query.
+
+### Notebooks (interactive)
+
+Interactive Jupyter notebooks live in [`notebooks/`](notebooks/):
+
+- [`notebooks/statcast_pitch_mix_demo.ipynb`](notebooks/statcast_pitch_mix_demo.ipynb): Statcast pitch mix, velocity leaders, batted-ball outcomes.
+- [`notebooks/fangraphs_leaderboard_demo.ipynb`](notebooks/fangraphs_leaderboard_demo.ipynb): FanGraphs batting leaderboard with sabermetric filters.
+- [`notebooks/mlb_schedule_demo.ipynb`](notebooks/mlb_schedule_demo.ipynb): MLB schedule, standings, rosters, and team metadata.
 ## Benchmarking
 
 Do not trust performance claims without a reproducible command:

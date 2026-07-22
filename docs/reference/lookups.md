@@ -61,7 +61,7 @@ Returns team mapping identifiers between FanGraphs, Retrosheet, Baseball Referen
 
 ### Arguments
 
-- `season`: Optional season year (e.g. `2024`). If omitted, returns mappings across all historical seasons.
+- `season`: Optional season year (e.g. `2026`). If omitted, returns mappings across all historical seasons.
 - `league`: Optional league filter (e.g. `"AL"`, `"NL"`). Defaults to `"ALL"`.
 
 ---

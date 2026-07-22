@@ -85,7 +85,7 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast(start_date="2024-05-06", end_date="2024-05-06")
+    df = await pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
     print(df.head(5))
 
 
@@ -104,8 +104,9 @@ import polars_baseball as pb
 
 async def main() -> None:
     df = await pb.statcast_pitcher(
-        start_date="2024-05-06",
-        end_date="2024-05-06",
+        start_date="2026-06-01",
+        end_date="2026-06-01",
+        # 不知道 ID？用 pb.playerid_lookup("法官", "Aaron") 查詢
         player_id=506433,
     )
     summary = df.group_by("pitch_type").agg(
@@ -129,8 +130,8 @@ import polars_baseball as pb
 
 async def main() -> None:
     df = await pb.fangraphs.batting(
-        start_season=2024,
-        end_season=2024,
+        start_season=2026,
+        end_season=2026,
         qual=100,
         max_results=20,
     )
@@ -141,13 +142,23 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Examples
+## 範例
 
-可執行範例放在 [`examples/`](examples/)：
+### 腳本（CLI-ready）
+
+可執行 `.py` 範例放在 [`examples/`](examples/)：
 
 - [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py)：Statcast pitch mix。
 - [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py)：FanGraphs batting leaderboard。
 - [`examples/mlb_schedule.py`](examples/mlb_schedule.py)：MLB Stats API schedule query。
+
+### Notebooks（互動式）
+
+可互動執行的 Jupyter notebook 放在 [`notebooks/`](notebooks/)：
+
+- [`notebooks/statcast_pitch_mix_demo.ipynb`](notebooks/statcast_pitch_mix_demo.ipynb)：Statcast pitch mix、球速排行、擊球結果。
+- [`notebooks/fangraphs_leaderboard_demo.ipynb`](notebooks/fangraphs_leaderboard_demo.ipynb)：FanGraphs 打擊排行榜與 sabermetric 篩選。
+- [`notebooks/mlb_schedule_demo.ipynb`](notebooks/mlb_schedule_demo.ipynb)：MLB 賽程、戰績、名單與球隊資料。
 ## Benchmark
 
 先用可重現指令，不要相信沒有條件的效能口號：

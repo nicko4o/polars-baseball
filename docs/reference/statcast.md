@@ -26,6 +26,8 @@ Retrieve detailed pitch-level Statcast database rows.
 - `parallel`: Enables concurrent downloads for large date ranges.
 - `game_pk`: MLBAM game identifier.
 - `player_id`: MLBAM player identifier.
+  > [!TIP]
+  > Don't know the player ID? Use `pb.playerid_lookup("Judge", "Aaron")` or `pb.player_name_suggestions("jud")` to find the `key_mlbam` for any player.
 
 ---
 
@@ -192,13 +194,13 @@ async def main() -> None:
     print("Single Game:", game_df.head(2))
 
     # 2. Leaderboards
-    expected = await pb.savant.batter_expected_stats(2024, minPA=100)
-    arsenal = await pb.savant.pitcher_pitch_arsenal(2024, minP=250)
+    expected = await pb.savant.batter_expected_stats(2026, minPA=100)
+    arsenal = await pb.savant.pitcher_pitch_arsenal(2026, minP=250)
     print("Expected Stats:", expected.head(2))
     print("Pitcher Arsenal:", arsenal.head(2))
 
     # 3. Fielding & Running
-    oaa = await pb.savant.outs_above_average(2024, pos="CF", min_att="q")
+    oaa = await pb.savant.outs_above_average(2026, pos="CF", min_att="q")
     speed = await pb.savant.sprint_speed(2019, min_opp=50)
     print("OAACF:", oaa.head(2))
     print("Sprint Speed:", speed.head(2))

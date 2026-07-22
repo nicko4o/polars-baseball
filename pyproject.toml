@@ -76,7 +76,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["polars_baseball*"]
-exclude = ["tests*", "tests.*", "EXAMPLES*", "scripts*", "scratch*", "benchmarks*"]
+exclude = ["tests*", "tests.*", "EXAMPLES*", "scripts*", "scratch*", "benchmarks*", "notebooks*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "polars_baseball.__version__"}

@@ -76,9 +76,9 @@ async def main() -> None:
     print("Namespace Batting:", batting.head(2))
 
     # 2. Using advanced fg_data with FanGraphsRequest
-    req_batting = pb.FanGraphsRequest.batting(start_season=2024)
+    req_batting = pb.FanGraphsRequest.batting(start_season=2026)
     req_qualified = pb.FanGraphsRequest.batting(start_season=2023, qual=50)
-    req_split = pb.FanGraphsRequest.batting(start_season=2020, end_season=2024, split_seasons=True)
+    req_split = pb.FanGraphsRequest.batting(start_season=2022, end_season=2026, split_seasons=True)
     
     season_df = await pb.fg_data(req_batting)
     qualified_df = await pb.fg_data(req_qualified)
