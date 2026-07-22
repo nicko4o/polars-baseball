@@ -88,10 +88,30 @@ async def test_suggest_accent_insensitive_search_preserves_original_names() -> N
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("key_type", "player_id"), [(KeyType.BBREF, "troutmi01"), (KeyType.RETRO, "troum001")])
-async def test_reverse_lookup_accepts_string_ids(key_type: KeyType, player_id: str) -> None:
+@pytest.mark.parametrize(
+    ("key_type", "player_id"),
+    [
+        (KeyType.BBREF, "troutmi01"),
+        (KeyType.RETRO, "troum001"),
+        (KeyType.MLBAM, "545361"),
+        (KeyType.MLBAM, 545361),
+        (KeyType.FANGRAPHS, "10155"),
+        (KeyType.FANGRAPHS, 10155),
+    ],
+)
+async def test_reverse_lookup_accepts_string_and_int_ids(key_type: KeyType, player_id: str | int) -> None:
     service = PlayerLookupService(AsyncMock(return_value=_player_table()))
 
     result = await service.reverse_lookup([player_id], key_type)
 
     assert result["name_last"].to_list() == ["trout"]
+
+
+@pytest.mark.asyncio
+async def test_reverse_lookup_invalid_integer_id_raises_error() -> None:
+    from polars_baseball.exceptions import InvalidParameterError
+
+    service = PlayerLookupService(AsyncMock(return_value=_player_table()))
+
+    with pytest.raises(InvalidParameterError, match="Invalid integer player ID"):
+        await service.reverse_lookup(["invalid_id"], KeyType.MLBAM)
