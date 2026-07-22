@@ -152,8 +152,13 @@ class PlayerLookupService:
         if not isinstance(key_type, KeyType):
             raise InvalidParameterError("key_type must be a KeyType enum value.")
         key = f"key_{key_type.value}"
-        ids: list[PlayerId] = player_ids
-        if key_type not in (KeyType.MLBAM, KeyType.FANGRAPHS):
+        ids: list[PlayerId]
+        if key_type in (KeyType.MLBAM, KeyType.FANGRAPHS):
+            try:
+                ids = [int(player_id) for player_id in player_ids]
+            except ValueError as e:
+                raise InvalidParameterError(f"Invalid integer player ID for {key_type.value}: {e}") from e
+        else:
             ids = [str(player_id) for player_id in player_ids]
         results = (await self._ensure_table()).filter(pl.col(key).is_in(ids))
         return _without_normalized_names(results)

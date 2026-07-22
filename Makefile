@@ -9,7 +9,7 @@ MYPY_RUN_AGAINST_DEFAULT := polars_baseball/
 MYPY_RUN_AGAINST := $(MYPY_RUN_AGAINST_DEFAULT)
 ONLY_MODIFIED := 1
 TEST_RUN_AGAINST := tests/polars_baseball
-TEST_FLAGS := -n auto
+TEST_FLAGS := -n auto -m "not live"
 
 # ------------------------------------------------------------------------------
 # Dynamic Behavior Logic
