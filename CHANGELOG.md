@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add player ID lookup guidance in Statcast and MLB API reference docs.
 
 ### Fixed
+- Fix Statcast API `ReadTimeout` for large queries by increasing default timeout from 30s to 60s.
 - Fix broken API calls and column names in `mlb_schedule_demo.ipynb` — schedule/roster/standings schemas use camelCase, not snake_case.
 - Fix `BaseballContext.__aexit__` swallowing critical system exceptions (`KeyboardInterrupt`, `SystemExit`) during context manager cleanup.
 - Fix `playerid_reverse_lookup` to accept string-formatted player IDs for `MLBAM` and `FanGraphs` key types.
