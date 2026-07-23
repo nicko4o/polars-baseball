@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import FanGraphsRequest, fg_data
 from polars_baseball import fangraphs as fg
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
+from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,

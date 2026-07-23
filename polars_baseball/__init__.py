@@ -1,8 +1,7 @@
 import logging as _logging
 
 from polars_baseball import fangraphs, mlb, savant
-from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter, configure_cache
-from polars_baseball._client import HttpClient
+from polars_baseball._cache import configure_cache
 from polars_baseball.apis.bref import bwar_bat, bwar_pitch
 from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
 from polars_baseball.apis.lahman import (
@@ -71,12 +70,8 @@ _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 __all__ = [
     "ArsenalType",
     "BaseballContext",
-    "CacheAdapter",
     "FanGraphsRequest",
-    "FileCacheAdapter",
-    "HttpClient",
     "KeyType",
-    "NullCacheAdapter",
     "all_star_full",
     "all_star_game_logs",
     "appearances",
@@ -95,12 +90,12 @@ __all__ = [
     "division_series_logs",
     "download_lahman",
     "events",
+    "fg_data",
     "fielding",
     "fielding_of",
     "fielding_of_split",
     "fielding_post",
     "fangraphs",
-    "fg_data",
     "get_lookup_table",
     "hall_of_fame",
     "home_games",

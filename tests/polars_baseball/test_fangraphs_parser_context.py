@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from polars_baseball import FanGraphsRequest, fg_data
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
+from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.fangraphs import FangraphsHTMLParser

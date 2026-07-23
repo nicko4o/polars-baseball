@@ -5,7 +5,7 @@ import pytest
 
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.bref import bwar_bat
+from polars_baseball.apis.bref import bwar_bat, bwar_pitch
 from polars_baseball.context import BaseballContext
 from polars_baseball.parsers.bref import BRefHTMLParser
 
@@ -77,6 +77,59 @@ async def test_bref_bwar_bat_api(
     mock_http.get_text.assert_called_once()
     assert mock_cache_get.call_count == 2
     mock_cache_set.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_bwar_bat_all_columns(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(
+        return_value="name_common,mlb_ID,player_ID,year_ID,team_ID,WAR\nMike Trout,545361,troutmi01,2026,LAA,8.5\n"
+    )
+    ctx = BaseballContext(http=mock_http)
+
+    df = await bwar_bat(all_columns=True, context=ctx)
+    assert "name_common" in df.columns
+    assert "WAR" in df.columns
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_bwar_bat_deprecated_return_all(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(
+        return_value="name_common,mlb_ID,player_ID,year_ID,team_ID,WAR\nMike Trout,545361,troutmi01,2026,LAA,8.5\n"
+    )
+    ctx = BaseballContext(http=mock_http)
+
+    with pytest.warns(DeprecationWarning, match="return_all"):
+        df = await bwar_bat(return_all=True, context=ctx)
+    assert "name_common" in df.columns
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_bwar_pitch_all_columns(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(
+        return_value="name_common,mlb_ID,player_ID,year_ID,team_ID,WAR\nShohei Ohtani,660271,ohtansh01,2026,LAA,6.0\n"
+    )
+    ctx = BaseballContext(http=mock_http)
+
+    df = await bwar_pitch(all_columns=True, context=ctx)
+    assert "name_common" in df.columns
 
 
 def test_bref_null_token_normalization() -> None:
