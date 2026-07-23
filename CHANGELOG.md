@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-23
+
 ### Added
 - Add `context` parameter to `playerid_lookup`, `player_name_suggestions`, `player_search_list`, and `playerid_reverse_lookup` for lifecycle control.
 - Add `all_columns` parameter to `bwar_bat` and `bwar_pitch` (replaces deprecated `return_all`).
