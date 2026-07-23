@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import polars as pl
 
-from polars_baseball._cache import CacheCallArgs, cached
+from polars_baseball._cache import cached
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_LIVE_ENDPOINT_CACHE_MAX_AGE,
@@ -205,11 +205,7 @@ async def mlb_game_feed_live(
     )
 
 
-def _mlb_game_linescore_max_age(call: CacheCallArgs) -> timedelta | None:
-    return call.argument("cache_max_age", timedelta, MLB_LIVE_ENDPOINT_CACHE_MAX_AGE)
-
-
-@cached(key=linescore_cache_key, max_age=_mlb_game_linescore_max_age)
+@cached(key=linescore_cache_key, max_age=MLB_LIVE_ENDPOINT_CACHE_MAX_AGE)
 async def _fetch_mlb_game_linescore(
     game_pk: int,
     force_update: bool = False,
