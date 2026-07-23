@@ -197,15 +197,7 @@ class FileCacheAdapter(CacheAdapter):
         if self._disabled:
             return
         with self._clear_lock:
-            with self._meta_lock:
-                key_locks = list(self._key_locks.values())
-            for lock in key_locks:
-                lock.acquire()
-            try:
-                _clear_cache_dir(self.cache_dir)
-            finally:
-                for lock in reversed(key_locks):
-                    lock.release()
+            _clear_cache_dir(self.cache_dir)
 
 
 class NullCacheAdapter(CacheAdapter):
@@ -287,7 +279,8 @@ def cached(
                 import importlib
 
                 BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
-                cache = cast(CacheAdapter, BaseballContext.default().cache)
+
+                cache = BaseballContext.default().cache
 
             if not force_update:
                 cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
