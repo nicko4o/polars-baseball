@@ -99,17 +99,15 @@ Call `configure_cache()` or `BaseballContext.with_file_cache()` to enable file c
 - **Compiled datasets**: Lahman and Chadwick Register tables are cached as per-table Parquet files under `compiled-datasets/`.
 - **Compiled dataset CDN**: Set `POLARS_BASEBALL_DATASETS_URL` to a hosted compiled dataset root. The client then downloads `dataset/table.parquet` files instead of compiling from upstream ZIP archives.
 
-## Maintainer Notes
-
-Internal `@cached` and `@cached_list` key builders use `CacheCallArgs`:
+Internal `@cached` key builders receive keyword arguments (`**kw`):
 
 ```python
-from polars_baseball._cache import CacheCallArgs, cached, generate_cache_key
+from polars_baseball._cache import cached, generate_cache_key
 
 
-def standings_cache_key(call: CacheCallArgs) -> str:
-    season = call.argument("season", int)
+def standings_cache_key(**kw: object) -> str:
+    season = kw.get("season")
     return generate_cache_key("standings", {"season": season})
 ```
 
-The decorator resolves only the standard `context` and `force_update` argument names. Key and max-age callbacks must accept one `CacheCallArgs` parameter; old callback forms such as `lambda season: ...`, `**kwargs`, or `ctx` / `_ctx` context aliases are not supported.
+The decorator passes resolved keyword arguments to key builder functions.
