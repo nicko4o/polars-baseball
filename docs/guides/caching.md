@@ -27,7 +27,8 @@ For explicit lifecycle control, create a file-backed context instead:
 
 ```python
 from pathlib import Path
-from polars_baseball import BaseballContext, FileCacheAdapter, NullCacheAdapter
+from polars_baseball import BaseballContext
+from polars_baseball._cache import FileCacheAdapter, NullCacheAdapter
 
 context = BaseballContext.with_file_cache(Path("./my_project_cache"))
 ```
@@ -37,7 +38,9 @@ Use `FileCacheAdapter` when you want to inject a file cache directly:
 
 ```python
 from pathlib import Path
-from polars_baseball import BaseballContext, FileCacheAdapter, HttpClient, NullCacheAdapter
+from polars_baseball import BaseballContext
+from polars_baseball._cache import FileCacheAdapter, NullCacheAdapter
+from polars_baseball._client import HttpClient
 
 no_cache_context = BaseballContext(http=HttpClient(timeout=5.0, max_retries=0), cache=NullCacheAdapter())
 file_cache_context = BaseballContext(cache=FileCacheAdapter(Path("./my_project_cache")))
@@ -46,7 +49,8 @@ file_cache_context = BaseballContext(cache=FileCacheAdapter(Path("./my_project_c
 Retries and BRef rate limiting are opt-in:
 
 ```python
-from polars_baseball import BaseballContext, HttpClient
+from polars_baseball import BaseballContext
+from polars_baseball._client import HttpClient
 
 context = BaseballContext(
     http=HttpClient(timeout=10.0, max_retries=2, bref_requests_per_minute=10),

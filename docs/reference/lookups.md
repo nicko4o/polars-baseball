@@ -88,8 +88,8 @@ The following example shows how to perform player searches, reverse ID lookups, 
 import asyncio
 import polars as pl
 from polars_baseball import (
-    KeyType,
     FanGraphsRequest,
+    KeyType,
     fg_data,
     playerid_lookup,
     player_search_list,

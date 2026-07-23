@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 
 import polars as pl
 
@@ -44,29 +45,39 @@ async def _get_season_contents(season: int, ctx: BaseballContext) -> list[str]:
 
 async def events(
     season: int,
-    type: str = "regular",
+    game_type: str = "regular",
     context: BaseballContext | None = None,
     *,
     concurrency_limit: int = 5,
+    type: str | None = None,
 ) -> pl.DataFrame:
     """Fetch Retrosheet event files for a given season.
 
     Returns one DataFrame with filename and raw event file content.
-    Note: type parameter selects file extensions (".EVA"/".EVN" for "regular",
+    Note: game_type parameter selects file extensions (".EVA"/".EVN" for "regular",
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
     """
+    if type is not None:
+        warnings.warn(
+            "The 'type' parameter is deprecated; use 'game_type' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        game_type = type
     ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     file_extension: tuple[str, ...]
-    if type == "regular":
+    if game_type == "regular":
         file_extension = (".EVA", ".EVN")
-    elif type == "post":
+    elif game_type == "post":
         file_extension = ("CS.EVE", "D1.EVE", "D2.EVE", "W1.EVE", "W2.EVE", "WS.EVE")
-    elif type == "asg":
+    elif game_type == "asg":
         file_extension = ("AS.EVE",)
     else:
-        raise InvalidParameterError(f"Illegal type argument {type}, the valid types are: 'regular', 'post', and 'asg'.")
+        raise InvalidParameterError(
+            f"Illegal type argument {game_type}, the valid types are: 'regular', 'post', and 'asg'."
+        )
 
     season_events = [t for t in files if t.endswith(file_extension)]
     if not season_events:
@@ -80,7 +91,7 @@ async def events(
             raw = await ctx.http.get_text(url)
             if not raw:
                 raise UpstreamUnavailableError("Retrosheet event file is empty.")
-            return event_content_row(season, type, filename, raw)
+            return event_content_row(season, game_type, filename, raw)
 
     results = await asyncio.gather(*[_fetch_event(f) for f in season_events])
     rows = [row for row in results if row is not None]

@@ -41,8 +41,8 @@ def _build_pitch_mix(df: pl.DataFrame) -> pl.DataFrame:
 async def _main() -> None:
     args = _parse_args()
     df = await pb.statcast_pitcher(
-        start_dt=args.start_date,
-        end_dt=args.end_date,
+        start_date=args.start_date,
+        end_date=args.end_date,
         player_id=args.pitcher_id,
     )
     print(_build_pitch_mix(df))

@@ -104,7 +104,7 @@ async def get_lookup_table(save: bool = True, context: BaseballContext | None = 
     )
 
 
-_module_client = PlayerLookupService(lambda: get_lookup_table())
+_module_client = PlayerLookupService(lambda ctx: get_lookup_table(context=ctx))
 
 
 async def playerid_lookup(
@@ -112,6 +112,7 @@ async def playerid_lookup(
     first: str | None = None,
     fuzzy: bool = False,
     ignore_accents: bool = False,
+    context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Lookup a player by last (and optionally first) name.
 
@@ -123,15 +124,23 @@ async def playerid_lookup(
         - Returns empty DataFrame when no player matches the criteria.
         - Case-insensitive; inputs are lowercased automatically.
     """
-    return await _module_client.search(last, first, fuzzy, ignore_accents)
+    return await _module_client.search(last, first, fuzzy, ignore_accents, context=context)
 
 
-async def player_name_suggestions(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame:
+async def player_name_suggestions(
+    last: str,
+    first: str | None = None,
+    ignore_accents: bool = False,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
     """Return fuzzy player name suggestions without treating them as exact lookup results."""
-    return await _module_client.suggest(last, first, ignore_accents)
+    return await _module_client.suggest(last, first, ignore_accents, context=context)
 
 
-async def player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame:
+async def player_search_list(
+    player_list: list[tuple[str, str]],
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
     """Batch lookup for multiple player name pairs.
 
     Each tuple is ``(last, first)``.  Delegates to :func:`playerid_lookup` for each pair
@@ -140,10 +149,14 @@ async def player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame
     Note:
         - Returns empty DataFrame when the input list is empty or no players match.
     """
-    return await _module_client.search_list(player_list)
+    return await _module_client.search_list(player_list, context=context)
 
 
-async def playerid_reverse_lookup(player_ids: list[PlayerId], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
+async def playerid_reverse_lookup(
+    player_ids: list[PlayerId],
+    key_type: KeyType = KeyType.MLBAM,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
     """Reverse lookup players by their IDs in a given key system.
 
     Use ``key_type`` to select the ID namespace (MLBAM, FanGraphs, BRef, or Retrosheet).
@@ -152,4 +165,4 @@ async def playerid_reverse_lookup(player_ids: list[PlayerId], key_type: KeyType 
     Note:
         - Returns empty DataFrame when none of the provided IDs match.
     """
-    return await _module_client.reverse_lookup(player_ids, key_type)
+    return await _module_client.reverse_lookup(player_ids, key_type, context=context)

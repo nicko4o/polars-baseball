@@ -1,3 +1,4 @@
+import warnings
 from typing import Literal
 
 import polars as pl
@@ -58,35 +59,59 @@ async def _bwar_generic(
     stat_type: Literal["bat", "pitch"],
     required_cols: list[str],
     col_types: dict[str, pl.DataType | type[pl.DataType]],
-    return_all: bool = False,
+    all_columns: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     ctx = context or BaseballContext.default()
     url = f"{BREF_ROOT}/data/war_daily_{stat_type}.txt"
     gateway = BRefGateway(ctx)
-    df = await gateway.get_dataset(url, params={"return_all": return_all})
+    df = await gateway.get_dataset(url, params={"return_all": all_columns})
     df = validate_and_cast_schema(df, required_cols, col_types)
-    if not return_all:
+    if not all_columns:
         existing = [c for c in col_types if c in df.columns]
         df = df.select(existing)
     return df
 
 
-async def bwar_bat(return_all: bool = False, context: BaseballContext | None = None) -> pl.DataFrame:
+async def bwar_bat(
+    all_columns: bool = False,
+    context: BaseballContext | None = None,
+    *,
+    return_all: bool | None = None,
+) -> pl.DataFrame:
     """Fetch batting WAR from BRef.
 
     Note:
-        When return_all is False (default), returns only the columns defined
-        in BWAR_BAT_REQUIRED. Pass return_all=True for all available columns.
+        When all_columns is False (default), returns only the columns defined
+        in BWAR_BAT_REQUIRED. Pass all_columns=True for all available columns.
     """
-    return await _bwar_generic("bat", BWAR_BAT_REQUIRED, BWAR_BAT_TYPES, return_all, context=context)
+    if return_all is not None:
+        warnings.warn(
+            "The 'return_all' parameter is deprecated; use 'all_columns' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        all_columns = return_all
+    return await _bwar_generic("bat", BWAR_BAT_REQUIRED, BWAR_BAT_TYPES, all_columns, context=context)
 
 
-async def bwar_pitch(return_all: bool = False, context: BaseballContext | None = None) -> pl.DataFrame:
+async def bwar_pitch(
+    all_columns: bool = False,
+    context: BaseballContext | None = None,
+    *,
+    return_all: bool | None = None,
+) -> pl.DataFrame:
     """Fetch pitching WAR from BRef.
 
     Note:
-        When return_all is False (default), returns only the columns defined
-        in BWAR_PITCH_REQUIRED. Pass return_all=True for all available columns.
+        When all_columns is False (default), returns only the columns defined
+        in BWAR_PITCH_REQUIRED. Pass all_columns=True for all available columns.
     """
-    return await _bwar_generic("pitch", BWAR_PITCH_REQUIRED, BWAR_PITCH_TYPES, return_all, context=context)
+    if return_all is not None:
+        warnings.warn(
+            "The 'return_all' parameter is deprecated; use 'all_columns' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        all_columns = return_all
+    return await _bwar_generic("pitch", BWAR_PITCH_REQUIRED, BWAR_PITCH_TYPES, all_columns, context=context)

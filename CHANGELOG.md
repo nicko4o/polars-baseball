@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `context` parameter to `playerid_lookup`, `player_name_suggestions`, `player_search_list`, and `playerid_reverse_lookup` for lifecycle control.
+- Add `all_columns` parameter to `bwar_bat` and `bwar_pitch` (replaces deprecated `return_all`).
+
+### Changed
+- **Breaking**: Rename `events(type=)` parameter to `events(game_type=)`. The `type` keyword still works with a deprecation warning.
+- **Breaking**: Remove internal infrastructure classes from `polars_baseball.__all__` (`HttpClient`, `CacheAdapter`, `FileCacheAdapter`, `NullCacheAdapter`). `FanGraphsRequest` and `fg_data` remain exposed at top-level.
+- **Breaking**: `bwar_bat` and `bwar_pitch` `return_all` parameter renamed to `all_columns`. The old name emits a deprecation warning.
+- Unify Statcast date parameters: `start_date`/`end_date` are the canonical names. `start_dt`/`end_dt` now emit deprecation warnings.
+- Update documentation examples to import `FanGraphsRequest`/`fg_data` from `polars_baseball.apis.fangraphs`.
+
 ## [0.7.6] - 2026-07-23
 
 ### Added

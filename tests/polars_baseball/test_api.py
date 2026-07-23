@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import statcast_batter, statcast_pitcher
+from polars_baseball import statcast, statcast_batter, statcast_pitcher
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
 from polars_baseball.context import BaseballContext
@@ -82,3 +82,21 @@ async def test_top_prospects_api_export(mock_resolve_team_id: AsyncMock) -> None
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
     assert df["Player"][0] == "Adley Rutschman"
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_statcast_deprecated_start_dt(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value="pitcher,release_speed,pitch_type\n123456,95.5,FF\n")
+    ctx = BaseballContext(http=mock_http)
+
+    with pytest.warns(DeprecationWarning, match="start_dt"):
+        df = await statcast(start_dt="2026-06-01", end_dt="2026-06-02", verbose=False, context=ctx)
+
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 1
