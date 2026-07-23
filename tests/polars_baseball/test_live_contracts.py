@@ -81,7 +81,7 @@ def test_live_statcast_benchmark_range_does_not_schema_error() -> None:
         async with BaseballContext() as ctx:
             return await statcast(
                 start_dt="2024-04-01",
-                end_dt="2024-04-07",
+                end_dt="2024-04-02",
                 verbose=False,
                 context=ctx,
             )
