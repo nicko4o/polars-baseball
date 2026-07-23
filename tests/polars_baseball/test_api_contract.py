@@ -5,12 +5,9 @@ import polars_baseball as pb
 ROOT_PUBLIC_API = {
     "ArsenalType",
     "BaseballContext",
-    "CacheAdapter",
     "FanGraphsRequest",
-    "FileCacheAdapter",
-    "HttpClient",
     "KeyType",
-    "NullCacheAdapter",
+    "fg_data",
     "all_star_full",
     "all_star_game_logs",
     "appearances",
@@ -34,7 +31,6 @@ ROOT_PUBLIC_API = {
     "fielding_of_split",
     "fielding_post",
     "fangraphs",
-    "fg_data",
     "get_lookup_table",
     "hall_of_fame",
     "home_games",
@@ -103,9 +99,10 @@ def test_root_namespace_hides_implementation_packages() -> None:
 
 def test_root_namespace_has_no_unlisted_user_facing_symbols() -> None:
     public_symbols = {name for name in dir(pb) if not name.startswith("_")}
-    assert public_symbols == ROOT_PUBLIC_API, (
-        f"Unexpected symbols in public namespace: {public_symbols - ROOT_PUBLIC_API}"
-    )
+    extra_ok = public_symbols - ROOT_PUBLIC_API
+    missing = ROOT_PUBLIC_API - public_symbols
+    assert not missing, f"Missing public symbols: {missing}"
+    assert not extra_ok, f"Unexpected symbols in public namespace: {extra_ok}"
 
 
 def test_statcast_is_async_function() -> None:

@@ -5,6 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._player_lookup import PlayerLookupService
+from polars_baseball.context import BaseballContext
 from polars_baseball.enums.player import KeyType
 
 
@@ -23,7 +24,7 @@ def _player_table() -> pl.DataFrame:
 
 @pytest.mark.asyncio
 async def test_concurrent_initialization_loads_table_once() -> None:
-    async def load_table() -> pl.DataFrame:
+    async def load_table(_ctx: object = None) -> pl.DataFrame:
         await asyncio.sleep(0)
         return _player_table()
 
@@ -115,3 +116,55 @@ async def test_reverse_lookup_invalid_integer_id_raises_error() -> None:
 
     with pytest.raises(InvalidParameterError, match="Invalid integer player ID"):
         await service.reverse_lookup(["invalid_id"], KeyType.MLBAM)
+
+
+@pytest.mark.asyncio
+async def test_playerid_lookup_accepts_context() -> None:
+    """Verify playerid_lookup accepts the context parameter (contract test)."""
+
+    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        return _player_table()
+
+    service = PlayerLookupService(load_table)
+    ctx = BaseballContext()
+    result = await service.search("trout", context=ctx)
+    assert result.height == 1
+
+
+@pytest.mark.asyncio
+async def test_player_name_suggestions_accepts_context() -> None:
+    """Verify player_name_suggestions accepts the context parameter."""
+
+    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        return _player_table()
+
+    service = PlayerLookupService(load_table)
+    ctx = BaseballContext()
+    result = await service.suggest("valenzula", context=ctx)
+    assert result.height > 0
+
+
+@pytest.mark.asyncio
+async def test_player_search_list_accepts_context() -> None:
+    """Verify player_search_list accepts the context parameter."""
+
+    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        return _player_table()
+
+    service = PlayerLookupService(load_table)
+    ctx = BaseballContext()
+    result = await service.search_list([("trout", "mike")], context=ctx)
+    assert result.height == 1
+
+
+@pytest.mark.asyncio
+async def test_playerid_reverse_lookup_accepts_context() -> None:
+    """Verify playerid_reverse_lookup accepts the context parameter."""
+
+    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        return _player_table()
+
+    service = PlayerLookupService(load_table)
+    ctx = BaseballContext()
+    result = await service.reverse_lookup([545361], key_type=KeyType.MLBAM, context=ctx)
+    assert result.height == 1

@@ -64,6 +64,7 @@ The following example shows how to use both the quick namespace helpers and cust
 
 ```python
 import asyncio
+
 import polars_baseball as pb
 
 async def main() -> None:

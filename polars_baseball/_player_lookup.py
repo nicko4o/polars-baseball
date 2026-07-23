@@ -13,10 +13,11 @@ from polars_baseball._config import (
     FUZZY_MIN_SIZE_FOR_FILTER,
     FUZZY_NAME_LENGTH_TOLERANCE,
 )
+from polars_baseball.context import BaseballContext
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import InvalidParameterError
 
-LookupTableLoader = Callable[[], Awaitable[pl.DataFrame]]
+LookupTableLoader = Callable[[BaseballContext | None], Awaitable[pl.DataFrame]]
 PlayerId = int | str
 _NORMALIZED_LAST_COLUMN = "name_last_normalized"
 _NORMALIZED_FIRST_COLUMN = "name_first_normalized"
@@ -72,7 +73,7 @@ class PlayerLookupService:
         self.table: pl.DataFrame | None = None
         self._load_lock: asyncio.Lock | None = None
 
-    async def _ensure_table(self) -> pl.DataFrame:
+    async def _ensure_table(self, context: BaseballContext | None = None) -> pl.DataFrame:
         if self.table is not None:
             return self.table
         if self._load_lock is None:
@@ -80,7 +81,7 @@ class PlayerLookupService:
         async with self._load_lock:
             if self.table is not None:
                 return self.table
-            table = await self._load_table()
+            table = await self._load_table(context)
             self.table = table.with_columns(
                 pl.col("name_last")
                 .str.normalize("NFD")
@@ -94,7 +95,12 @@ class PlayerLookupService:
             return self.table
 
     async def search(
-        self, last: str, first: str | None = None, fuzzy: bool = False, ignore_accents: bool = False
+        self,
+        last: str,
+        first: str | None = None,
+        fuzzy: bool = False,
+        ignore_accents: bool = False,
+        context: BaseballContext | None = None,
     ) -> pl.DataFrame:
         if fuzzy:
             warnings.warn(
@@ -104,7 +110,7 @@ class PlayerLookupService:
             )
         last_clean = last.lower()
         first_clean = first.lower() if first else None
-        table = await self._ensure_table()
+        table = await self._ensure_table(context)
         last_column = "name_last"
         first_column = "name_first"
         if ignore_accents:
@@ -118,10 +124,16 @@ class PlayerLookupService:
         results = table.filter(predicate)
         return _without_normalized_names(results)
 
-    async def suggest(self, last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame:
+    async def suggest(
+        self,
+        last: str,
+        first: str | None = None,
+        ignore_accents: bool = False,
+        context: BaseballContext | None = None,
+    ) -> pl.DataFrame:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
-        table = await self._ensure_table()
+        table = await self._ensure_table(context)
         last_column = "name_last"
         first_column = "name_first"
         if ignore_accents:
@@ -132,11 +144,20 @@ class PlayerLookupService:
         matches = get_closest_names(last_clean, first_clean or "", table, last_column, first_column)
         return _without_normalized_names(matches)
 
-    async def search_list(self, players: list[tuple[str, str]]) -> pl.DataFrame:
-        results = [await self.search(last, first) for last, first in players]
+    async def search_list(
+        self,
+        players: list[tuple[str, str]],
+        context: BaseballContext | None = None,
+    ) -> pl.DataFrame:
+        results = [await self.search(last, first, context=context) for last, first in players]
         return pl.concat(results, how="diagonal") if results else pl.DataFrame()
 
-    async def reverse_lookup(self, player_ids: list[PlayerId], key_type: KeyType = KeyType.MLBAM) -> pl.DataFrame:
+    async def reverse_lookup(
+        self,
+        player_ids: list[PlayerId],
+        key_type: KeyType = KeyType.MLBAM,
+        context: BaseballContext | None = None,
+    ) -> pl.DataFrame:
         if not isinstance(key_type, KeyType):
             raise InvalidParameterError("key_type must be a KeyType enum value.")
         key = f"key_{key_type.value}"
@@ -148,5 +169,5 @@ class PlayerLookupService:
                 raise InvalidParameterError(f"Invalid integer player ID for {key_type.value}: {e}") from e
         else:
             ids = [str(player_id) for player_id in player_ids]
-        results = (await self._ensure_table()).filter(pl.col(key).is_in(ids))
+        results = (await self._ensure_table(context)).filter(pl.col(key).is_in(ids))
         return _without_normalized_names(results)

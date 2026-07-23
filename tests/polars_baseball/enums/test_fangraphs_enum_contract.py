@@ -41,7 +41,8 @@ class TestLiveFetchAndValidate:
     def _fetch_and_check(
         self, builder: typing.Callable[..., FanGraphsRequest], critical: set[str], **kwargs: int
     ) -> pl.DataFrame:
-        from polars_baseball import BaseballContext, fg_data
+        from polars_baseball.apis.fangraphs import fg_data
+        from polars_baseball.context import BaseballContext
 
         request = builder(**kwargs)
 
@@ -55,19 +56,19 @@ class TestLiveFetchAndValidate:
         return df
 
     def test_live_batting(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         df = self._fetch_and_check(FanGraphsRequest.batting, self.BATTING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_pitching(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         df = self._fetch_and_check(FanGraphsRequest.pitching, self.PITCHING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_fielding(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         df = self._fetch_and_check(FanGraphsRequest.fielding, self.FIELDING_CRITICAL, start_season=2024)
         assert df.height > 0
@@ -108,7 +109,8 @@ class TestLiveCodeToNameMapping:
     def _fetch_and_check(
         codes: dict[str, str], builder: typing.Callable[..., FanGraphsRequest], enum_class: type[FangraphsStatsBase]
     ) -> None:
-        from polars_baseball import BaseballContext, fg_data
+        from polars_baseball.apis.fangraphs import fg_data
+        from polars_baseball.context import BaseballContext
 
         request = builder(start_season=2024, stat_columns=[enum_class.parse(c) for c in codes])
 
@@ -121,17 +123,17 @@ class TestLiveCodeToNameMapping:
             assert expected_name in df.columns, f"Missing column: {expected_name}"
 
     def test_batting_codes(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         self._fetch_and_check(self.BATTING_EXPECTATIONS, FanGraphsRequest.batting, FangraphsBattingStats)
 
     def test_pitching_codes(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         self._fetch_and_check(self.PITCHING_EXPECTATIONS, FanGraphsRequest.pitching, FangraphsPitchingStats)
 
     def test_fielding_codes(self) -> None:
-        from polars_baseball import FanGraphsRequest
+        from polars_baseball.apis.fangraphs import FanGraphsRequest
 
         self._fetch_and_check(self.FIELDING_EXPECTATIONS, FanGraphsRequest.fielding, FangraphsFieldingStats)
 
