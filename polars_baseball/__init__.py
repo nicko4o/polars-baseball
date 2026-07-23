@@ -63,7 +63,7 @@ from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext, cleanup
 from polars_baseball.enums import ArsenalType, KeyType
 
-__version__ = "0.7.5"
+__version__ = "0.7.6"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
