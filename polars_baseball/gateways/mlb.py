@@ -4,7 +4,7 @@ from typing import cast
 
 import polars as pl
 
-from polars_baseball._json_types import JsonObject
+from polars_baseball._json_utils import JsonObject
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import PolarsBaseballHttpError, UpstreamParseError
 

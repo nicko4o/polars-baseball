@@ -1,7 +1,9 @@
 from collections.abc import Mapping
-from typing import cast
+from typing import TypeAlias, cast
 
 from polars_baseball.exceptions import UpstreamStructureChangedError
+
+JsonObject: TypeAlias = dict[str, object]
 
 
 def expect_mapping(value: object, label: str) -> None:

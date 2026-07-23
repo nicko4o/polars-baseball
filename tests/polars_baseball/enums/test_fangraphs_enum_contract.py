@@ -13,6 +13,7 @@ from polars_baseball.enums.fangraphs import (
     FangraphsPitchingStats,
     FangraphsStatsBase,
 )
+from polars_baseball.exceptions import InvalidSchemaError
 from tests._async_utils import run_async
 
 
@@ -25,7 +26,7 @@ class TestCriticalColumnsValidator:
 
     def test_validate_critical_present_raises(self) -> None:
         df = pl.DataFrame({"Name": ["A"], "WAR": [1.0]})
-        with pytest.raises(AssertionError, match="Missing critical columns"):
+        with pytest.raises(InvalidSchemaError, match="Missing critical columns"):
             validate_critical_columns_present(df, {"Name", "Team", "WAR"})
 
 

@@ -4,7 +4,7 @@ from typing import cast
 import polars as pl
 
 from polars_baseball._json_utils import child_mapping, expect_mapping
-from polars_baseball.exceptions import UpstreamStructureChangedError
+from polars_baseball.exceptions import InvalidSchemaError, UpstreamStructureChangedError
 
 
 def validate_critical_columns_present(
@@ -14,7 +14,7 @@ def validate_critical_columns_present(
 ) -> None:
     missing = critical_columns - set(df.columns)
     if missing:
-        raise AssertionError(f"Missing critical columns in {label}: {missing}. Available: {sorted(df.columns)}")
+        raise InvalidSchemaError(f"Missing critical columns in {label}: {missing}. Available: {sorted(df.columns)}")
 
 
 def validate_next_data_structure(data: object, label: str = "FanGraphs NEXT_DATA") -> list[Mapping[str, object]]:

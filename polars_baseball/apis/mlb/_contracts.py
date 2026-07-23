@@ -3,7 +3,7 @@ from typing import Final, cast
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import STATS_API_ROOT
-from polars_baseball._json_types import JsonObject as JsonObject
+from polars_baseball._json_utils import JsonObject as JsonObject
 
 MLB_CACHE_MAX_AGE: Final[timedelta] = timedelta(days=1)
 MLB_LIVE_ENDPOINT_CACHE_MAX_AGE: Final[timedelta] = timedelta(seconds=10)
