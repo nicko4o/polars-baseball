@@ -6,24 +6,15 @@ import json
 import logging
 import tempfile
 import threading
-import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import ParamSpec, Protocol, TypeVar, cast, overload
+from typing import ParamSpec, Protocol, TypeVar, cast
 
 import polars as pl
 from polars.exceptions import ComputeError
 
-from polars_baseball._cache_locks import (
-    _IN_FLIGHT_LOCKS as _IN_FLIGHT_LOCKS,
-)
-from polars_baseball._cache_locks import (
-    SharedExclusiveLock,
-    _in_flight_lock_for,
-)
 from polars_baseball._config import DEFAULT_CACHE_DIR
 from polars_baseball.exceptions import CacheClearError
 
@@ -31,52 +22,23 @@ logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")
-T = TypeVar("T")
-_CONTEXT_PARAM_NAME = "context"
-_FORCE_UPDATE_PARAM_NAME = "force_update"
-_MISSING_ARGUMENT = object()
+
+_IN_FLIGHT_LOCKS: dict[str, asyncio.Lock] = {}
+_IN_FLIGHT_LOCKS_GUARD = threading.Lock()
+
+
+def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
+    composite_key = f"{id(cache)}:{key}"
+    with _IN_FLIGHT_LOCKS_GUARD:
+        lock = _IN_FLIGHT_LOCKS.get(composite_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            _IN_FLIGHT_LOCKS[composite_key] = lock
+        return lock
 
 
 class CacheContext(Protocol):
     cache: "CacheAdapter"
-
-
-@dataclass(frozen=True)
-class CacheCallArgs:
-    context: CacheContext
-    arguments: Mapping[str, object]
-    force_update: bool
-
-    @overload
-    def argument(self, name: str, expected_type: type[T]) -> T: ...
-
-    @overload
-    def argument(self, name: str, expected_type: type[T], default: None) -> T | None: ...
-
-    @overload
-    def argument(self, name: str, expected_type: type[T], default: T) -> T: ...
-
-    def argument(self, name: str, expected_type: type[T], default: object = _MISSING_ARGUMENT) -> T | None:
-        value = self.arguments.get(name, _MISSING_ARGUMENT)
-        if value is _MISSING_ARGUMENT or value is None:
-            if default is _MISSING_ARGUMENT:
-                raise TypeError(f"{name} is required")
-            return cast(T | None, default)
-        if not isinstance(value, expected_type):
-            raise TypeError(f"{name} must be {expected_type.__name__}, got {type(value).__name__}")
-        return value
-
-
-@dataclass(frozen=True)
-class CacheCall:
-    context: CacheContext
-    key: str
-    max_age: timedelta | None
-    force_update: bool
-
-
-CacheKeyBuilder = Callable[[CacheCallArgs], str]
-CacheMaxAgeResolver = Callable[[CacheCallArgs], timedelta | None]
 
 
 def generate_cache_key(
@@ -92,33 +54,16 @@ def generate_cache_key(
     return hashlib.md5(raw_str.encode("utf-8")).hexdigest()
 
 
-_CACHE_PARTITION_KEY = "__cache_partition__"
-
-
 class CacheAdapter(ABC):
-    """Pluggable cache backend for storing and retrieving DataFrames.
-
-    Implementations must handle parquet-level I/O, key-based lookups,
-    and optional time-based staleness checks. Subclasses are responsible
-    for thread safety and atomic writes.
-    """
+    """Pluggable cache backend for storing and retrieving DataFrames."""
 
     @abstractmethod
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        """Retrieve a cached DataFrame by key.
-
-        Note:
-            Returns None when the key is missing, the file is corrupt,
-            or the cached entry exceeds max_age.
-        """
+        """Retrieve a cached DataFrame by key."""
 
     @abstractmethod
     def set(self, key: str, value: pl.DataFrame) -> None:
-        """Store a DataFrame under the given key.
-
-        Note:
-            Must be atomic — partial writes should not leave a corrupt cache entry.
-        """
+        """Store a DataFrame under the given key."""
 
     @abstractmethod
     def clear(self) -> None:
@@ -144,36 +89,6 @@ class CacheAdapter(ABC):
             df = await fetcher()
             await asyncio.to_thread(self.set, key, df)
             return df
-
-    def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
-        """Retrieve a list of partitioned DataFrames stored under a single key.
-
-        Note:
-            Returns None when the key is missing. Returns an empty list
-            when the partition table is empty (previously set with an empty list).
-        """
-        df = self.get(key, max_age=max_age)
-        if df is None:
-            return None
-        if _CACHE_PARTITION_KEY not in df.columns:
-            return None
-        if df.is_empty():
-            return []
-        parts = df.sort(_CACHE_PARTITION_KEY).partition_by(_CACHE_PARTITION_KEY, as_dict=False, maintain_order=True)
-        return [p.drop(_CACHE_PARTITION_KEY) for p in parts]
-
-    def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
-        """Store a list of DataFrames as a single partitioned cache entry.
-
-        Note:
-            An empty list produces a sentinel partition table so that
-            get_list can distinguish "never set" from "empty list".
-        """
-        if not dfs:
-            self.set(key, pl.DataFrame({_CACHE_PARTITION_KEY: pl.Series([], dtype=pl.Int64)}))
-            return
-        tagged = [df.with_columns(pl.lit(i).alias(_CACHE_PARTITION_KEY)) for i, df in enumerate(dfs)]
-        self.set(key, pl.concat(tagged))
 
 
 def _write_cached_file(path: Path, value: pl.DataFrame) -> bool:
@@ -237,8 +152,7 @@ def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> 
 class FileCacheAdapter(CacheAdapter):
     """File-based cache backend that stores DataFrames as Parquet files.
 
-    Uses atomic writes via temp-file-then-replace to prevent corruption.
-    Thread-safe via per-key locks and a shared/exclusive lock for clearing.
+    Thread-safe via per-key locks and a clear lock.
     """
 
     def __init__(self, cache_dir: Path | None = None) -> None:
@@ -249,9 +163,9 @@ class FileCacheAdapter(CacheAdapter):
         except OSError as e:
             logger.warning("Failed to create cache directory %s, cache disabled: %s", self.cache_dir, e)
             self._disabled = True
-        self._key_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
+        self._key_locks: dict[str, threading.Lock] = {}
         self._meta_lock = threading.Lock()
-        self._rw_lock = SharedExclusiveLock()
+        self._clear_lock = threading.Lock()
 
     def _get_path(self, key: str) -> Path:
         safe_key = "".join(c if c.isalnum() else "_" for c in key)
@@ -268,31 +182,34 @@ class FileCacheAdapter(CacheAdapter):
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         if self._disabled:
             return None
-        with self._rw_lock.shared():
-            with self._lock_for(key):
-                return _try_read_cached(self._get_path(key), key, max_age)
+        with self._lock_for(key):
+            return _try_read_cached(self._get_path(key), key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:
             return
-        with self._rw_lock.shared():
-            with self._lock_for(key):
-                write_ok = _write_cached_file(self._get_path(key), value)
-                if not write_ok:
-                    self._disabled = True
+        with self._lock_for(key):
+            write_ok = _write_cached_file(self._get_path(key), value)
+            if not write_ok:
+                self._disabled = True
 
     def clear(self) -> None:
         if self._disabled:
             return
-        with self._rw_lock.exclusive():
-            _clear_cache_dir(self.cache_dir)
+        with self._clear_lock:
+            with self._meta_lock:
+                key_locks = list(self._key_locks.values())
+            for lock in key_locks:
+                lock.acquire()
+            try:
+                _clear_cache_dir(self.cache_dir)
+            finally:
+                for lock in reversed(key_locks):
+                    lock.release()
 
 
 class NullCacheAdapter(CacheAdapter):
-    """No-op cache backend. Every get returns None; set/clear are no-ops.
-
-    Used as the default when no cache directory has been configured.
-    """
+    """No-op cache backend."""
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         return None
@@ -303,222 +220,88 @@ class NullCacheAdapter(CacheAdapter):
     def clear(self) -> None:
         return None
 
-    def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
-        return None
-
-    def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
-        return None
-
 
 class GlobalCache(CacheAdapter):
-    """Thread-safe process-wide cache adapter with dynamic backend switching.
-
-    Defaults to a FileCacheAdapter using DEFAULT_CACHE_DIR (~/.polars_baseball/cache).
-    Call configure() to switch to another cache directory at runtime. All operations
-    are protected by a shared/exclusive lock for safe concurrent access.
-    """
+    """Thread-safe process-wide cache adapter with dynamic backend switching."""
 
     def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
         if use_null_default and cache_dir is None:
             self._adapter: CacheAdapter = NullCacheAdapter()
         else:
             self._adapter = FileCacheAdapter(cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR)
-        self._adapter_lock = SharedExclusiveLock()
+        self._lock = threading.Lock()
 
     @property
     def cache_dir(self) -> Path:
-        with self._adapter_lock.shared():
+        with self._lock:
             if not isinstance(self._adapter, FileCacheAdapter):
                 raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
             return self._adapter.cache_dir
 
     def configure(self, cache_dir: Path) -> None:
         adapter = FileCacheAdapter(cache_dir)
-        with self._adapter_lock.exclusive():
+        with self._lock:
             self._adapter = adapter
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        with self._adapter_lock.shared():
-            return self._adapter.get(key, max_age)
+        return self._adapter.get(key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
-        with self._adapter_lock.shared():
-            self._adapter.set(key, value)
-
-    def get_list(self, key: str, max_age: timedelta | None = None) -> list[pl.DataFrame] | None:
-        with self._adapter_lock.shared():
-            return self._adapter.get_list(key, max_age=max_age)
-
-    def set_list(self, key: str, dfs: list[pl.DataFrame]) -> None:
-        with self._adapter_lock.shared():
-            self._adapter.set_list(key, dfs)
+        self._adapter.set(key, value)
 
     def clear(self) -> None:
-        with self._adapter_lock.shared():
-            self._adapter.clear()
+        self._adapter.clear()
 
 
 global_cache = GlobalCache()
 
 
 def configure_cache(cache_dir: Path) -> None:
-    """Configure the process-wide file cache directory.
-
-    Args:
-        cache_dir: Directory where cache parquet files are read and written.
-    """
+    """Configure the process-wide file cache directory."""
     global_cache.configure(cache_dir)
 
 
-def _resolve_context_from_arguments(arguments: Mapping[str, object]) -> CacheContext:
-    ctx = arguments.get(_CONTEXT_PARAM_NAME)
-    if ctx is not None:
-        if not hasattr(ctx, "cache"):
-            raise TypeError("context must expose a cache attribute")
-        return cast(CacheContext, ctx)
-    import importlib
-
-    BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
-    return cast(CacheContext, BaseballContext.default())
-
-
-def _bind_call_arguments(
-    fn: Callable[..., object],
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
-) -> dict[str, object]:
-    sig = inspect.signature(fn)
-    bound = sig.bind_partial(*args, **kwargs)
-    bound.apply_defaults()
-    return dict(bound.arguments)
-
-
-def _resolve_key_from_arguments(
-    key_fn: CacheKeyBuilder | str,
-    call_args: CacheCallArgs,
-) -> str:
-    if isinstance(key_fn, str):
-        return key_fn
-    return key_fn(call_args)
-
-
-def _resolve_max_age_from_arguments(
-    max_age_fn: timedelta | None | CacheMaxAgeResolver,
-    call_args: CacheCallArgs,
-) -> timedelta | None:
-    if not callable(max_age_fn):
-        return max_age_fn
-    return max_age_fn(call_args)
-
-
-def resolve_cache_call(
-    fn: Callable[P, object],
-    key: str | CacheKeyBuilder,
-    max_age: timedelta | None | CacheMaxAgeResolver,
-    args: tuple[object, ...],
-    kwargs: Mapping[str, object],
-) -> CacheCall:
-    call_arguments = _bind_call_arguments(fn, args, kwargs)
-    context = _resolve_context_from_arguments(call_arguments)
-    call_args = CacheCallArgs(
-        context=context,
-        arguments=call_arguments,
-        force_update=bool(call_arguments.get(_FORCE_UPDATE_PARAM_NAME, False)),
-    )
-    return CacheCall(
-        context=context,
-        key=_resolve_key_from_arguments(key, call_args),
-        max_age=_resolve_max_age_from_arguments(max_age, call_args),
-        force_update=call_args.force_update,
-    )
-
-
-def _cached_execute(
-    fn: Callable[..., Awaitable[R]],
-    args: tuple[object, ...],
-    kwargs: dict[str, object],
-    key: str | CacheKeyBuilder,
-    max_age: timedelta | None | CacheMaxAgeResolver,
-    cache_get: Callable[[CacheAdapter, str, timedelta | None], R | None],
-    cache_set: Callable[[CacheAdapter, str, R], None],
-) -> Awaitable[R]:
-    cache_call = resolve_cache_call(fn, key, max_age, args, kwargs)
-
-    async def run() -> R:
-        if not cache_call.force_update:
-            cached_val = await asyncio.to_thread(
-                cache_get, cache_call.context.cache, cache_call.key, cache_call.max_age
-            )
-            if cached_val is not None:
-                return cached_val
-        async with _in_flight_lock_for(cache_call.context.cache, cache_call.key):
-            if not cache_call.force_update:
-                cached_val = await asyncio.to_thread(
-                    cache_get, cache_call.context.cache, cache_call.key, cache_call.max_age
-                )
-                if cached_val is not None:
-                    return cached_val
-            val = await fn(*args, **kwargs)
-            await asyncio.to_thread(cache_set, cache_call.context.cache, cache_call.key, val)
-            return val
-
-    return run()
-
-
 def cached(
-    key: str | CacheKeyBuilder,
-    max_age: timedelta | None | CacheMaxAgeResolver = None,
+    key: str | Callable[..., str],
+    max_age: timedelta | None = None,
 ) -> Callable[[Callable[P, Awaitable[pl.DataFrame]]], Callable[P, Awaitable[pl.DataFrame]]]:
-    """Cache a single DataFrame result, keyed by the decorated function's arguments.
-
-    Args:
-        key: Static cache key string, or a CacheKeyBuilder that receives
-            CacheCallArgs and returns a key.
-        max_age: Optional TTL. Can be a timedelta, None (no expiry), or
-            a CacheMaxAgeResolver callback.
-    """
+    """Cache a single DataFrame result, keyed by decorated function arguments."""
 
     def decorator(fn: Callable[P, Awaitable[pl.DataFrame]]) -> Callable[P, Awaitable[pl.DataFrame]]:
+        sig = inspect.signature(fn)
+
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> pl.DataFrame:
-            return await _cached_execute(
-                fn,
-                args,
-                kwargs,
-                key,
-                max_age,
-                lambda c, k, a: c.get(k, max_age=a),
-                lambda c, k, v: c.set(k, v),
-            )
+            bound = sig.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
+            call_kw = bound.arguments
 
-        return wrapper
+            cache_key = key if isinstance(key, str) else key(**call_kw)
+            effective_max_age = cast(timedelta | None, call_kw.get("cache_max_age", max_age))
+            force_update = bool(call_kw.get("force_update", False))
 
-    return decorator
+            ctx_arg = call_kw.get("context")
+            if ctx_arg is not None and hasattr(ctx_arg, "cache"):
+                cache = cast(CacheAdapter, ctx_arg.cache)
+            else:
+                import importlib
 
+                BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
+                cache = cast(CacheAdapter, BaseballContext.default().cache)
 
-def cached_list(
-    key: str | CacheKeyBuilder,
-    max_age: timedelta | None | CacheMaxAgeResolver = None,
-) -> Callable[[Callable[P, Awaitable[list[pl.DataFrame]]]], Callable[P, Awaitable[list[pl.DataFrame]]]]:
-    """Cache a list of DataFrames under a single partitioned key.
+            if not force_update:
+                cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
+                if cached_val is not None:
+                    return cached_val
 
-    Args:
-        key: Static cache key string, or a CacheKeyBuilder callback.
-        max_age: Optional TTL.
-    """
-
-    def decorator(fn: Callable[P, Awaitable[list[pl.DataFrame]]]) -> Callable[P, Awaitable[list[pl.DataFrame]]]:
-        @functools.wraps(fn)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> list[pl.DataFrame]:
-            return await _cached_execute(
-                fn,
-                args,
-                kwargs,
-                key,
-                max_age,
-                lambda c, k, a: c.get_list(k, max_age=a),
-                lambda c, k, v: c.set_list(k, v),
-            )
+            async with _in_flight_lock_for(cache, cache_key):
+                if not force_update:
+                    cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
+                    if cached_val is not None:
+                        return cached_val
+                val = await fn(*args, **kwargs)
+                await asyncio.to_thread(cache.set, cache_key, val)
+                return val
 
         return wrapper
 
