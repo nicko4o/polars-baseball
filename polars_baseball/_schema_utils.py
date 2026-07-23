@@ -27,7 +27,7 @@ def validate_and_cast_schema(
 
     try:
         return df.with_columns(cast_exprs)
-    except Exception as e:
+    except (pl.exceptions.PolarsError, TypeError, ValueError) as e:
         if df.is_empty():
             return df
         raise InvalidSchemaError(f"Failed to cast DataFrame columns to target schema: {e}") from e

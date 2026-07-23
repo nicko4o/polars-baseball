@@ -9,7 +9,7 @@ from polars_baseball._validation import (
     validate_critical_columns_present,
     validate_next_data_structure,
 )
-from polars_baseball.exceptions import UpstreamStructureChangedError
+from polars_baseball.exceptions import InvalidSchemaError, UpstreamStructureChangedError
 
 
 def _valid_next_data() -> dict[str, Any]:
@@ -49,7 +49,7 @@ class TestCriticalColumnsValidator:
 
     def test_missing_columns_raises(self) -> None:
         df = pl.DataFrame({"Name": ["A"], "WAR": [1.0]})
-        with pytest.raises(AssertionError, match="Missing critical columns"):
+        with pytest.raises(InvalidSchemaError, match="Missing critical columns"):
             validate_critical_columns_present(df, {"Name", "Team", "WAR"})
 
 

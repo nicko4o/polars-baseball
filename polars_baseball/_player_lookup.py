@@ -1,8 +1,6 @@
 import asyncio
-import threading
 import unicodedata
 import warnings
-import weakref
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
 
@@ -72,24 +70,14 @@ class PlayerLookupService:
     def __init__(self, load_table: LookupTableLoader) -> None:
         self._load_table = load_table
         self.table: pl.DataFrame | None = None
-        self._load_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
-            weakref.WeakKeyDictionary()
-        )
-        self._load_locks_guard = threading.Lock()
-
-    def _load_lock(self) -> asyncio.Lock:
-        loop = asyncio.get_running_loop()
-        with self._load_locks_guard:
-            lock = self._load_locks.get(loop)
-            if lock is None:
-                lock = asyncio.Lock()
-                self._load_locks[loop] = lock
-            return lock
+        self._load_lock: asyncio.Lock | None = None
 
     async def _ensure_table(self) -> pl.DataFrame:
         if self.table is not None:
             return self.table
-        async with self._load_lock():
+        if self._load_lock is None:
+            self._load_lock = asyncio.Lock()
+        async with self._load_lock:
             if self.table is not None:
                 return self.table
             table = await self._load_table()
