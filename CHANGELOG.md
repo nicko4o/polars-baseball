@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add Output DataFrame Schema tables across provider reference docs with links to internal schema modules.
+- Add Error Handling & Production Resilience guide (`docs/guides/error_handling.md`).
+
 ## [0.8.1] - 2026-07-24
 
 ### Fixed
