@@ -58,6 +58,40 @@ Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGrap
 
 ---
 
+## Output DataFrame Schema
+
+FanGraphs functions (`batting`, `pitching`, `fielding`, `fg_data`) return a `pl.DataFrame` with dynamic or requested stat columns.
+
+### Standard Batting Leaderboard Fields
+
+| Column Name | Polars Type | Description |
+| --- | --- | --- |
+| `IDfg` | `pl.Int64` | Unique FanGraphs player identifier. |
+| `Season` | `pl.Int64` | Season year (e.g. `2026`). |
+| `Name` | `pl.String` | Player name. |
+| `Team` | `pl.String` | Team abbreviation (e.g. `"LAD"`, `"NYY"`). |
+| `Age` | `pl.Int64` | Player age during season. |
+| `G` | `pl.Int64` | Games played. |
+| `AB` | `pl.Int64` | At bats. |
+| `PA` | `pl.Int64` | Plate appearances. |
+| `H` | `pl.Int64` | Hits. |
+| `HR` | `pl.Int64` | Home runs. |
+| `R` | `pl.Int64` | Runs scored. |
+| `RBI` | `pl.Int64` | Runs batted in. |
+| `SB` | `pl.Int64` | Stolen bases. |
+| `BB%` | `pl.Float64` | Walk percentage. |
+| `K%` | `pl.Float64` | Strikeout percentage. |
+| `ISO` | `pl.Float64` | Isolated power. |
+| `BABIP` | `pl.Float64` | Batting average on balls in play. |
+| `AVG` | `pl.Float64` | Batting average. |
+| `OBP` | `pl.Float64` | On-base percentage. |
+| `SLG` | `pl.Float64` | Slugging percentage. |
+| `wOBA` | `pl.Float64` | Weighted on-base average. |
+| `wRC+` | `pl.Float64` | Weighted runs created plus (100 = league average). |
+| `WAR` | `pl.Float64` | Wins above replacement. |
+
+---
+
 ## Example
 
 The following example shows how to use both the quick namespace helpers and custom `FanGraphsRequest` queries.

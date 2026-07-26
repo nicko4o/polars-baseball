@@ -80,6 +80,34 @@ Retrieves the master Chadwick Register database mapping. This registry contains 
 
 ---
 
+## Output DataFrame Schema
+
+### Player ID Lookup (`playerid_lookup`, `playerid_reverse_lookup`)
+
+| Column Name | Polars Type | Description |
+| --- | --- | --- |
+| `name_last` | `pl.String` | Player last name. |
+| `name_first` | `pl.String` | Player first name. |
+| `key_mlbam` | `pl.Int64` | MLB Advanced Media / Statcast player ID. |
+| `key_retro` | `pl.String` | Retrosheet player ID. |
+| `key_bbref` | `pl.String` | Baseball Reference player ID. |
+| `key_fangraphs` | `pl.Int64` | FanGraphs player ID. |
+| `mlb_played_first` | `pl.Int64` | First MLB season year. |
+| `mlb_played_last` | `pl.Int64` | Most recent MLB season year. |
+
+### Team ID Lookup (`team_ids`)
+
+| Column Name | Polars Type | Description |
+| --- | --- | --- |
+| `yearID` | `pl.Int64` | Season year. |
+| `teamIDlahman` | `pl.String` | Lahman database team ID. |
+| `teamIDretro` | `pl.String` | Retrosheet team ID. |
+| `teamIDbbref` | `pl.String` | Baseball Reference team ID. |
+| `teamIDfg` | `pl.Int64` | FanGraphs team ID. |
+| `lgID` | `pl.String` | League abbreviation (`"AL"`, `"NL"`). |
+
+---
+
 ## Example
 
 The following example shows how to perform player searches, reverse ID lookups, synchronous team ID joins, and fetch the Chadwick register.

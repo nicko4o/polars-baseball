@@ -43,6 +43,23 @@ Retrieves Baseball Reference daily pitching WAR data from the `war_daily_pitch` 
 
 ---
 
+## Output DataFrame Schema
+
+### BRef Daily WAR Schema (`bwar_bat`, `bwar_pitch`)
+
+| Column Name | Polars Type | Description |
+| --- | --- | --- |
+| `name_common` | `pl.String` | Player common name. |
+| `player_ID` | `pl.String` | Baseball Reference player ID (`key_bbref`). |
+| `year_ID` | `pl.Int64` | Season year. |
+| `team_ID` | `pl.String` | Team abbreviation. |
+| `stint_ID` | `pl.Int64` | Stint identifier for players traded mid-season. |
+| `WAR` | `pl.Float64` | Wins Above Replacement. |
+| `salary` | `pl.Int64` | Player salary in USD (where available). |
+| `PA` / `IPruns` | `pl.Float64` | Plate appearances (batting) or Innings Pitched runs (pitching). |
+
+---
+
 ## Example
 
 ```python

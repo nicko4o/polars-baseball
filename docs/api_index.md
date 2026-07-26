@@ -30,10 +30,18 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 | Resolve player IDs | `playerid_lookup`, `playerid_reverse_lookup`, `chadwick_register` | Lookup rows | Chadwick register | Joining MLBAM, FanGraphs, Retrosheet, and other player identifiers |
 | Query prospect rankings | `top_prospects`, `prospect_rankings` | Prospect rows | Baseball Savant | Prospect lists and rankings by year or player type |
 
-## Provider Pages
+## Provider Pages & Schemas
 
 - [Statcast / Savant](reference/statcast.md)
 - [FanGraphs](reference/fangraphs.md)
 - [MLB Stats API](reference/mlb_api.md)
 - [Lookups & Mappings](reference/lookups.md)
 - [Baseball Reference](reference/bref.md)
+- [Lahman](reference/lahman.md)
+- [Retrosheet](reference/retrosheet.md)
+
+## Operational Guides
+
+- [Error Handling & Production Resilience](guides/error_handling.md)
+- [Caching & Storage Guide](guides/caching.md)
+- [Data Visualization Guide](guides/plotting.md)
