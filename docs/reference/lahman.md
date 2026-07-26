@@ -30,7 +30,22 @@ Lahman functions retrieve compiled Parquet tables from cache or `POLARS_BASEBALL
 | `series_post()` | Postseason series results. |
 | `teams_core()` / `teams_upstream()` / `teams_franchises()` / `teams_half()` | Team tables. |
 
-## Example
+---
+
+## Output DataFrame Schema
+
+Lahman functions return a `pl.DataFrame` preserving original Lahman relational column names and data types.
+
+### Key Table Schema Summary
+
+| Function | Primary Columns | Key Polars Types |
+| --- | --- | --- |
+| `people()` | `playerID`, `birthYear`, `nameFirst`, `nameLast`, `weight`, `height`, `bats`, `throws`, `bbrefID` | `playerID`: `String`, `nameLast`: `String`, `birthYear`: `Int64` |
+| `batting()` | `playerID`, `yearID`, `stint`, `teamID`, `lgID`, `G`, `AB`, `R`, `H`, `2B`, `3B`, `HR`, `RBI`, `SB`, `CS`, `BB`, `SO` | `playerID`: `String`, `yearID`: `Int64`, `HR`: `Int64` |
+| `pitching()` | `playerID`, `yearID`, `stint`, `teamID`, `lgID`, `W`, `L`, `G`, `GS`, `CG`, `SHO`, `SV`, `IPouts`, `H`, `ER`, `HR`, `BB`, `SO`, `ERA` | `playerID`: `String`, `yearID`: `Int64`, `ERA`: `Float64` |
+| `teams_core()` | `yearID`, `lgID`, `teamID`, `franchID`, `divID`, `Rank`, `G`, `W`, `L`, `DivWin`, `WCWin`, `LgWin`, `WSWin`, `R`, `RA`, `name` | `yearID`: `Int64`, `teamID`: `String`, `W`: `Int64` |
+
+---
 
 ```python
 import asyncio
