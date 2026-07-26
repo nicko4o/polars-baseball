@@ -29,6 +29,29 @@ Retrieve detailed pitch-level Statcast database rows.
   > [!TIP]
   > Don't know the player ID? Use `pb.playerid_lookup("Judge", "Aaron")` or `pb.player_name_suggestions("jud")` to find the `key_mlbam` for any player.
 
+### Output DataFrame Schema
+
+Pitch-level functions (`statcast`, `statcast_single_game`, `statcast_batter`, `statcast_pitcher`) return a `pl.DataFrame` containing up to 92 Statcast tracking fields.
+
+| Column Name | Polars Type | Description |
+| --- | --- | --- |
+| `pitch_type` | `pl.String` | Two-letter pitch classification code (e.g. `"FF"`, `"SL"`, `"CH"`). |
+| `game_date` | `pl.String` | Date of the game (`YYYY-MM-DD`). |
+| `release_speed` | `pl.Float64` | Pitch release velocity in miles per hour (mph). |
+| `player_name` | `pl.String` | Pitcher name formatted as `Last, First`. |
+| `batter` | `pl.Int64` | MLBAM player ID for the batter. |
+| `pitcher` | `pl.Int64` | MLBAM player ID for the pitcher. |
+| `events` | `pl.String` | Final event outcome of the plate appearance (e.g. `"single"`, `"strikeout"`). |
+| `description` | `pl.String` | Outcome of the individual pitch (e.g. `"ball"`, `"foul"`, `"called_strike"`). |
+| `zone` | `pl.Int64` | Strike zone area identifier (1–14). |
+| `game_pk` | `pl.Int64` | Unique MLBAM identifier for the game. |
+| `launch_speed` | `pl.Float64` | Exit velocity of batted ball in mph. |
+| `launch_angle` | `pl.Float64` | Launch angle of batted ball in degrees. |
+| `effective_speed` | `pl.Float64` | Perceived pitch speed incorporating release extension. |
+| `release_spin_rate` | `pl.Float64` | Spin rate of pitch in revolutions per minute (rpm). |
+| `pitch_name` | `pl.String` | Full description of pitch type (e.g. `"4-Seam Fastball"`). |
+| `spin_axis` | `pl.Float64` | Spin axis angle of pitch in degrees (0–360). |
+
 ---
 
 ## Batter Leaderboards

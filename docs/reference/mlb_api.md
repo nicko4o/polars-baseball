@@ -419,3 +419,25 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+---
+
+## Output DataFrame Schema & Internal Definitions
+
+All `polars_baseball.mlb` endpoints enforce strict Polars schemas. Complete column name lists and Polars data types are defined in [polars_baseball/_schemas/mlb.py](../../polars_baseball/_schemas/mlb.py).
+
+### Major Endpoint Schema Summary
+
+| Endpoint Function | Primary Columns | Key Polars Types |
+| --- | --- | --- |
+| `mlb.people` | `id`, `fullName`, `currentAge`, `mlbDebutDate`, `primaryPositionCode` | `id`: `Int64`, `fullName`: `String`, `active`: `Boolean` |
+| `mlb.schedule` | `gamePk`, `season`, `gameDate`, `awayTeamId`, `homeTeamId`, `awayScore`, `homeScore` | `gamePk`: `Int64`, `season`: `String`, `gameDate`: `String` |
+| `mlb.roster` | `teamId`, `personId`, `fullName`, `jerseyNumber`, `positionCode` | `teamId`: `Int64`, `personId`: `Int64`, `fullName`: `String` |
+| `mlb.game_boxscore` | `gamePk`, `teamId`, `personId`, `fullName`, `positionCode` | `gamePk`: `Int64`, `teamId`: `Int64`, `personId`: `Int64` |
+| `mlb.game_play_by_play` | `gamePk`, `atBatIndex`, `inning`, `batterId`, `pitcherId`, `event`, `rbi` | `gamePk`: `Int64`, `atBatIndex`: `Int64`, `inning`: `Int64` |
+| `mlb.game_win_probability` | `gamePk`, `atBatIndex`, `homeTeamWinProbability`, `leverageIndex` | `homeTeamWinProbability`: `Float64`, `leverageIndex`: `Float64` |
+| `mlb.teams` | `id`, `name`, `abbreviation`, `leagueId`, `divisionId`, `venueId` | `id`: `Int64`, `name`: `String`, `abbreviation`: `String` |
+| `mlb.draft` | `year`, `round`, `pickNumber`, `playerName`, `playerId`, `teamId` | `year`: `Int64`, `pickNumber`: `Int64`, `playerName`: `String` |
+| `mlb.transactions` | `id`, `date`, `description`, `typeCode`, `playerId`, `fromTeamId`, `toTeamId` | `id`: `Int64`, `date`: `String`, `typeCode`: `String` |
+| `mlb.game_feed_live` | `gamePk`, `atBatIndex`, `pitchIndex`, `batterId`, `pitcherId`, `releaseSpeed` | `gamePk`: `Int64`, `releaseSpeed`: `Float64`, `spinRate`: `Int64` |
+
+

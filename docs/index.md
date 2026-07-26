@@ -7,6 +7,7 @@ Start with the use-case index when you know the task but not the API name.
 ## Guides
 
 - [Caching](guides/caching.md)
+- [Error Handling & Production Resilience](guides/error_handling.md)
 - [Jupyter Notebook Usage](guides/jupyter.md)
 - [Data Visualization](guides/plotting.md)
 
