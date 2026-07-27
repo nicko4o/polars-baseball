@@ -131,6 +131,50 @@ async def test_namespace_batting_wrapper(
     mock_cache_set.assert_called_once()
 
 
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_fangraphs_team_starters_wrapper(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+    ctx = BaseballContext(http=mock_http)
+
+    df = await fg.team_starters(start_season=2024, team="NYY", context=ctx)
+
+    assert df.height == 2
+    mock_http.get_text.assert_called_once()
+    _, kwargs = mock_http.get_text.call_args
+    assert kwargs["params"]["stats"] == "sta"
+    assert kwargs["params"]["team"] == "NYY,ts"
+    assert mock_cache_get.call_count == 2
+    mock_cache_set.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch.object(GlobalCache, "set")
+@patch.object(GlobalCache, "get", return_value=None)
+async def test_fangraphs_team_relievers_wrapper(
+    mock_cache_get: MagicMock,
+    mock_cache_set: MagicMock,
+) -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+    ctx = BaseballContext(http=mock_http)
+
+    df = await fg.team_relievers(start_season=2024, team="LAD", context=ctx)
+
+    assert df.height == 2
+    mock_http.get_text.assert_called_once()
+    _, kwargs = mock_http.get_text.call_args
+    assert kwargs["params"]["stats"] == "rel"
+    assert kwargs["params"]["team"] == "LAD,ts"
+    assert mock_cache_get.call_count == 2
+    mock_cache_set.assert_called_once()
+
+
 class TestFanGraphsRequest:
     def test_batting_factory_sets_correct_category(self) -> None:
         request = FanGraphsRequest.batting(start_season=2019)

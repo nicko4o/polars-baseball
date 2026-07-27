@@ -175,6 +175,58 @@ async def team_fielding(
     return await fg_data(request, context=context)
 
 
+async def team_starters(
+    start_season: int,
+    *,
+    end_season: int | None = None,
+    league: str | FangraphsLeague = FangraphsLeague.ALL,
+    month: str | FangraphsMonth = FangraphsMonth.ALL,
+    qual: int | None = None,
+    split_seasons: bool = True,
+    team: str = "",
+    max_results: int = FG_MAX_RESULTS,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    """Fetch FanGraphs team starting pitcher leaderboard data."""
+    request = FanGraphsRequest.team_starters(
+        start_season=start_season,
+        end_season=end_season,
+        league=league,
+        month=month,
+        qual=qual,
+        split_seasons=split_seasons,
+        team=team,
+        max_results=max_results,
+    )
+    return await fg_data(request, context=context)
+
+
+async def team_relievers(
+    start_season: int,
+    *,
+    end_season: int | None = None,
+    league: str | FangraphsLeague = FangraphsLeague.ALL,
+    month: str | FangraphsMonth = FangraphsMonth.ALL,
+    qual: int | None = None,
+    split_seasons: bool = True,
+    team: str = "",
+    max_results: int = FG_MAX_RESULTS,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    """Fetch FanGraphs team relief pitcher leaderboard data."""
+    request = FanGraphsRequest.team_relievers(
+        start_season=start_season,
+        end_season=end_season,
+        league=league,
+        month=month,
+        qual=qual,
+        split_seasons=split_seasons,
+        team=team,
+        max_results=max_results,
+    )
+    return await fg_data(request, context=context)
+
+
 __all__ = [
     "batting",
     "fielding",
@@ -182,4 +234,6 @@ __all__ = [
     "team_batting",
     "team_fielding",
     "team_pitching",
+    "team_relievers",
+    "team_starters",
 ]
