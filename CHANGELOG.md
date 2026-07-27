@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-07-27
+
 ### Added
 - Add `position` and `stat_columns` parameters to `pb.fangraphs.team_batting()`, `team_pitching()`, `team_fielding()`, `team_starters()`, and `team_relievers()`.
 
