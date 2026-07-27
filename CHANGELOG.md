@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-27
+
 ### Added
 - Add `pb.fangraphs.team_starters()` and `pb.fangraphs.team_relievers()` convenience wrappers for team-level starter and reliever pitching splits.
 - Add Output DataFrame Schema tables across provider reference docs with links to internal schema modules.
