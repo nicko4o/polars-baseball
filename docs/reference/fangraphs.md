@@ -21,6 +21,8 @@ For common queries, use helper functions under the `fangraphs` namespace (e.g. `
 | `fangraphs.team_batting(start_season, ...)` | Team batting leaderboard. |
 | `fangraphs.team_pitching(start_season, ...)` | Team pitching leaderboard. |
 | `fangraphs.team_fielding(start_season, ...)` | Team fielding leaderboard. |
+| `fangraphs.team_starters(start_season, ...)` | Team starting pitcher leaderboard (`stats=sta`). |
+| `fangraphs.team_relievers(start_season, ...)` | Team relief pitcher leaderboard (`stats=rel`). |
 
 ### Arguments
 
@@ -106,8 +108,11 @@ async def main() -> None:
     batting = await pb.fangraphs.batting(start_season=2019)
     pitching = await pb.fangraphs.pitching(start_season=2019)
     team_batting = await pb.fangraphs.team_batting(start_season=2019)
-    team_fielding = await pb.fangraphs.team_fielding(start_season=2019)
     team_pitching = await pb.fangraphs.team_pitching(start_season=2019)
+    team_fielding = await pb.fangraphs.team_fielding(start_season=2019)
+    team_starters = await pb.fangraphs.team_starters(start_season=2024, team="NYY")
+    team_relievers = await pb.fangraphs.team_relievers(start_season=2024, team="LAD")
+    team_batting_1b = await pb.fangraphs.team_batting(start_season=2024, position="1B")
     print("Namespace Batting:", batting.head(2))
 
     # 2. Using advanced fg_data with FanGraphsRequest
