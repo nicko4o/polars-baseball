@@ -2,7 +2,7 @@ import logging as _logging
 
 from polars_baseball import bref, fangraphs, lahman, mlb, retrosheet, savant
 from polars_baseball._cache import configure_cache
-from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
+from polars_baseball.apis.fangraphs import FanGraphsFilter, FanGraphsFilterOp, FanGraphsRequest, fg_data
 from polars_baseball.apis.playerid import (
     chadwick_register,
     get_lookup_table,
@@ -26,6 +26,8 @@ _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 __all__ = [
     "ArsenalType",
     "BaseballContext",
+    "FanGraphsFilter",
+    "FanGraphsFilterOp",
     "FanGraphsRequest",
     "KeyType",
     "bref",

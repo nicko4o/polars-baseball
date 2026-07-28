@@ -1,16 +1,67 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import polars as pl
 
 from polars_baseball._config import FG_MAX_RESULTS
-from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
+from polars_baseball.apis.fangraphs import (
+    FanGraphsFilter,
+    FanGraphsFilterInput,
+    FanGraphsRequest,
+    fg_data,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
     FangraphsMonth,
     FangraphsPositions,
     FangraphsStatColumn,
+    FangraphsStatsCategory,
 )
+
+
+async def _run_fg(
+    start_season: int,
+    *,
+    end_season: int | None = None,
+    league: str | FangraphsLeague = FangraphsLeague.ALL,
+    month: str | FangraphsMonth = FangraphsMonth.ALL,
+    position: str | FangraphsPositions = FangraphsPositions.ALL,
+    stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
+    qual: int | None = None,
+    split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
+    team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
+    max_results: int = FG_MAX_RESULTS,
+    context: BaseballContext | None = None,
+    category: FangraphsStatsCategory,
+    is_team_data: bool = False,
+) -> pl.DataFrame:
+    request = FanGraphsRequest.from_raw(
+        start_season=start_season,
+        end_season=end_season,
+        stats_category=category,
+        is_team_data=is_team_data,
+        league=league,
+        month=month,
+        position=position,
+        stat_columns=stat_columns,
+        qual=qual,
+        split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
+        team=team,
+        filters=filters,
+        players=players,
+        max_results=max_results,
+    )
+    return await fg_data(request, context=context)
 
 
 async def batting(
@@ -23,11 +74,16 @@ async def batting(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
+    filters: list[FanGraphsFilter] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch FanGraphs batting leaderboard data."""
-    request = FanGraphsRequest.batting(
+    """Fetch FanGraphs batting leaderboard data for individual players."""
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -36,9 +92,15 @@ async def batting(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.BATTING,
     )
-    return await fg_data(request, context=context)
 
 
 async def pitching(
@@ -51,11 +113,16 @@ async def pitching(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch FanGraphs pitching leaderboard data."""
-    request = FanGraphsRequest.pitching(
+    """Fetch FanGraphs pitching leaderboard data for individual players."""
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -64,9 +131,16 @@ async def pitching(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.PITCHING,
+        is_team_data=False,
     )
-    return await fg_data(request, context=context)
 
 
 async def fielding(
@@ -79,11 +153,16 @@ async def fielding(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch FanGraphs fielding leaderboard data."""
-    request = FanGraphsRequest.fielding(
+    """Fetch FanGraphs fielding leaderboard data for individual players."""
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -92,9 +171,16 @@ async def fielding(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.FIELDING,
+        is_team_data=False,
     )
-    return await fg_data(request, context=context)
 
 
 async def team_batting(
@@ -107,12 +193,17 @@ async def team_batting(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
     team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team batting leaderboard data."""
-    request = FanGraphsRequest.team_batting(
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -121,10 +212,17 @@ async def team_batting(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
         team=team,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.BATTING,
+        is_team_data=True,
     )
-    return await fg_data(request, context=context)
 
 
 async def team_pitching(
@@ -137,12 +235,17 @@ async def team_pitching(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
     team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team pitching leaderboard data."""
-    request = FanGraphsRequest.team_pitching(
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -151,10 +254,17 @@ async def team_pitching(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
         team=team,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.PITCHING,
+        is_team_data=True,
     )
-    return await fg_data(request, context=context)
 
 
 async def team_fielding(
@@ -167,12 +277,17 @@ async def team_fielding(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
     team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team fielding leaderboard data."""
-    request = FanGraphsRequest.team_fielding(
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -181,10 +296,17 @@ async def team_fielding(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
         team=team,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.FIELDING,
+        is_team_data=True,
     )
-    return await fg_data(request, context=context)
 
 
 async def team_starters(
@@ -197,12 +319,17 @@ async def team_starters(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
     team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team starting pitcher leaderboard data."""
-    request = FanGraphsRequest.team_starters(
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -211,10 +338,17 @@ async def team_starters(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
         team=team,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.STARTERS,
+        is_team_data=True,
     )
-    return await fg_data(request, context=context)
 
 
 async def team_relievers(
@@ -227,12 +361,17 @@ async def team_relievers(
     stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
     qual: int | None = None,
     split_seasons: bool = True,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
     team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team relief pitcher leaderboard data."""
-    request = FanGraphsRequest.team_relievers(
+    return await _run_fg(
         start_season=start_season,
         end_season=end_season,
         league=league,
@@ -241,10 +380,17 @@ async def team_relievers(
         stat_columns=stat_columns,
         qual=qual,
         split_seasons=split_seasons,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
         team=team,
+        filters=filters,
+        players=players,
         max_results=max_results,
+        context=context,
+        category=FangraphsStatsCategory.RELIEVERS,
+        is_team_data=True,
     )
-    return await fg_data(request, context=context)
 
 
 __all__ = [
