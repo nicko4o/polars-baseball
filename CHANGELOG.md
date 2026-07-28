@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-28
+
 ### Added
-- Add `FanGraphsFilter` / `FanGraphsFilterOp` typed filter API for stat-level leaderboard filtering on FanGraphs. Use `filters=[FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]`.
+- Add `FanGraphsFilter` / `FanGraphsFilterOp` typed filter API and tuple shorthand (`filters=[("HR", ">", 40)]`) for stat-level leaderboard filtering on FanGraphs.
 - Add `filters`, `on_active_roster`, `minimum_age`, `maximum_age`, `players` parameters to all `pb.fangraphs.*` convenience functions.
 - `FanGraphsRequest` factory methods now use explicit parameter signatures instead of `Unpack[TypedDict]` — IDE autocomplete now works.
 
