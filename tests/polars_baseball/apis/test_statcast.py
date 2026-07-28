@@ -57,7 +57,7 @@ async def test_statcast_date_range(
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False, context=ctx)
+    df = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
     assert df.height == 3
     assert df["game_date"][0] == "2026-06-08"
     assert df["game_date"][1] == "2026-06-01"
@@ -68,7 +68,7 @@ async def test_statcast_date_range(
 @pytest.mark.asyncio
 @patch("polars_baseball._cache.global_cache.get")
 @patch("polars_baseball._cache.global_cache.set")
-async def test_statcast_accepts_date_aliases(
+async def test_statcast_accepts_date_parameters(
     mock_cache_set: AsyncMock,
     mock_cache_get: AsyncMock,
     mock_statcast_csv: str,
@@ -85,27 +85,21 @@ async def test_statcast_accepts_date_aliases(
 
 
 @pytest.mark.asyncio
-async def test_statcast_rejects_conflicting_date_aliases() -> None:
-    with pytest.raises(InvalidParameterError, match="start_dt and start_date"):
-        await statcast(start_dt="2026-06-01", start_date="2026-06-02", verbose=False)
-
-
-@pytest.mark.asyncio
 async def test_statcast_player_lookups(mock_statcast_csv: str) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
     ctx = BaseballContext(http=mock_http)
 
-    df_bat = await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
+    df_bat = await statcast_batter(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
     assert df_bat.height == 2
     assert df_bat["game_pk"][0] == 123456
 
-    df_pit = await statcast_pitcher(start_dt="2026-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
+    df_pit = await statcast_pitcher(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
     assert df_pit.height == 2
     assert df_pit["game_pk"][0] == 123456
 
     with pytest.raises(InvalidParameterError):
-        await statcast_batter(start_dt="2026-06-01", end_dt="2026-06-01", player_id=None)
+        await statcast_batter(start_date="2026-06-01", end_date="2026-06-01", player_id=None)
 
 
 @pytest.mark.asyncio
@@ -137,7 +131,7 @@ async def test_statcast_oversize_warning() -> None:
     ctx = BaseballContext(http=mock_http)
 
     with pytest.warns(UserWarning, match="That's a nice request you got there"):
-        await statcast(start_dt="2026-06-01", end_dt="2026-07-16", verbose=False, context=ctx)
+        await statcast(start_date="2026-06-01", end_date="2026-07-16", verbose=False, context=ctx)
 
 
 @pytest.mark.asyncio
@@ -151,7 +145,7 @@ async def test_statcast_player_cross_year_with_empty_chunk(
     mock_get_dataset.side_effect = [df_2025, df_2026]
     ctx = BaseballContext()
 
-    df = await statcast_batter(start_dt="2025-06-01", end_dt="2026-06-01", player_id=123456, context=ctx)
+    df = await statcast_batter(start_date="2025-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -204,7 +198,7 @@ async def test_statcast_concat_path_with_schema_alignment(
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_dt="2026-06-01", end_dt="2026-06-08", verbose=False, context=ctx)
+    df = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 3

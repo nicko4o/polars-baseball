@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Breaking**: Remove deprecated `start_dt` and `end_dt` parameter aliases from `statcast()`, `statcast_batter()`, and `statcast_pitcher()`. Use `start_date` and `end_date` instead.
+- **Breaking**: Remove deprecated `return_all` parameter from `bwar_bat()` and `bwar_pitch()`. Use `all_columns` instead.
+- **Breaking**: Remove deprecated `type` parameter alias from `retrosheet.events()`. Use `game_type` instead.
+- **Breaking**: Remove deprecated `fuzzy` parameter from `playerid_lookup()` and `PlayerLookupService.search()`. Use `player_name_suggestions()` for fuzzy name matching.
+
 ## [0.11.0] - 2026-07-28
 
 ### Added

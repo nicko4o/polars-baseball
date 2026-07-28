@@ -66,7 +66,7 @@ async def test_bref_bwar_bat_api(
     )
     ctx = BaseballContext(http=mock_http)
 
-    df = await bwar_bat(return_all=False, context=ctx)
+    df = await bwar_bat(all_columns=False, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 1
@@ -95,24 +95,6 @@ async def test_bwar_bat_all_columns(
     df = await bwar_bat(all_columns=True, context=ctx)
     assert "name_common" in df.columns
     assert "WAR" in df.columns
-
-
-@pytest.mark.asyncio
-@patch.object(GlobalCache, "set")
-@patch.object(GlobalCache, "get", return_value=None)
-async def test_bwar_bat_deprecated_return_all(
-    mock_cache_get: MagicMock,
-    mock_cache_set: MagicMock,
-) -> None:
-    mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text = AsyncMock(
-        return_value="name_common,mlb_ID,player_ID,year_ID,team_ID,WAR\nMike Trout,545361,troutmi01,2026,LAA,8.5\n"
-    )
-    ctx = BaseballContext(http=mock_http)
-
-    with pytest.warns(DeprecationWarning, match="return_all"):
-        df = await bwar_bat(return_all=True, context=ctx)
-    assert "name_common" in df.columns
 
 
 @pytest.mark.asyncio

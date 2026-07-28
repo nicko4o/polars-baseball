@@ -1,6 +1,5 @@
 import asyncio
 import unicodedata
-import warnings
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
 
@@ -98,16 +97,9 @@ class PlayerLookupService:
         self,
         last: str,
         first: str | None = None,
-        fuzzy: bool = False,
         ignore_accents: bool = False,
         context: BaseballContext | None = None,
     ) -> pl.DataFrame:
-        if fuzzy:
-            warnings.warn(
-                "fuzzy=True no longer returns suggestions from search(); call player_name_suggestions() instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         last_clean = last.lower()
         first_clean = first.lower() if first else None
         table = await self._ensure_table(context)

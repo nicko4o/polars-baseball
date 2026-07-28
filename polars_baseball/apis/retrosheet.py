@@ -1,5 +1,4 @@
 import asyncio
-import warnings
 
 import polars as pl
 
@@ -49,7 +48,6 @@ async def events(
     context: BaseballContext | None = None,
     *,
     concurrency_limit: int = 5,
-    type: str | None = None,
 ) -> pl.DataFrame:
     """Fetch Retrosheet event files for a given season.
 
@@ -58,13 +56,6 @@ async def events(
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
     """
-    if type is not None:
-        warnings.warn(
-            "The 'type' parameter is deprecated; use 'game_type' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        game_type = type
     ctx = context or BaseballContext.default()
     files = await _get_season_contents(season, ctx)
     file_extension: tuple[str, ...]
