@@ -29,19 +29,19 @@ from pathlib import Path
 import polars as pl
 
 from polars_baseball import (
-    bwar_bat,
+    bref,
     cleanup,
     configure_cache,
     fg_data,
+    lahman,
     mlb,
     prospect_rankings,
+    retrosheet,
     savant,
     standings,
 )
 from polars_baseball.apis.fangraphs import FanGraphsRequest
-from polars_baseball.apis.lahman import people as lahman_people
 from polars_baseball.apis.playerid import chadwick_register, playerid_lookup
-from polars_baseball.apis.retrosheet import schedules as retrosheet_schedules
 from polars_baseball.context import BaseballContext
 
 GAME_PK = 823359
@@ -142,7 +142,7 @@ def _build_tests() -> list[TestCase]:
 
     if os.environ.get("SKIP_BREF") != "1":
         tests += [
-            TestCase("bref_bwar_bat", "BRef", lambda: bwar_bat(return_all=False)),
+            TestCase("bref_bwar_bat", "BRef", lambda: bref.bwar_bat(all_columns=False)),
         ]
 
     if os.environ.get("SKIP_FG") != "1":
@@ -190,14 +190,14 @@ def _build_tests() -> list[TestCase]:
 
     if os.environ.get("SKIP_COMPILED") != "1":
         tests += [
-            TestCase("lahman_people", "Compiled", lambda: lahman_people()),
+            TestCase("lahman_people", "Compiled", lambda: lahman.people()),
             TestCase("chadwick_register", "Compiled", lambda: chadwick_register()),
             TestCase("playerid_lookup", "Compiled", lambda: playerid_lookup("Trout", "Mike")),
         ]
 
     if os.environ.get("SKIP_RETROSHEET") != "1":
         tests += [
-            TestCase("retrosheet_schedules", "Retrosheet", lambda: retrosheet_schedules(2023)),
+            TestCase("retrosheet_schedules", "Retrosheet", lambda: retrosheet.schedules(2023)),
         ]
 
     return tests
