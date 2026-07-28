@@ -64,19 +64,19 @@ Retrieves Baseball Reference daily pitching WAR data from the `war_daily_pitch` 
 
 ```python
 import asyncio
-from polars_baseball import bwar_bat, bwar_pitch
+import polars_baseball as pb
 
 async def main() -> None:
     # Fetch standard daily batting WAR (may raise HTTP 403 in live environments)
     try:
-        batting_war = await bwar_bat(return_all=False)
+        batting_war = await pb.bref.bwar_bat(all_columns=False)
         print("Batting WAR:", batting_war.head())
     except Exception as e:
         print("Could not retrieve Batting WAR:", e)
 
     # Fetch standard daily pitching WAR
     try:
-        pitching_war = await bwar_pitch(return_all=False)
+        pitching_war = await pb.bref.bwar_pitch(all_columns=False)
         print("Pitching WAR:", pitching_war.head())
     except Exception as e:
         print("Could not retrieve Pitching WAR:", e)

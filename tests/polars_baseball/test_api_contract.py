@@ -17,6 +17,7 @@ ROOT_PUBLIC_API = {
     "awards_share_players",
     "batting",
     "batting_post",
+    "bref",
     "bwar_bat",
     "bwar_pitch",
     "chadwick_register",
@@ -34,6 +35,7 @@ ROOT_PUBLIC_API = {
     "get_lookup_table",
     "hall_of_fame",
     "home_games",
+    "lahman",
     "lcs_logs",
     "managers",
     "managers_half",
@@ -48,6 +50,7 @@ ROOT_PUBLIC_API = {
     "player_search_list",
     "playerid_reverse_lookup",
     "prospect_rankings",
+    "retrosheet",
     "rosters",
     "salaries",
     "savant",
@@ -119,6 +122,9 @@ def test_provider_namespace_functions_are_async() -> None:
     assert inspect.iscoroutinefunction(pb.savant.statcast)
     assert inspect.iscoroutinefunction(pb.savant.gamefeed_pitch_data)
     assert inspect.iscoroutinefunction(pb.savant.arm_strength)
+    assert inspect.iscoroutinefunction(pb.lahman.batting)
+    assert inspect.iscoroutinefunction(pb.retrosheet.events)
+    assert inspect.iscoroutinefunction(pb.bref.bwar_bat)
 
 
 def test_root_public_api_has_docstrings() -> None:
