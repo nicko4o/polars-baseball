@@ -5,6 +5,8 @@ import polars_baseball as pb
 ROOT_PUBLIC_API = {
     "ArsenalType",
     "BaseballContext",
+    "FanGraphsFilter",
+    "FanGraphsFilterOp",
     "FanGraphsRequest",
     "KeyType",
     "bref",
