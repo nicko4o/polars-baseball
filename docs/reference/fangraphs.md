@@ -56,7 +56,49 @@ Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGrap
 | `on_active_roster` | `bool` | `False` | Only return active-roster players when `True`. |
 | `minimum_age` / `maximum_age` | `int` | `0` / `100` | Player age filters. |
 | `team` | `str` | `""` | Team abbreviation or ID. Use `"0,ts"` for team rows. |
+| `filters` | `list[FanGraphsFilter] \| None` | `None` | Stat-level filters (e.g. `[FanGraphsFilter("HR", "gt", 40)]`). |
+| `players` | `str` | `""` | Filter by specific player ID list string. |
 | `max_results` | `int` | `1_000_000` | Maximum rows to retrieve. |
+
+---
+
+## Leaderboard Filtering (`filters`)
+
+FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of tuples or `FanGraphsFilter` objects via the `filters` argument in either `pb.fangraphs.*` helpers or `FanGraphsRequest`.
+
+### Supported Syntax Options
+
+- **Tuple Shorthand (Zero-import, Recommended)**: `[("HR", ">", 40), ("AVG", ">=", 0.300)]`
+- **Mathematical Operators**: `[pb.FanGraphsFilter("HR", ">", 40)]`
+- **Factory Methods**: `[pb.FanGraphsFilter.gt("HR", 40)]`
+- **Enum Values**: `[pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]`
+
+```python
+import polars_baseball as pb
+
+# 1. Tuple Shorthand (Recommended)
+filters_tuple = [("HR", ">", 40), ("AVG", ">=", 0.300)]
+
+# 2. Mathematical Operators
+filters_math = [pb.FanGraphsFilter("HR", ">", 40)]
+
+# 3. Factory Methods
+filters_factory = [pb.FanGraphsFilter.gt("HR", 40), pb.FanGraphsFilter.gte("AVG", 0.300)]
+
+# 4. Typed Enum
+filters_enum = [pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]
+```
+
+### Operator Mappings
+
+| Math Symbol / Code | Internal Value | Meaning |
+| --- | --- | --- |
+| `">"`, `"gt"` | `gt` | Greater than (`>`) |
+| `">="`, `"gte"` | `gte` | Greater than or equal to (`>=`) |
+| `"<"`, `"lt"` | `lt` | Less than (`<`) |
+| `"<="`, `"lte"` | `lte` | Less than or equal to (`<=`) |
+| `"=="`, `"="`, `"eq"` | `eq` | Equals (`=`) |
+| `"!="`, `"ne"` | `ne` | Not equals (`!=`) |
 
 ---
 
@@ -114,6 +156,13 @@ async def main() -> None:
     team_relievers = await pb.fangraphs.team_relievers(start_season=2024, team="LAD")
     team_batting_1b = await pb.fangraphs.team_batting(start_season=2024, position="1B")
     print("Namespace Batting:", batting.head(2))
+
+    # 2. Using quick namespace helpers with tuple filters
+    filtered_batting = await pb.fangraphs.batting(
+        start_season=2024,
+        filters=[("HR", ">", 40), ("AVG", ">=", 0.300)],
+    )
+    print("Filtered Batting (HR > 40, AVG >= .300):", filtered_batting.head(2))
 
     # 2. Using advanced fg_data with FanGraphsRequest
     req_batting = pb.FanGraphsRequest.batting(start_season=2026)
