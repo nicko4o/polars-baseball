@@ -1,4 +1,3 @@
-import warnings
 from typing import Literal
 
 import polars as pl
@@ -76,8 +75,6 @@ async def _bwar_generic(
 async def bwar_bat(
     all_columns: bool = False,
     context: BaseballContext | None = None,
-    *,
-    return_all: bool | None = None,
 ) -> pl.DataFrame:
     """Fetch batting WAR from BRef.
 
@@ -85,21 +82,12 @@ async def bwar_bat(
         When all_columns is False (default), returns only the columns defined
         in BWAR_BAT_REQUIRED. Pass all_columns=True for all available columns.
     """
-    if return_all is not None:
-        warnings.warn(
-            "The 'return_all' parameter is deprecated; use 'all_columns' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        all_columns = return_all
     return await _bwar_generic("bat", BWAR_BAT_REQUIRED, BWAR_BAT_TYPES, all_columns, context=context)
 
 
 async def bwar_pitch(
     all_columns: bool = False,
     context: BaseballContext | None = None,
-    *,
-    return_all: bool | None = None,
 ) -> pl.DataFrame:
     """Fetch pitching WAR from BRef.
 
@@ -107,11 +95,4 @@ async def bwar_pitch(
         When all_columns is False (default), returns only the columns defined
         in BWAR_PITCH_REQUIRED. Pass all_columns=True for all available columns.
     """
-    if return_all is not None:
-        warnings.warn(
-            "The 'return_all' parameter is deprecated; use 'all_columns' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        all_columns = return_all
     return await _bwar_generic("pitch", BWAR_PITCH_REQUIRED, BWAR_PITCH_TYPES, all_columns, context=context)

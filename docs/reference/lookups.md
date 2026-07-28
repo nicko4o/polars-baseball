@@ -13,7 +13,7 @@ Finds player records and maps IDs across MLBAM, Retrosheet, FanGraphs, Baseball 
 
 ### Functions
 
-- `playerid_lookup(last: str, first: str | None = None, fuzzy: bool = False, ignore_accents: bool = False) -> pl.DataFrame`
+- `playerid_lookup(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame`
 - `player_name_suggestions(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame`
 - `player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame`
 - `get_lookup_table(save: bool = True) -> pl.DataFrame`

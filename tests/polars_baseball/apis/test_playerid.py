@@ -136,16 +136,6 @@ async def test_playerid_lookup_exact(mock_get_table: MagicMock, mock_player_tabl
 
 @pytest.mark.asyncio
 @patch("polars_baseball.apis.playerid.get_lookup_table")
-async def test_playerid_lookup_fuzzy(mock_get_table: MagicMock, mock_player_table: pl.DataFrame) -> None:
-    mock_get_table.return_value = mock_player_table
-
-    with pytest.warns(DeprecationWarning, match="fuzzy=True no longer returns suggestions"):
-        df = await playerid_lookup(last="Trut", first="Mike", fuzzy=True)
-    assert df.is_empty()
-
-
-@pytest.mark.asyncio
-@patch("polars_baseball.apis.playerid.get_lookup_table")
 async def test_player_name_suggestions_returns_fuzzy_matches(
     mock_get_table: MagicMock, mock_player_table: pl.DataFrame
 ) -> None:

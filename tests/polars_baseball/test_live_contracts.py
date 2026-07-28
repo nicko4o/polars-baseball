@@ -80,8 +80,8 @@ def test_live_statcast_benchmark_range_does_not_schema_error() -> None:
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
             return await statcast(
-                start_dt="2024-04-01",
-                end_dt="2024-04-02",
+                start_date="2024-04-01",
+                end_date="2024-04-02",
                 verbose=False,
                 context=ctx,
             )

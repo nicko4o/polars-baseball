@@ -75,17 +75,6 @@ def _check_warning(start_dt: date, end_dt: date) -> None:
         warnings.warn(_OVERSIZE_WARNING, stacklevel=2)
 
 
-def _resolve_date_alias(
-    legacy_value: str | None,
-    alias_value: str | None,
-    legacy_name: str,
-    alias_name: str,
-) -> str | None:
-    if legacy_value is not None and alias_value is not None and legacy_value != alias_value:
-        raise InvalidParameterError(f"{legacy_name} and {alias_name} must not conflict.")
-    return alias_value if alias_value is not None else legacy_value
-
-
 async def _small_request(
     start_dt: date,
     end_dt: date,
@@ -168,15 +157,13 @@ async def _run_statcast_sequential(
 
 
 async def statcast(
-    start_dt: str | None = None,
-    end_dt: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     team: str | None = None,
     verbose: bool = True,
     parallel: bool = True,
     context: BaseballContext | None = None,
     *,
-    start_date: str | None = None,
-    end_date: str | None = None,
     concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
 ) -> pl.DataFrame:
     """Fetch Statcast pitch-level data for a date range.
@@ -190,21 +177,7 @@ async def statcast(
         - Emits a warning when the date range exceeds ~90 days (oversized threshold).
         - Requests spanning multiple calendar years are split at year boundaries.
     """
-    if start_dt is not None:
-        warnings.warn(
-            "The 'start_dt' parameter is deprecated; use 'start_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    if end_dt is not None:
-        warnings.warn(
-            "The 'end_dt' parameter is deprecated; use 'end_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
-    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
-    start_dt_date, end_dt_date = sanitize_date_range(resolved_start, resolved_end)
+    start_dt_date, end_dt_date = sanitize_date_range(start_date, end_date)
     _check_warning(start_dt_date, end_dt_date)
 
     if verbose:
@@ -346,62 +319,28 @@ async def _statcast_player(
 
 
 async def statcast_batter(
-    start_dt: str | None = None,
-    end_dt: str | None = None,
-    player_id: int | None = None,
-    context: BaseballContext | None = None,
-    *,
     start_date: str | None = None,
     end_date: str | None = None,
+    player_id: int | None = None,
+    context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast data for a specific batter.
 
     Delegates to ``_statcast_player`` with ``player_type="batter"``.
     Requires a valid ``player_id`` (key_mlbam) or raises ``InvalidParameterError``.
     """
-    if start_dt is not None:
-        warnings.warn(
-            "The 'start_dt' parameter is deprecated; use 'start_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    if end_dt is not None:
-        warnings.warn(
-            "The 'end_dt' parameter is deprecated; use 'end_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
-    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
-    return await _statcast_player("batter", resolved_start, resolved_end, player_id, context=context)
+    return await _statcast_player("batter", start_date, end_date, player_id, context=context)
 
 
 async def statcast_pitcher(
-    start_dt: str | None = None,
-    end_dt: str | None = None,
-    player_id: int | None = None,
-    context: BaseballContext | None = None,
-    *,
     start_date: str | None = None,
     end_date: str | None = None,
+    player_id: int | None = None,
+    context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast data for a specific pitcher.
 
     Delegates to ``_statcast_player`` with ``player_type="pitcher"``.
     Requires a valid ``player_id`` (key_mlbam) or raises ``InvalidParameterError``.
     """
-    if start_dt is not None:
-        warnings.warn(
-            "The 'start_dt' parameter is deprecated; use 'start_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    if end_dt is not None:
-        warnings.warn(
-            "The 'end_dt' parameter is deprecated; use 'end_date' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    resolved_start = _resolve_date_alias(start_dt, start_date, "start_dt", "start_date")
-    resolved_end = _resolve_date_alias(end_dt, end_date, "end_dt", "end_date")
-    return await _statcast_player("pitcher", resolved_start, resolved_end, player_id, context=context)
+    return await _statcast_player("pitcher", start_date, end_date, player_id, context=context)

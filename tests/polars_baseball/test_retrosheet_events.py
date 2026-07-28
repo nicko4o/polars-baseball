@@ -78,8 +78,5 @@ async def test_events_deprecated_type_keyword() -> None:
     mock_http.get_text.side_effect = [mock_contents, mock_data]
     ctx = BaseballContext(http=mock_http)
 
-    with pytest.warns(DeprecationWarning, match="type"):
-        result = await events(2026, type="regular", context=ctx)
-
-    assert isinstance(result, pl.DataFrame)
-    assert result.height == 1
+    with pytest.raises(TypeError):
+        await events(2026, type="regular", context=ctx)

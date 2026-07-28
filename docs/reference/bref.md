@@ -21,11 +21,11 @@ Retrieves Baseball Reference daily batting WAR data from the `war_daily_bat` dat
 
 ### Functions
 
-- `bwar_bat(return_all: bool = False) -> pl.DataFrame`
+- `bwar_bat(all_columns: bool = False) -> pl.DataFrame`
 
 ### Arguments
 
-- `return_all`: When `True`, returns all available columns from the `war_daily_bat` table. When `False`, returns the standard subset of columns commonly used in analytics workflows.
+- `all_columns`: When `True`, returns all available columns from the `war_daily_bat` table. When `False`, returns the standard subset of columns commonly used in analytics workflows.
 
 ---
 
@@ -35,11 +35,11 @@ Retrieves Baseball Reference daily pitching WAR data from the `war_daily_pitch` 
 
 ### Functions
 
-- `bwar_pitch(return_all: bool = False) -> pl.DataFrame`
+- `bwar_pitch(all_columns: bool = False) -> pl.DataFrame`
 
 ### Arguments
 
-- `return_all`: When `True`, returns all available columns from the `war_daily_pitch` table. When `False`, returns the standard subset of columns commonly used in analytics workflows.
+- `all_columns`: When `True`, returns all available columns from the `war_daily_pitch` table. When `False`, returns the standard subset of columns commonly used in analytics workflows.
 
 ---
 
