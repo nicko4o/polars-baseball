@@ -13,6 +13,7 @@ _PARAMETER_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*:")
 _LINK_RE = re.compile(r"!?\[.*?\]\((.*?)\)")
 _DOCUMENTED_ROOT_API_EXEMPTIONS = {
     "ArsenalType",
+    "FanGraphsFilter",
     "KeyType",
 }
 _DOCUMENTED_MODULES = (

@@ -56,7 +56,32 @@ Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGrap
 | `on_active_roster` | `bool` | `False` | Only return active-roster players when `True`. |
 | `minimum_age` / `maximum_age` | `int` | `0` / `100` | Player age filters. |
 | `team` | `str` | `""` | Team abbreviation or ID. Use `"0,ts"` for team rows. |
+| `filters` | `list[FanGraphsFilter] \| None` | `None` | Stat-level filters (e.g. `[FanGraphsFilter("HR", "gt", 40)]`). |
+| `players` | `str` | `""` | Filter by specific player ID list string. |
 | `max_results` | `int` | `1_000_000` | Maximum rows to retrieve. |
+
+---
+
+## Typed Filtering (`FanGraphsFilter`)
+
+FanGraphs leaderboards support custom stat-level expressions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of `FanGraphsFilter` objects via the `filters` argument in either `pb.fangraphs.*` helpers or `FanGraphsRequest`.
+
+### `FanGraphsFilter` Attributes
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `column` | `str` | Stat column name to filter on (e.g. `"HR"`, `"AVG"`, `"WAR"`). |
+| `operator` | `FanGraphsFilterOp \| str` | Filter operator: `"gt"`, `"lt"`, `"gte"`, `"lte"`, `"eq"`, `"ne"`. |
+| `value` | `int \| float \| str` | Target comparison value. |
+
+### `FanGraphsFilterOp` Enum Values
+
+- `FanGraphsFilterOp.GT` (`"gt"`) — Greater than (`>`)
+- `FanGraphsFilterOp.GTE` (`"gte"`) — Greater than or equal to (`>=`)
+- `FanGraphsFilterOp.LT` (`"lt"`) — Less than (`<`)
+- `FanGraphsFilterOp.LTE` (`"lte"`) — Less than or equal to (`<=`)
+- `FanGraphsFilterOp.EQ` (`"eq"`) — Equals (`=`)
+- `FanGraphsFilterOp.NE` (`"ne"`) — Not equals (`!=`)
 
 ---
 
@@ -114,6 +139,13 @@ async def main() -> None:
     team_relievers = await pb.fangraphs.team_relievers(start_season=2024, team="LAD")
     team_batting_1b = await pb.fangraphs.team_batting(start_season=2024, position="1B")
     print("Namespace Batting:", batting.head(2))
+
+    # 1. Using quick namespace helpers with filters
+    filtered_batting = await pb.fangraphs.batting(
+        start_season=2024,
+        filters=[pb.FanGraphsFilter(column="HR", operator="gt", value=40)],
+    )
+    print("Filtered Batting (HR > 40):", filtered_batting.head(2))
 
     # 2. Using advanced fg_data with FanGraphsRequest
     req_batting = pb.FanGraphsRequest.batting(start_season=2026)

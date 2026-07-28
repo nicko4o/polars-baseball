@@ -7,7 +7,13 @@ import pytest
 from polars_baseball import fangraphs as fg
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
+from polars_baseball.apis.fangraphs import (
+    FanGraphsFilter,
+    FanGraphsFilterOp,
+    FanGraphsRequest,
+    _serialize_filters,
+    fg_data,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
@@ -297,3 +303,138 @@ class TestFanGraphsRequest:
     def test_from_raw_unknown_kwargs_raises_type_error(self) -> None:
         with pytest.raises(TypeError):
             FanGraphsRequest.from_raw(start_season=2019, invalid_param="hello")  # type: ignore[call-arg]
+
+    def test_batting_with_filters(self) -> None:
+        request = FanGraphsRequest.batting(
+            start_season=2024,
+            filters=[FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)],
+        )
+        assert len(request.filters) == 1
+        assert request.filters[0].column == "HR"
+        assert request.filters[0].operator == FanGraphsFilterOp.GT
+        assert request.filters[0].value == 40
+
+    def test_from_raw_with_filters(self) -> None:
+        request = FanGraphsRequest.from_raw(
+            start_season=2024,
+            filters=[
+                FanGraphsFilter(column="AVG", operator="gt", value=0.300),
+                FanGraphsFilter(column="HR", operator="gte", value=20),
+            ],
+        )
+        assert len(request.filters) == 2
+
+    def test_filters_defaults_to_empty_list(self) -> None:
+        request = FanGraphsRequest.batting(start_season=2024)
+        assert request.filters == []
+
+
+class TestFanGraphsFilter:
+    def test_filter_op_enum_values(self) -> None:
+        assert FanGraphsFilterOp.GT.value == "gt"
+        assert FanGraphsFilterOp.LT.value == "lt"
+        assert FanGraphsFilterOp.GTE.value == "gte"
+        assert FanGraphsFilterOp.LTE.value == "lte"
+        assert FanGraphsFilterOp.EQ.value == "eq"
+        assert FanGraphsFilterOp.NE.value == "ne"
+
+    def test_filter_creation_with_enum_op(self) -> None:
+        f = FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)
+        assert f.column == "HR"
+        assert f.operator == FanGraphsFilterOp.GT
+        assert f.value == 40
+
+    def test_filter_creation_with_string_op(self) -> None:
+        f = FanGraphsFilter(column="AVG", operator="gt", value=0.300)
+        assert f.operator == "gt"
+
+    def test_filter_with_string_value(self) -> None:
+        f = FanGraphsFilter(column="Team", operator="eq", value="NYY")
+        assert f.value == "NYY"
+
+
+class TestSerializeFilters:
+    def test_single_filter(self) -> None:
+        filters = [FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]
+        result = _serialize_filters(filters)
+        assert result == "HR,gt,40"
+
+    def test_multiple_filters_joined_by_pipe(self) -> None:
+        filters = [
+            FanGraphsFilter(column="AVG", operator=FanGraphsFilterOp.GT, value=0.300),
+            FanGraphsFilter(column="HR", operator="gte", value=20),
+        ]
+        result = _serialize_filters(filters)
+        assert result == "AVG,gt,0.3|HR,gte,20"
+
+    def test_empty_filters(self) -> None:
+        result = _serialize_filters([])
+        assert result == ""
+
+    def test_string_op_serialization(self) -> None:
+        filters = [FanGraphsFilter(column="Team", operator="eq", value="NYY")]
+        result = _serialize_filters(filters)
+        assert result == "Team,eq,NYY"
+
+
+class TestFanGraphsUrlWithFilters:
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_filter_param_in_url(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+        ctx = BaseballContext(http=mock_http)
+
+        filters = [FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]
+        request = FanGraphsRequest.batting(start_season=2024, filters=filters)
+        await fg_data(request, context=ctx)
+
+        mock_http.get_text.assert_called_once()
+        _, kwargs = mock_http.get_text.call_args
+        assert kwargs["params"]["filter"] == "HR,gt,40"
+
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_no_filter_param_when_empty(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+        ctx = BaseballContext(http=mock_http)
+
+        request = FanGraphsRequest.batting(start_season=2024)
+        await fg_data(request, context=ctx)
+
+        mock_http.get_text.assert_called_once()
+        _, kwargs = mock_http.get_text.call_args
+        assert kwargs["params"]["filter"] == ""
+
+
+class TestConvenienceFunctionsWithFilters:
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_batting_wrapper_passes_filters(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+        ctx = BaseballContext(http=mock_http)
+
+        filters = [FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]
+        df = await fg.batting(start_season=2024, filters=filters, context=ctx)
+
+        assert df.height == 2
+        mock_http.get_text.assert_called_once()
+        _, kwargs = mock_http.get_text.call_args
+        assert kwargs["params"]["filter"] == "HR,gt,40"
