@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from polars_baseball import batting, people, pitching, standings, statcast
+from polars_baseball import lahman, standings, statcast
 
 from .models import BenchmarkDimensions
 
@@ -36,14 +36,14 @@ PROFILES: dict[str, BenchmarkProfile] = {
         ),
         fn=statcast,
         kwargs={
-            "start_dt": "2024-04-01",
-            "end_dt": "2024-04-01",
+            "start_date": "2024-04-01",
+            "end_date": "2024-04-01",
             "parallel": True,
             "concurrency_limit": 5,
         },
     ),
-    "statcast_1week": BenchmarkProfile(
-        name="statcast_1week",
+    "statcast_7day_cold": BenchmarkProfile(
+        name="statcast_7day_cold",
         dimensions=BenchmarkDimensions(
             api="statcast",
             start_date=DEFAULT_START,
@@ -53,30 +53,14 @@ PROFILES: dict[str, BenchmarkProfile] = {
         ),
         fn=statcast,
         kwargs={
-            "start_dt": DEFAULT_START,
-            "end_dt": DEFAULT_END,
+            "start_date": DEFAULT_START,
+            "end_date": DEFAULT_END,
             "parallel": True,
             "concurrency_limit": 5,
         },
     ),
-    "statcast_serial": BenchmarkProfile(
-        name="statcast_serial",
-        dimensions=BenchmarkDimensions(
-            api="statcast",
-            start_date=DEFAULT_START,
-            end_date=DEFAULT_END,
-            parallel=False,
-            cache_state="cold",
-        ),
-        fn=statcast,
-        kwargs={
-            "start_dt": DEFAULT_START,
-            "end_dt": DEFAULT_END,
-            "parallel": False,
-        },
-    ),
-    "statcast_warm": BenchmarkProfile(
-        name="statcast_warm",
+    "statcast_7day_warm": BenchmarkProfile(
+        name="statcast_7day_warm",
         dimensions=BenchmarkDimensions(
             api="statcast",
             start_date=DEFAULT_START,
@@ -86,8 +70,8 @@ PROFILES: dict[str, BenchmarkProfile] = {
         ),
         fn=statcast,
         kwargs={
-            "start_dt": DEFAULT_START,
-            "end_dt": DEFAULT_END,
+            "start_date": DEFAULT_START,
+            "end_date": DEFAULT_END,
             "parallel": True,
             "concurrency_limit": 5,
         },
@@ -100,7 +84,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=batting,
+        fn=lahman.batting,
         kwargs={},
     ),
     "lahman_pitching": BenchmarkProfile(
@@ -111,7 +95,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=pitching,
+        fn=lahman.pitching,
         kwargs={},
     ),
     "lahman_people": BenchmarkProfile(
@@ -122,7 +106,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=people,
+        fn=lahman.people,
         kwargs={},
     ),
     "standings_2024": BenchmarkProfile(
