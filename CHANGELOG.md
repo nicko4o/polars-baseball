@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-28
+
 ### Added
 - Add `polars_baseball.lahman`, `polars_baseball.retrosheet`, and `polars_baseball.bref` provider namespace modules to unify provider-based API routing across all data sources (`pb.savant`, `pb.mlb`, `pb.fangraphs`, `pb.lahman`, `pb.retrosheet`, `pb.bref`).
 
