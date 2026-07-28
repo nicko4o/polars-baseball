@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-28
+
 ### Removed
 - **Breaking**: Remove flat provider dataset exports (`batting`, `pitching`, `fielding`, `events`, `bwar_bat`, `bwar_pitch`, etc.) from root package namespace (`polars_baseball.__all__`). Use explicit provider namespaces instead (`pb.lahman.*`, `pb.retrosheet.*`, `pb.bref.*`).
 - **Breaking**: Remove deprecated `start_dt` and `end_dt` parameter aliases from `statcast()`, `statcast_batter()`, and `statcast_pitcher()`. Use `start_date` and `end_date` instead.
