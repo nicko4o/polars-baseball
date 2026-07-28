@@ -24,9 +24,9 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 | Query official metadata | `pb.mlb.teams`, `pb.mlb.venues`, `pb.mlb.divisions`, `pb.mlb.leagues` | Dimension rows | MLB Stats API | Joining team, venue, division, and league metadata |
 | Query transactions or draft records | `pb.mlb.transactions`, `pb.mlb.draft` | Transaction or pick rows | MLB Stats API | Roster movement and amateur draft analysis |
 | Query standings | `standings` | One row per team-division season | MLB Stats API | Division standings with team records and games back |
-| Query Lahman historical tables | `batting`, `pitching`, `people`, `teams_core`, and related helpers | Source table rows | Lahman | Historical offline analysis and stable table joins |
-| Query Retrosheet files | `events`, `schedules`, `rosters`, `park_codes`, and game-log helpers | Source file rows | Retrosheet | Historical play-by-play, rosters, schedules, and park metadata |
-| Query Baseball Reference WAR tables | `bwar_bat`, `bwar_pitch` | WAR table rows | Baseball Reference | bWAR leaderboards and historical WAR analysis |
+| Query Lahman historical tables | `pb.lahman.batting`, `pb.lahman.pitching`, `pb.lahman.people`, `pb.lahman.teams_core`, and related helpers | Source table rows | Lahman | Historical offline analysis and stable table joins |
+| Query Retrosheet files | `pb.retrosheet.events`, `pb.retrosheet.schedules`, `pb.retrosheet.rosters`, `pb.retrosheet.park_codes`, and game-log helpers | Source file rows | Retrosheet | Historical play-by-play, rosters, schedules, and park metadata |
+| Query Baseball Reference WAR tables | `pb.bref.bwar_bat`, `pb.bref.bwar_pitch` | WAR table rows | Baseball Reference | bWAR leaderboards and historical WAR analysis |
 | Resolve player IDs | `playerid_lookup`, `playerid_reverse_lookup`, `chadwick_register` | Lookup rows | Chadwick register | Joining MLBAM, FanGraphs, Retrosheet, and other player identifiers |
 | Query prospect rankings | `top_prospects`, `prospect_rankings` | Prospect rows | Baseball Savant | Prospect lists and rankings by year or player type |
 

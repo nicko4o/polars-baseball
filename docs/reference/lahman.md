@@ -49,13 +49,13 @@ Lahman functions return a `pl.DataFrame` preserving original Lahman relational c
 
 ```python
 import asyncio
-from polars_baseball import batting, download_lahman, people, teams_core
+import polars_baseball as pb
 
 async def main() -> None:
-    await download_lahman()  # validates and caches the upstream archive fallback
-    people_df = await people()
-    batting_df = await batting()
-    teams_df = await teams_core()
+    await pb.lahman.download_lahman()  # validates and caches the upstream archive fallback
+    people_df = await pb.lahman.people()
+    batting_df = await pb.lahman.batting()
+    teams_df = await pb.lahman.teams_core()
     print(people_df.head())
     print(batting_df.head())
     print(teams_df.head())
