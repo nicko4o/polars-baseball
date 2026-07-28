@@ -110,21 +110,19 @@ _module_client = PlayerLookupService(lambda ctx: get_lookup_table(context=ctx))
 async def playerid_lookup(
     last: str,
     first: str | None = None,
-    fuzzy: bool = False,
     ignore_accents: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Lookup a player by last (and optionally first) name.
 
-    Exact match is attempted first.  When ``fuzzy`` is true and exact match produces no
-    results, falls back to ``difflib``-based fuzzy matching.  When ``ignore_accents`` is
-    true, diacritical marks are normalized before comparison.
+    When ``ignore_accents`` is true, diacritical marks are normalized before comparison.
+    Use :func:`player_name_suggestions` for fuzzy name matching.
 
     Note:
         - Returns empty DataFrame when no player matches the criteria.
         - Case-insensitive; inputs are lowercased automatically.
     """
-    return await _module_client.search(last, first, fuzzy, ignore_accents, context=context)
+    return await _module_client.search(last, first, ignore_accents, context=context)
 
 
 async def player_name_suggestions(
