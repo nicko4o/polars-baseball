@@ -128,9 +128,51 @@ def _serialize_filters(filters: Sequence[FanGraphsFilterInput]) -> str:
     parts: list[str] = []
     for f_input in filters:
         f = FanGraphsFilter.coerce(f_input)
-        op = f.operator.value if isinstance(f.operator, FanGraphsFilterOp) else f.operator
-        parts.append(f"{f.column},{op},{f.value}")
+        parts.append(f"{f.column},{f.operator},{f.value}")
     return "|".join(parts)
+
+
+def _coerce_filter_value(val: int | float | str, dtype: pl.DataType) -> int | float | str:
+    if not (isinstance(val, str) and dtype.is_numeric()):
+        return val
+    try:
+        val_float = float(val)
+        return int(val_float) if val_float.is_integer() and dtype.is_integer() else val_float
+    except ValueError:
+        return val
+
+
+def _apply_filter_op(col_name: str, op: str, val: int | float | str) -> pl.Expr:
+    col_expr = pl.col(col_name)
+    match op:
+        case "gt":
+            return col_expr > val
+        case "gte":
+            return col_expr >= val
+        case "lt":
+            return col_expr < val
+        case "lte":
+            return col_expr <= val
+        case "eq":
+            return col_expr == val
+        case "ne":
+            return col_expr != val
+        case _:
+            raise InvalidParameterError(f"Unsupported filter operator '{op}'.")
+
+
+def _apply_filters(df: pl.DataFrame, filters: Sequence[FanGraphsFilter]) -> pl.DataFrame:
+    if df.is_empty() or not filters:
+        return df
+
+    exprs: list[pl.Expr] = []
+    for f in filters:
+        if f.column not in df.columns:
+            raise InvalidParameterError(f"Filter column '{f.column}' not found in data columns.")
+        val = _coerce_filter_value(f.value, df[f.column].dtype)
+        exprs.append(_apply_filter_op(f.column, f.operator, val))
+
+    return df.filter(*exprs)
 
 
 @dataclass(frozen=True)
@@ -600,4 +642,5 @@ async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = N
         - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """
     ctx = context or BaseballContext.default()
-    return await FanGraphsGateway(ctx).get_leaderboard(FG_LEADERS_URL, _build_fg_url_options(request))
+    df = await FanGraphsGateway(ctx).get_leaderboard(FG_LEADERS_URL, _build_fg_url_options(request))
+    return _apply_filters(df, request.filters)

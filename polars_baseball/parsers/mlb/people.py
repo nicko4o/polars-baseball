@@ -80,7 +80,7 @@ def parse_mlb_people(data: dict[str, Any]) -> pl.DataFrame:
     if not people:
         return pl.DataFrame()
     rows = [parse_person(person) for person in people]
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_REQUIRED, MLB_PEOPLE_TYPES)
+    return validate_and_cast_schema(pl.DataFrame(rows, infer_schema_length=None), MLB_PEOPLE_REQUIRED, MLB_PEOPLE_TYPES)
 
 
 def parse_mlb_people_awards(data: dict[str, Any], person_id: int) -> pl.DataFrame:
@@ -98,4 +98,6 @@ def parse_mlb_people_awards(data: dict[str, Any], person_id: int) -> pl.DataFram
     rows = [parse_people_award(award, person_id) for award in awards if isinstance(award, dict)]
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PEOPLE_AWARDS_REQUIRED, MLB_PEOPLE_AWARDS_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_PEOPLE_AWARDS_REQUIRED, MLB_PEOPLE_AWARDS_TYPES
+    )
