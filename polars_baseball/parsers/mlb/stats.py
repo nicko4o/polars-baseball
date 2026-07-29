@@ -134,7 +134,9 @@ def parse_mlb_player_stats(data: dict[str, Any], person_id: int, group: str, sta
     rows = parse_player_stats(data, person_id, group, stats_type)
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PLAYER_STATS_REQUIRED, MLB_PLAYER_STATS_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_PLAYER_STATS_REQUIRED, MLB_PLAYER_STATS_TYPES
+    )
 
 
 def parse_mlb_team_stats(data: dict[str, Any], team_id: int, group: str) -> pl.DataFrame:
@@ -147,7 +149,9 @@ def parse_mlb_team_stats(data: dict[str, Any], team_id: int, group: str) -> pl.D
     rows = parse_team_stats(data, team_id, group)
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TEAM_STATS_REQUIRED, MLB_TEAM_STATS_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_TEAM_STATS_REQUIRED, MLB_TEAM_STATS_TYPES
+    )
 
 
 def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | None) -> pl.DataFrame:
@@ -167,7 +171,9 @@ def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | 
             rows.append(parse_leader(entry, category, season, stat_group))
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES
+    )
 
 
 def parse_mlb_pitch_arsenal(data: dict[str, Any], person_id: int, season: int) -> pl.DataFrame:
@@ -190,4 +196,6 @@ def parse_mlb_pitch_arsenal(data: dict[str, Any], person_id: int, season: int) -
             rows.append(parse_pitch_arsenal(split, person_id, season))
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES
+    )

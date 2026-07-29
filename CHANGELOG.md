@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix client-side filtering behavior for `pb.fangraphs.*` endpoints so passed `filters` (e.g., `filters=[("HR", ">", 30)]`) correctly filter rows on the returned DataFrame.
+- Fix Polars schema inference errors across MLB Stats API endpoints by passing `infer_schema_length=None` for sparse optional response fields.
+
+
+
 ## [0.13.0] - 2026-07-28
 
 ### Added
