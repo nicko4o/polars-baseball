@@ -44,6 +44,7 @@ def _make_mock_fg_html() -> str:
                                             "playerid": 19755,
                                             "Season": 2019,
                                             "G": 134,
+                                            "HR": 45,
                                             "WAR": 8.5,
                                             "OPS": 1.083,
                                         },
@@ -53,6 +54,7 @@ def _make_mock_fg_html() -> str:
                                             "playerid": 15640,
                                             "Season": 2019,
                                             "G": 102,
+                                            "HR": 27,
                                             "WAR": 5.2,
                                             "OPS": 0.921,
                                         },
@@ -467,7 +469,45 @@ class TestConvenienceFunctionsWithFilters:
         filters = [FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]
         df = await fg.batting(start_season=2024, filters=filters, context=ctx)
 
-        assert df.height == 2
+        assert df.height == 1
+        assert df["Name"][0] == "Mike Trout"
         mock_http.get_text.assert_called_once()
         _, kwargs = mock_http.get_text.call_args
         assert kwargs["params"]["filter"] == "HR,gt,40"
+
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_batting_filters_nonexistent_column_raises_error(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+        ctx = BaseballContext(http=mock_http)
+
+        filters = [FanGraphsFilter(column="INVALID_COL", operator=FanGraphsFilterOp.GT, value=40)]
+        with pytest.raises(InvalidParameterError, match="Filter column 'INVALID_COL' not found"):
+            await fg.batting(start_season=2024, filters=filters, context=ctx)
+
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_batting_filters_multiple_criteria(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
+        ctx = BaseballContext(http=mock_http)
+
+        filters = [
+            FanGraphsFilter(column="HR", operator=">", value=20),
+            FanGraphsFilter(column="Team", operator="==", value="NYY"),
+        ]
+        df = await fg.batting(start_season=2024, filters=filters, context=ctx)
+
+        assert df.height == 1
+        assert df["Name"][0] == "Aaron Judge"

@@ -156,4 +156,6 @@ def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
             rows.append(parse_game(game))
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
+    )
