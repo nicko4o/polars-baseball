@@ -51,7 +51,7 @@ vulture:
 	uv run vulture polars_baseball tests --config pyproject.toml
 
 test:
-	uv run pytest $(TEST_RUN_AGAINST) $(TEST_FLAGS) --doctest-modules --cov=polars_baseball --cov-report term-missing
+	uv run pytest $(TEST_RUN_AGAINST) $(TEST_FLAGS) --doctest-modules --cov=polars_baseball --cov-report term-missing --cov-fail-under=80
 
 validate-cache: install
 	uv run python ./scripts/validate_cache.py
