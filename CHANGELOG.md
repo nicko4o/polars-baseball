@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-08-03
+
 ### Removed
 - **Breaking**: Remove the deprecated batter-specific Savant leaderboard functions (`pb.savant.batter_exitvelo_barrels`, `pb.savant.batter_expected_stats`, `pb.savant.batter_pitch_arsenal`, `pb.savant.batter_bat_tracking`, `pb.savant.batter_run_value`). Use the unified `player_type` APIs (`pb.savant.exitvelo_barrels`, etc.) instead.
 - **Breaking**: Remove the deprecated camelCase minimum-threshold parameters on Savant leaderboard functions (`minBBE`, `minPA`, `minSwings`, `minP`, `min_count`). Use the snake_case forms instead.
