@@ -60,14 +60,7 @@ Retrieve aggregate batter performance statistics.
 
 ### Functions
 
-- `savant.batter_exitvelo_barrels(year: int, min_bbe: int | str = "q") -> pl.DataFrame`
-- `savant.batter_expected_stats(year: int, min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.batter_percentile_ranks(year: int) -> pl.DataFrame`
-- `savant.batter_pitch_arsenal(year: int, min_pitches: int = 25) -> pl.DataFrame`
-- `savant.batter_run_value(year: int) -> pl.DataFrame`
-- `savant.batter_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
-
-Note: The legacy `savant.batter_*` functions above are deprecated and scheduled for removal in `v0.16.0`. Use the unified functions (`savant.exitvelo_barrels`, `savant.expected_stats`, etc.) with `player_type="batter"` instead.
 - `savant.exitvelo_barrels(year: int, player_type: str = "batter", min_bbe: int | str = "q") -> pl.DataFrame`
 - `savant.expected_stats(year: int, player_type: str = "batter", min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.run_value(year: int, player_type: str = "batter") -> pl.DataFrame`
@@ -78,8 +71,6 @@ Note: The legacy `savant.batter_*` functions above are deprecated and scheduled 
 - `year`: Leaderboard season.
 - `min_pa`, `min_bbe`, `min_swings`: Minimum playing-time/event thresholds. Accept `"q"` for qualifying hitters.
 - `player_type`: `"batter"` or `"pitcher"`.
-
-Note: The camelCase forms (`minPA`, `minBBE`, `minSwings`) remain accepted but are deprecated and scheduled for removal in `v0.16.0`.
 
 ---
 
@@ -109,8 +100,6 @@ Retrieve aggregate pitcher performance statistics.
 - `pitch_type`: Pitch code (e.g. `"FF"` for four-seam fastball, `"SL"` for slider).
 - `pitch_a` / `pitch_b`: Pitch types to compare.
 - `pitcher_pov`: Point-of-view perspective. `True` for pitcher view, `False` for batter view.
-
-Note: The camelCase forms (`minP`, `minPA`, `min_count`) remain accepted but are deprecated and scheduled for removal in `v0.16.0`.
 
 ---
 
@@ -223,7 +212,7 @@ async def main() -> None:
     print("Single Game:", game_df.head(2))
 
     # 2. Leaderboards
-    expected = await pb.savant.batter_expected_stats(2026, min_pa=100)
+    expected = await pb.savant.expected_stats(2026, player_type="batter", min_pa=100)
     arsenal = await pb.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
     print("Expected Stats:", expected.head(2))
     print("Pitcher Arsenal:", arsenal.head(2))

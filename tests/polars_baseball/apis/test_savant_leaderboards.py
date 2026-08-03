@@ -12,14 +12,8 @@ from polars_baseball.apis.savant_fielding_running import (
     statcast_catcher_throwing,
 )
 from polars_baseball.apis.savant_leaderboards import (
-    _REMOVAL_VERSION,
     statcast_bat_tracking,
-    statcast_batter_bat_tracking,
-    statcast_batter_exitvelo_barrels,
-    statcast_batter_expected_stats,
     statcast_batter_percentile_ranks,
-    statcast_batter_pitch_arsenal,
-    statcast_batter_run_value,
     statcast_exitvelo_barrels,
     statcast_expected_stats,
     statcast_pitch_arsenal_stats,
@@ -75,25 +69,26 @@ async def test_savant_leaderboard_empty_response_fails_fast() -> None:
 
 
 @pytest.mark.asyncio
-async def test_legacy_batter_wrappers_emit_deprecation_warning() -> None:
-    mock_cache = MagicMock()
-    mock_cache.get.return_value = None
-    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
-    mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+async def test_legacy_batter_wrappers_removed() -> None:
+    """The legacy batter wrappers were removed in v0.16.0."""
+    from polars_baseball.apis import savant_leaderboards as module
 
-    legacy_wrappers = [
-        (statcast_batter_exitvelo_barrels, "statcast_exitvelo_barrels"),
-        (statcast_batter_expected_stats, "statcast_expected_stats"),
-        (statcast_batter_pitch_arsenal, "statcast_pitch_arsenal_stats"),
-        (statcast_batter_bat_tracking, "statcast_bat_tracking"),
-        (statcast_batter_run_value, "statcast_run_value"),
-    ]
-    for func, replacement in legacy_wrappers:
-        with pytest.warns(DeprecationWarning, match=replacement) as record:
-            await func(2026, context=ctx)
-        assert f"v{_REMOVAL_VERSION}" in str(record[0].message)
+    removed = (
+        "statcast_batter_exitvelo_barrels",
+        "statcast_batter_expected_stats",
+        "statcast_batter_pitch_arsenal",
+        "statcast_batter_bat_tracking",
+        "statcast_batter_run_value",
+    )
+    for name in removed:
+        assert not hasattr(module, name), f"{name} should have been removed"
+
+
+@pytest.mark.asyncio
+async def test_camel_case_min_param_removed() -> None:
+    """The camelCase alias parameters were removed in v0.16.0."""
+    with pytest.raises(TypeError):
+        await statcast_exitvelo_barrels(2026, player_type="batter", minBBE=100)
 
 
 @pytest.mark.asyncio
@@ -115,27 +110,6 @@ async def test_snake_case_min_params() -> None:
     assert df2.height == 2
     assert df3.height == 2
     assert df4.height == 2
-
-
-@pytest.mark.asyncio
-async def test_camel_case_min_params_deprecated() -> None:
-    mock_cache = MagicMock()
-    mock_cache.get.return_value = None
-    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
-    mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
-
-    legacy_params = [
-        (lambda: statcast_exitvelo_barrels(2026, player_type="batter", minBBE=100, context=ctx), "min_bbe"),
-        (lambda: statcast_expected_stats(2026, player_type="batter", minPA=100, context=ctx), "min_pa"),
-        (lambda: statcast_pitch_arsenal_stats(2026, player_type="batter", min_count=50, context=ctx), "min_pitches"),
-        (lambda: statcast_bat_tracking(2026, player_type="batter", minSwings=100, context=ctx), "min_swings"),
-    ]
-    for call, replacement in legacy_params:
-        with pytest.warns(DeprecationWarning, match=replacement) as record:
-            await call()
-        assert f"v{_REMOVAL_VERSION}" in str(record[0].message)
 
 
 @pytest.mark.asyncio
