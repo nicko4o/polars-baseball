@@ -128,7 +128,16 @@ async def statcast_batter_exitvelo_barrels(
     minBBE: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch exit velocity and barrel rate leaderboard for batters."""
+    """Fetch exit velocity and barrel rate leaderboard for batters.
+
+    Deprecated; use :func:`statcast_exitvelo_barrels` with ``player_type="batter"``.
+    """
+    warnings.warn(
+        "statcast_batter_exitvelo_barrels is deprecated; use "
+        "statcast_exitvelo_barrels(year, player_type='batter', ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await statcast_exitvelo_barrels(year, "batter", minBBE, context=context)
 
 
@@ -137,7 +146,16 @@ async def statcast_batter_expected_stats(
     minPA: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch Statcast expected statistics (xBA, xSLG, xwOBA) for batters."""
+    """Fetch Statcast expected statistics (xBA, xSLG, xwOBA) for batters.
+
+    Deprecated; use :func:`statcast_expected_stats` with ``player_type="batter"``.
+    """
+    warnings.warn(
+        "statcast_batter_expected_stats is deprecated; use "
+        "statcast_expected_stats(year, player_type='batter', ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await statcast_expected_stats(year, "batter", minPA, context=context)
 
 
@@ -157,7 +175,16 @@ async def statcast_batter_pitch_arsenal(
     minPA: int = 25,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch pitch arsenal stats for batters."""
+    """Fetch pitch arsenal stats for batters.
+
+    Deprecated; use :func:`statcast_pitch_arsenal_stats` with ``player_type="batter"``.
+    """
+    warnings.warn(
+        "statcast_batter_pitch_arsenal is deprecated; use "
+        "statcast_pitch_arsenal_stats(year, player_type='batter', ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await statcast_pitch_arsenal_stats(year, "batter", minPA, context=context)
 
 
@@ -166,7 +193,16 @@ async def statcast_batter_bat_tracking(
     minSwings: int | str = SAVANT_MIN_QUALIFYING,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch bat tracking (swing path, attack angle) data for batters."""
+    """Fetch bat tracking (swing path, attack angle) data for batters.
+
+    Deprecated; use :func:`statcast_bat_tracking` with ``player_type="batter"``.
+    """
+    warnings.warn(
+        "statcast_batter_bat_tracking is deprecated; use "
+        "statcast_bat_tracking(year, player_type='batter', ...) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await statcast_bat_tracking(year, "batter", minSwings, context=context)
 
 
@@ -174,7 +210,15 @@ async def statcast_batter_run_value(
     year: int,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch run value leaderboard for batters."""
+    """Fetch run value leaderboard for batters.
+
+    Deprecated; use :func:`statcast_run_value` with ``player_type="batter"``.
+    """
+    warnings.warn(
+        "statcast_batter_run_value is deprecated; use statcast_run_value(year, player_type='batter') instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return await statcast_run_value(year, "batter", context=context)
 
 

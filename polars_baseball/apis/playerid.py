@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Final
 
 import polars as pl
@@ -121,8 +122,18 @@ async def playerid_lookup(
     Note:
         - Returns empty DataFrame when no player matches the criteria.
         - Case-insensitive; inputs are lowercased automatically.
+        - Emits a ``UserWarning`` pointing to :func:`player_name_suggestions`
+          when no player matches.
     """
-    return await _module_client.search(last, first, ignore_accents, context=context)
+    df = await _module_client.search(last, first, ignore_accents, context=context)
+    if df.is_empty():
+        warnings.warn(
+            "No player found for the given name. Check the spelling or use "
+            "polars_baseball.player_name_suggestions(last, first) for fuzzy matches.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return df
 
 
 async def player_name_suggestions(

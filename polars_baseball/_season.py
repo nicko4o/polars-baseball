@@ -5,12 +5,10 @@ from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from importlib.resources import files as resources_files
 
-from polars_baseball._config import SEASON_MID_MARCH_DAY, STATCAST_FIRST_YEAR
+from polars_baseball._config import DATE_FORMAT, SEASON_MID_MARCH_DAY, STATCAST_FIRST_YEAR
 from polars_baseball.exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
-
-DATE_FORMAT = "%Y-%m-%d"
 
 
 def _load_valid_dates() -> dict[int, tuple[date, date]]:
@@ -41,13 +39,24 @@ _OFFSEASON_START_MONTH = 3
 _OFFSEASON_END_MONTH = 11
 
 
-def validate_datestring(date_text: str | None) -> date:
+def validate_datestring(date_text: str | date | None) -> date:
+    if isinstance(date_text, datetime):
+        return date_text.date()
+    if isinstance(date_text, date):
+        return date_text
     if not date_text:
         raise InvalidParameterError("Incorrect data format, should be YYYY-MM-DD")
     try:
         return datetime.strptime(date_text, DATE_FORMAT).date()
     except ValueError as ex:
         raise InvalidParameterError("Incorrect data format, should be YYYY-MM-DD") from ex
+
+
+def coerce_datestring(value: str | date | None) -> str | None:
+    """Normalize a date input to an ISO string, passing ``None`` and strings through."""
+    if value is None or isinstance(value, str):
+        return value
+    return value.strftime(DATE_FORMAT)
 
 
 def most_recent_season() -> int:
@@ -57,18 +66,17 @@ def most_recent_season() -> int:
     return today.year - 1
 
 
-def sanitize_date_range(start_dt: str | None, end_dt: str | None) -> tuple[date, date]:
+def sanitize_date_range(start_dt: str | date | None, end_dt: str | date | None) -> tuple[date, date]:
     """Normalize a date range, filling None with defaults and swapping inverted bounds.
 
-    Note:
-        When both dates are None, defaults to yesterday-today. Missing
-        start or end copies the provided value. If end < start, the
-        pair is swapped.
+    Accepts ISO date strings or ``datetime.date`` objects. When both dates are
+    None, defaults to yesterday-today. Missing start or end copies the provided
+    value. If end < start, the pair is swapped.
     """
     if start_dt is None and end_dt is None:
         today = date.today()
-        start_dt = str(today - timedelta(1))
-        end_dt = str(today)
+        start_dt = today - timedelta(1)
+        end_dt = today
         warnings.warn("No date range supplied, assuming yesterday's date.", stacklevel=2)
 
     if start_dt is None:

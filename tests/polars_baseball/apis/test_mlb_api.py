@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import polars as pl
@@ -440,6 +440,51 @@ async def test_mlb_player_stats_with_dates() -> None:
     params = await_args.kwargs["params"]
     assert params["startDate"] == "2026-04-01"
     assert params["endDate"] == "2026-04-30"
+
+
+@pytest.mark.asyncio
+async def test_mlb_player_stats_accepts_date_objects() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_player_stats(
+        person_id=545361,
+        group="hitting",
+        stats_type="season",
+        start_date=date(2026, 4, 1),
+        end_date=date(2026, 4, 30),
+        context=ctx,
+    )
+    assert isinstance(df, pl.DataFrame)
+    params = mock_http.get_text.await_args.kwargs["params"]
+    assert params["startDate"] == "2026-04-01"
+    assert params["endDate"] == "2026-04-30"
+
+
+@pytest.mark.asyncio
+async def test_mlb_schedule_accepts_date_object() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_schedule(date=date(2026, 6, 1), context=ctx)
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 1
+    params = mock_http.get_text.await_args.kwargs["params"]
+    assert params["date"] == "2026-06-01"
+
+
+@pytest.mark.asyncio
+async def test_mlb_transactions_accepts_date_objects() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_transactions(date=date(2026, 6, 1), context=ctx)
+    assert isinstance(df, pl.DataFrame)
+    params = mock_http.get_text.await_args.kwargs["params"]
+    assert params["date"] == "2026-06-01"
 
 
 @pytest.mark.asyncio

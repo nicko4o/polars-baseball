@@ -9,7 +9,7 @@ Retrosheet functions retrieve game logs, schedules, rosters, park codes, and eve
 
 | Function | Data |
 | --- | --- |
-| `events(season, type="regular")` | Retrieves Retrosheet event files as a DataFrame with `season`, `event_type`, `filename`, and raw `content` columns. |
+| `events(season, game_type="regular")` | Retrieves Retrosheet event files as a DataFrame with `season`, `event_type`, `filename`, and raw `content` columns. |
 | `rosters(season)` | Season roster data. |
 | `schedules(season)` | Season schedules. |
 | `season_game_logs(season)` | Regular-season game logs. |

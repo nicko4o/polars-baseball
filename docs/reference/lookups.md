@@ -22,7 +22,6 @@ Finds player records and maps IDs across MLBAM, Retrosheet, FanGraphs, Baseball 
 
 - `last`: Player last name.
 - `first`: Optional player first name. Narrowing down with a first name is recommended for common names.
-- `fuzzy`: Enable fuzzy name matching for typos (deprecated; use `player_name_suggestions` instead).
 - `ignore_accents`: If `True`, normalizes accented characters (e.g. `ó` to `o`) before matching.
 - `player_list`: A list of `(last, first)` tuples for performing batch lookups.
 - `save`: If `True`, caches the raw lookup index mapping to disk for fast subsequent queries.

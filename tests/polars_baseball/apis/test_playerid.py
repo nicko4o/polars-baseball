@@ -1,5 +1,6 @@
 import asyncio
 import io
+import warnings
 import zipfile
 from pathlib import Path
 from typing import cast
@@ -165,6 +166,33 @@ async def test_player_search_list(mock_get_table: MagicMock, mock_player_table: 
     df = await player_search_list([("Trout", "Mike"), ("Judge", "Aaron")])
     assert df.height == 2
     assert set(df["key_mlbam"].to_list()) == {545361, 592450}
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.playerid.get_lookup_table")
+async def test_playerid_lookup_empty_emits_hint_warning(
+    mock_get_table: MagicMock, mock_player_table: pl.DataFrame
+) -> None:
+    mock_get_table.return_value = mock_player_table
+
+    with pytest.warns(UserWarning, match="player_name_suggestions"):
+        df = await playerid_lookup(last="Nope")
+
+    assert df.is_empty()
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.playerid.get_lookup_table")
+async def test_player_search_list_does_not_warn_on_misses(
+    mock_get_table: MagicMock, mock_player_table: pl.DataFrame
+) -> None:
+    mock_get_table.return_value = mock_player_table
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        df = await player_search_list([("Nope", "Nobody")])
+
+    assert df.is_empty()
 
 
 @pytest.mark.asyncio
