@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
 from polars_baseball._season import (
+    coerce_datestring,
     most_recent_season,
     sanitize_date_range,
     statcast_date_range,
@@ -18,6 +19,14 @@ def test_validate_datestring_valid() -> None:
 def test_validate_datestring_invalid() -> None:
     with pytest.raises(InvalidParameterError, match="Incorrect data format"):
         validate_datestring("06-01-2026")
+
+
+def test_validate_datestring_accepts_date_object() -> None:
+    assert validate_datestring(date(2026, 6, 1)) == date(2026, 6, 1)
+
+
+def test_validate_datestring_accepts_datetime_object() -> None:
+    assert validate_datestring(datetime(2026, 6, 1, 12, 30)) == date(2026, 6, 1)
 
 
 def test_validate_datestring_none() -> None:
@@ -55,6 +64,31 @@ def test_sanitize_date_range_swap() -> None:
     start, end = sanitize_date_range("2026-06-15", "2026-06-01")
     assert start == date(2026, 6, 1)
     assert end == date(2026, 6, 15)
+
+
+def test_sanitize_date_range_accepts_date_objects() -> None:
+    start, end = sanitize_date_range(date(2026, 6, 1), date(2026, 6, 10))
+    assert start == date(2026, 6, 1)
+    assert end == date(2026, 6, 10)
+
+
+def test_sanitize_date_range_mixed_str_and_date() -> None:
+    start, end = sanitize_date_range("2026-06-01", date(2026, 6, 10))
+    assert start == date(2026, 6, 1)
+    assert end == date(2026, 6, 10)
+
+
+def test_sanitize_date_range_date_swap() -> None:
+    start, end = sanitize_date_range(date(2026, 6, 15), date(2026, 6, 1))
+    assert start == date(2026, 6, 1)
+    assert end == date(2026, 6, 15)
+
+
+def test_coerce_datestring() -> None:
+    assert coerce_datestring(None) is None
+    assert coerce_datestring("2026-06-01") == "2026-06-01"
+    assert coerce_datestring(date(2026, 6, 1)) == "2026-06-01"
+    assert coerce_datestring(datetime(2026, 6, 1, 12, 30)) == "2026-06-01"
 
 
 def test_statcast_date_range_skips_offseason() -> None:

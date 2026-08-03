@@ -17,6 +17,14 @@ from polars_baseball.apis.teamid import team_ids
 from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext, cleanup
 from polars_baseball.enums import ArsenalType, KeyType
+from polars_baseball.enums.fangraphs import (
+    FangraphsLeague,
+    FangraphsMonth,
+    FangraphsPositions,
+    FangraphsStatColumn,
+    FangraphsStatsCategory,
+)
+from polars_baseball.enums.position import Position
 
 __version__ = "0.13.1"
 
@@ -30,7 +38,13 @@ __all__ = [
     "FanGraphsFilter",
     "FanGraphsFilterOp",
     "FanGraphsRequest",
+    "FangraphsLeague",
+    "FangraphsMonth",
+    "FangraphsPositions",
+    "FangraphsStatColumn",
+    "FangraphsStatsCategory",
     "KeyType",
+    "Position",
     "bref",
     "chadwick_register",
     "cleanup",

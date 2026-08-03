@@ -155,8 +155,7 @@ app = FastAPI(lifespan=lifespan)
 async def get_schedule(date: str):
     try:
         df = await pb.mlb.schedule(
-            start_date=date,
-            end_date=date,
+            date=date,
             context=app.state.pb_context
         )
         return {"count": df.height, "data": df.to_dicts()}

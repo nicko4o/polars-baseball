@@ -1,8 +1,10 @@
 import re
+from datetime import date as date_type
 
 import polars as pl
 
 from polars_baseball._cache import cached
+from polars_baseball._season import coerce_datestring
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
@@ -42,9 +44,9 @@ async def _fetch_mlb_transactions(
 
 
 async def mlb_transactions(
-    date: str | None = None,
-    start_date: str | None = None,
-    end_date: str | None = None,
+    date: date_type | str | None = None,
+    start_date: date_type | str | None = None,
+    end_date: date_type | str | None = None,
     sport_id: int = MLB_DEFAULT_SPORT_ID,
     force_update: bool = False,
     context: BaseballContext | None = None,
@@ -52,13 +54,16 @@ async def mlb_transactions(
     """Fetch MLB transaction details for specific date or date range.
 
     Args:
-        date: Single date to fetch transactions (YYYY-MM-DD).
-        start_date: Start of date range (YYYY-MM-DD).
-        end_date: End of date range (YYYY-MM-DD).
+        date: Single date to fetch transactions (YYYY-MM-DD or datetime.date).
+        start_date: Start of date range (YYYY-MM-DD or datetime.date).
+        end_date: End of date range (YYYY-MM-DD or datetime.date).
         sport_id: Sport ID to filter transactions (default: 1 for MLB).
         force_update: Bypass cache and fetch fresh data.
         context: Optional BaseballContext.
     """
+    date = coerce_datestring(date)
+    start_date = coerce_datestring(start_date)
+    end_date = coerce_datestring(end_date)
     if sport_id <= 0:
         raise InvalidParameterError("sport_id must be a positive integer.")
 

@@ -12,17 +12,21 @@ from polars_baseball.apis.savant_fielding_running import (
     statcast_catcher_throwing,
 )
 from polars_baseball.apis.savant_leaderboards import (
+    statcast_bat_tracking,
     statcast_batter_bat_tracking,
     statcast_batter_exitvelo_barrels,
     statcast_batter_expected_stats,
     statcast_batter_percentile_ranks,
     statcast_batter_pitch_arsenal,
     statcast_batter_run_value,
+    statcast_exitvelo_barrels,
+    statcast_expected_stats,
+    statcast_pitch_arsenal_stats,
     statcast_pitch_tempo,
     statcast_pitcher_active_spin,
     statcast_pitcher_pitch_arsenal,
-    statcast_pitcher_run_value,
     statcast_pitcher_spin_dir_comp,
+    statcast_run_value,
 )
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.savant import ArsenalType
@@ -44,10 +48,10 @@ async def test_batter_leaderboards() -> None:
     mock_http.get_text.return_value = _MOCK_CSV
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    df1 = await statcast_batter_exitvelo_barrels(2026, context=ctx)
-    df2 = await statcast_batter_expected_stats(2026, context=ctx)
-    df3 = await statcast_batter_pitch_arsenal(2026, context=ctx)
-    df4 = await statcast_batter_bat_tracking(2026, context=ctx)
+    df1 = await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
+    df2 = await statcast_expected_stats(2026, player_type="batter", context=ctx)
+    df3 = await statcast_pitch_arsenal_stats(2026, player_type="batter", context=ctx)
+    df4 = await statcast_bat_tracking(2026, player_type="batter", context=ctx)
 
     assert isinstance(df1, pl.DataFrame)
     assert "player_name" in df1.columns
@@ -66,7 +70,28 @@ async def test_savant_leaderboard_empty_response_fails_fast() -> None:
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
     with pytest.raises(UpstreamUnavailableError, match="empty"):
+        await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
+
+
+@pytest.mark.asyncio
+async def test_legacy_batter_wrappers_emit_deprecation_warning() -> None:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _MOCK_CSV
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    with pytest.warns(DeprecationWarning, match="statcast_exitvelo_barrels"):
         await statcast_batter_exitvelo_barrels(2026, context=ctx)
+    with pytest.warns(DeprecationWarning, match="statcast_expected_stats"):
+        await statcast_batter_expected_stats(2026, context=ctx)
+    with pytest.warns(DeprecationWarning, match="statcast_pitch_arsenal_stats"):
+        await statcast_batter_pitch_arsenal(2026, context=ctx)
+    with pytest.warns(DeprecationWarning, match="statcast_bat_tracking"):
+        await statcast_batter_bat_tracking(2026, context=ctx)
+    with pytest.warns(DeprecationWarning, match="statcast_run_value"):
+        await statcast_batter_run_value(2026, context=ctx)
 
 
 @pytest.mark.asyncio
@@ -93,8 +118,8 @@ async def test_run_values() -> None:
     mock_http.get_text.return_value = _MOCK_CSV
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    df_bat = await statcast_batter_run_value(2026, context=ctx)
-    df_pit = await statcast_pitcher_run_value(2026, context=ctx)
+    df_bat = await statcast_run_value(2026, player_type="batter", context=ctx)
+    df_pit = await statcast_run_value(2026, player_type="pitcher", context=ctx)
 
     assert isinstance(df_bat, pl.DataFrame)
     assert df_bat.height == 2
@@ -186,7 +211,7 @@ async def test_savant_leaderboard_robust_parsing() -> None:
     mock_http.get_text.return_value = "player_name , player_id , year , stat \n Ohtani Shohei , 660271 , 2026 , 12.3 \n"
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    df = await statcast_batter_exitvelo_barrels(2026, context=ctx)
+    df = await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
     assert "player_id" in df.columns  # Header stripped
     assert df["player_id"].dtype == pl.Int64  # Cast to Int64
     assert df["year"].dtype == pl.Int64  # Cast to Int64

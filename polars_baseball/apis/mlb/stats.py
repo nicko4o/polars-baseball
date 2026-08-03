@@ -1,10 +1,11 @@
 import re
+from datetime import date as date_type
 
 import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._season import most_recent_season
+from polars_baseball._season import coerce_datestring, most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_LEADER_LIMIT,
@@ -63,12 +64,18 @@ async def mlb_player_stats(
     group: str,
     stats_type: str = MLB_DEFAULT_STATS_TYPE,
     season: int | None = None,
-    start_date: str | None = None,
-    end_date: str | None = None,
+    start_date: date_type | str | None = None,
+    end_date: date_type | str | None = None,
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch player stats from the MLB Stats API for a given stat group."""
+    """Fetch player stats from the MLB Stats API for a given stat group.
+
+    ``start_date`` and ``end_date`` accept ``YYYY-MM-DD`` strings or
+    ``datetime.date`` objects.
+    """
+    start_date = coerce_datestring(start_date)
+    end_date = coerce_datestring(end_date)
     if person_id <= 0:
         raise InvalidParameterError("person_id must be a positive integer.")
     if not group:

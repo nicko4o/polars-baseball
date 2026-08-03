@@ -233,6 +233,10 @@ The package root (`import polars_baseball as pb`) exposes core convenience APIs 
 namespaces. Use `pb.fangraphs`, `pb.savant`, and `pb.mlb` for provider-specific workflows.
 Lahman, Retrosheet, Baseball Reference, and player ID workflows remain available from the package root.
 
+Typed enums such as `Position`, `FangraphsStatsCategory`, `FangraphsMonth`, `FangraphsLeague`,
+`FangraphsPositions`, and `FangraphsStatColumn` are exported from the package root for use in
+typed parameters.
+
 Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part
 of the compatibility contract.
 
