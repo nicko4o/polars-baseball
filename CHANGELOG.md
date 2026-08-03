@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-03
+
 ### Added
 - Accept `datetime.date` objects (in addition to `YYYY-MM-DD` strings) for date parameters on `pb.statcast`, `pb.statcast_batter`, `pb.statcast_pitcher`, `pb.mlb.schedule`, `pb.mlb.player_stats`, and `pb.mlb.transactions`.
 - Export `Position`, `FangraphsStatsCategory`, `FangraphsMonth`, `FangraphsLeague`, `FangraphsPositions`, and `FangraphsStatColumn` from the package root (`pb.*`) for typed parameter discovery.
