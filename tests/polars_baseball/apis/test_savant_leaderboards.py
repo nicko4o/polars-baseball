@@ -12,6 +12,7 @@ from polars_baseball.apis.savant_fielding_running import (
     statcast_catcher_throwing,
 )
 from polars_baseball.apis.savant_leaderboards import (
+    _REMOVAL_VERSION,
     statcast_bat_tracking,
     statcast_batter_bat_tracking,
     statcast_batter_exitvelo_barrels,
@@ -82,16 +83,17 @@ async def test_legacy_batter_wrappers_emit_deprecation_warning() -> None:
     mock_http.get_text.return_value = _MOCK_CSV
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    with pytest.warns(DeprecationWarning, match="statcast_exitvelo_barrels"):
-        await statcast_batter_exitvelo_barrels(2026, context=ctx)
-    with pytest.warns(DeprecationWarning, match="statcast_expected_stats"):
-        await statcast_batter_expected_stats(2026, context=ctx)
-    with pytest.warns(DeprecationWarning, match="statcast_pitch_arsenal_stats"):
-        await statcast_batter_pitch_arsenal(2026, context=ctx)
-    with pytest.warns(DeprecationWarning, match="statcast_bat_tracking"):
-        await statcast_batter_bat_tracking(2026, context=ctx)
-    with pytest.warns(DeprecationWarning, match="statcast_run_value"):
-        await statcast_batter_run_value(2026, context=ctx)
+    legacy_wrappers = [
+        (statcast_batter_exitvelo_barrels, "statcast_exitvelo_barrels"),
+        (statcast_batter_expected_stats, "statcast_expected_stats"),
+        (statcast_batter_pitch_arsenal, "statcast_pitch_arsenal_stats"),
+        (statcast_batter_bat_tracking, "statcast_bat_tracking"),
+        (statcast_batter_run_value, "statcast_run_value"),
+    ]
+    for func, replacement in legacy_wrappers:
+        with pytest.warns(DeprecationWarning, match=replacement) as record:
+            await func(2026, context=ctx)
+        assert f"v{_REMOVAL_VERSION}" in str(record[0].message)
 
 
 @pytest.mark.asyncio
@@ -124,14 +126,16 @@ async def test_camel_case_min_params_deprecated() -> None:
     mock_http.get_text.return_value = _MOCK_CSV
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    with pytest.warns(DeprecationWarning, match="min_bbe"):
-        await statcast_exitvelo_barrels(2026, player_type="batter", minBBE=100, context=ctx)
-    with pytest.warns(DeprecationWarning, match="min_pa"):
-        await statcast_expected_stats(2026, player_type="batter", minPA=100, context=ctx)
-    with pytest.warns(DeprecationWarning, match="min_pitches"):
-        await statcast_pitch_arsenal_stats(2026, player_type="batter", min_count=50, context=ctx)
-    with pytest.warns(DeprecationWarning, match="min_swings"):
-        await statcast_bat_tracking(2026, player_type="batter", minSwings=100, context=ctx)
+    legacy_params = [
+        (lambda: statcast_exitvelo_barrels(2026, player_type="batter", minBBE=100, context=ctx), "min_bbe"),
+        (lambda: statcast_expected_stats(2026, player_type="batter", minPA=100, context=ctx), "min_pa"),
+        (lambda: statcast_pitch_arsenal_stats(2026, player_type="batter", min_count=50, context=ctx), "min_pitches"),
+        (lambda: statcast_bat_tracking(2026, player_type="batter", minSwings=100, context=ctx), "min_swings"),
+    ]
+    for call, replacement in legacy_params:
+        with pytest.warns(DeprecationWarning, match=replacement) as record:
+            await call()
+        assert f"v{_REMOVAL_VERSION}" in str(record[0].message)
 
 
 @pytest.mark.asyncio

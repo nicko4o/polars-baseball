@@ -1,5 +1,4 @@
 import io
-import logging
 from collections.abc import Mapping
 from datetime import timedelta
 
@@ -8,19 +7,9 @@ import polars as pl
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import BREF_ROOT
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamStructureChangedError, UpstreamUnavailableError
+from polars_baseball.exceptions import UpstreamUnavailableError
 from polars_baseball.parsers._strategy import ProviderChain
-from polars_baseball.parsers.base import BaseParser
-from polars_baseball.parsers.bref import BRefHTMLParser, BRefSplitsParser
-from polars_baseball.parsers.bref_standard_strategy import BRefCSVExportStrategy, BRefStandardStrategy
-
-logger = logging.getLogger(__name__)
-
-
-def _build_default_chain(parser: BaseParser) -> ProviderChain | None:
-    if isinstance(parser, BRefHTMLParser):
-        return ProviderChain([BRefCSVExportStrategy(), BRefStandardStrategy(parser)])
-    return None
+from polars_baseball.parsers.bref import BRefSplitsParser
 
 
 class BRefGateway:
@@ -33,7 +22,6 @@ class BRefGateway:
         self,
         url: str,
         params: Mapping[str, object] | None = None,
-        parser: BaseParser | None = None,
         *,
         headers: Mapping[str, str] | None = None,
         use_cache: bool = True,
@@ -45,45 +33,27 @@ class BRefGateway:
 
         Parsing priority:
           1. chain: ProviderChain with multiple strategies (try each in order).
-          2. parser: Single legacy parser (automatically wrapped with CSV fallback).
-          3. Neither: Fallback to pl.read_csv (for raw CSV endpoints).
+          2. Neither: Fallback to pl.read_csv (for raw CSV endpoints).
         """
         key = generate_cache_key(url, params)
         if not use_cache:
             raw_text = await self._context.http.get_text(url, params=params, headers=headers)
             if not raw_text:
                 raise UpstreamUnavailableError("Baseball Reference returned empty response.")
-            return self._parse_response(raw_text, parser, chain)
+            return self._parse_response(raw_text, chain)
         return await self._context.cache.get_or_fetch(
             key,
-            lambda: self._fetch_and_parse(url, params, headers, parser, chain),
+            lambda: self._fetch_and_parse(url, params, headers, chain),
             max_age=max_age,
             force_update=force_update,
         )
 
-    def _parse_response(
-        self,
-        raw_text: str,
-        parser: BaseParser | None,
-        chain: ProviderChain | None,
-    ) -> pl.DataFrame:
+    def _parse_response(self, raw_text: str, chain: ProviderChain | None) -> pl.DataFrame:
         if chain is not None:
             # execute() raises UpstreamStructureChangedError if all strategies fail;
             # no None check needed here.
             result = chain.execute(raw_text)
             return result.df
-
-        if parser is not None:
-            auto_chain = _build_default_chain(parser)
-            if auto_chain is not None:
-                try:
-                    result = auto_chain.execute(raw_text)
-                    return result.df
-                except UpstreamStructureChangedError:
-                    # Auto-chain failed; fall through to the legacy parser path.
-                    logger.warning("BRef auto-chain failed; falling back to legacy parser.", exc_info=True)
-            return parser.parse(raw_text)
-
         return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
 
     async def _fetch_and_parse(
@@ -91,13 +61,12 @@ class BRefGateway:
         url: str,
         params: Mapping[str, object] | None,
         headers: Mapping[str, str] | None,
-        parser: BaseParser | None,
         chain: ProviderChain | None,
     ) -> pl.DataFrame:
         raw_text = await self._context.http.get_text(url, params=params, headers=headers)
         if not raw_text:
             raise UpstreamUnavailableError("Baseball Reference returned empty response.")
-        return self._parse_response(raw_text, parser, chain)
+        return self._parse_response(raw_text, chain)
 
     async def get_splits(
         self,
