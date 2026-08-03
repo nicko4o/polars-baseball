@@ -16,7 +16,7 @@ from polars_baseball.apis.statcast import statcast, statcast_batter, statcast_pi
 from polars_baseball.apis.teamid import team_ids
 from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext, cleanup
-from polars_baseball.enums import ArsenalType, KeyType
+from polars_baseball.enums import ArsenalType, KeyType, MlbRosterType, MlbStatsGroup
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
     FangraphsMonth,
@@ -44,6 +44,8 @@ __all__ = [
     "FangraphsStatColumn",
     "FangraphsStatsCategory",
     "KeyType",
+    "MlbRosterType",
+    "MlbStatsGroup",
     "Position",
     "bref",
     "chadwick_register",

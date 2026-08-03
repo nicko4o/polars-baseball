@@ -11,9 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Accept `datetime.date` objects (in addition to `YYYY-MM-DD` strings) for date parameters on `pb.statcast`, `pb.statcast_batter`, `pb.statcast_pitcher`, `pb.mlb.schedule`, `pb.mlb.player_stats`, and `pb.mlb.transactions`.
 - Export `Position`, `FangraphsStatsCategory`, `FangraphsMonth`, `FangraphsLeague`, `FangraphsPositions`, and `FangraphsStatColumn` from the package root (`pb.*`) for typed parameter discovery.
 - Emit a `UserWarning` pointing to `pb.player_name_suggestions` when `pb.playerid_lookup` finds no matching player.
+- Export `MlbStatsGroup` and `MlbRosterType` enums from the package root (`pb.*`) for typed parameter discovery.
+
+### Changed
+- `pb.savant.*` leaderboard functions accept snake_case thresholds (`min_bbe`, `min_pa`, `min_swings`, `min_pitches`) instead of camelCase; `pb.mlb.player_stats`, `pb.mlb.team_stats`, and `pb.mlb.stat_leaders` accept `MlbStatsGroup`; `pb.mlb.roster` accepts `MlbRosterType`.
+- `pb.mlb.schedule` rejects a combination of `season` and `date`; `pb.mlb.transactions` rejects combining `date` with `start_date`/`end_date`. Pass only one filter at a time.
+- `pb.player_name_suggestions` now ignores unrelated names instead of returning arbitrary rows for garbage input.
 
 ### Deprecated
 - Legacy batter-specific Savant leaderboard functions (`pb.savant.batter_exitvelo_barrels`, `pb.savant.batter_expected_stats`, `pb.savant.batter_pitch_arsenal`, `pb.savant.batter_bat_tracking`, `pb.savant.batter_run_value`). Use the unified `player_type` APIs (`pb.savant.exitvelo_barrels`, etc.) instead.
+- CamelCase minimum-threshold parameters on Savant leaderboard functions (`minBBE`, `minPA`, `minSwings`, `minP`, `min_count`). Use the snake_case forms instead.
 
 ### Fixed
 - Fix broken code examples in the error-handling guide, Retrosheet reference, and player-lookup reference that referenced removed or renamed parameters.

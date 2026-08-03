@@ -1,6 +1,6 @@
 import json
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import polars as pl
 import pytest
@@ -30,6 +30,7 @@ from polars_baseball.apis.mlb import (
     mlb_venues,
 )
 from polars_baseball.context import BaseballContext
+from polars_baseball.enums.mlb import MlbRosterType, MlbStatsGroup
 from polars_baseball.exceptions import InvalidParameterError, PolarsBaseballTransportError, UpstreamParseError
 
 # ── Mock Data ──────────────────────────────────────────────────────────
@@ -340,6 +341,9 @@ async def test_mlb_schedule_invalid_parameters() -> None:
     with pytest.raises(InvalidParameterError, match="positive integer"):
         await mlb_schedule(season=2026, team_id=-1)
 
+    with pytest.raises(InvalidParameterError, match="season and date"):
+        await mlb_schedule(season=2026, date="2026-04-01")
+
 
 @pytest.mark.asyncio
 async def test_mlb_roster_basic() -> None:
@@ -358,6 +362,22 @@ async def test_mlb_roster_basic() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mlb_roster_accepts_enum_and_ci_string() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_ROSTER_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_roster(team_id=119, season=2026, roster_type=MlbRosterType.ACTIVE, context=ctx)
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 1
+
+    df2 = await mlb_roster(team_id=119, season=2026, roster_type="40man", context=ctx)
+    assert df2.height == 1
+    called_params = mock_http.get_text.call_args.kwargs["params"]
+    assert called_params["rosterType"] == "40Man"
+
+
+@pytest.mark.asyncio
 async def test_mlb_roster_invalid_parameters() -> None:
     with pytest.raises(InvalidParameterError, match="positive integer"):
         await mlb_roster(team_id=0)
@@ -365,8 +385,10 @@ async def test_mlb_roster_invalid_parameters() -> None:
     with pytest.raises(InvalidParameterError, match="Invalid season"):
         await mlb_roster(team_id=119, season=1800)
 
-    with pytest.raises(InvalidParameterError, match="roster_type must be a non-empty string"):
+    with pytest.raises(InvalidParameterError, match="roster_type must be one of"):
         await mlb_roster(team_id=119, roster_type="")
+    with pytest.raises(InvalidParameterError, match="roster_type must be one of"):
+        await mlb_roster(team_id=119, roster_type="dormant")
 
 
 @pytest.mark.asyncio
@@ -398,12 +420,27 @@ async def test_mlb_player_stats_basic() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mlb_player_stats_accepts_enum_group() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_player_stats(person_id=545361, group=MlbStatsGroup.PITCHING, season=2024, context=ctx)
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 1
+    called_params = mock_http.get_text.call_args.kwargs["params"]
+    assert called_params["group"] == "pitching"
+
+
+@pytest.mark.asyncio
 async def test_mlb_player_stats_invalid_parameters() -> None:
     with pytest.raises(InvalidParameterError, match="person_id must be a positive integer"):
         await mlb_player_stats(person_id=-1, group="hitting")
 
-    with pytest.raises(InvalidParameterError, match="group must be a non-empty string"):
+    with pytest.raises(InvalidParameterError, match="group must be one of"):
         await mlb_player_stats(person_id=545361, group="")
+    with pytest.raises(InvalidParameterError, match="group must be one of"):
+        await mlb_player_stats(person_id=545361, group="running")
 
     with pytest.raises(InvalidParameterError, match="stats_type must be a non-empty string"):
         await mlb_player_stats(person_id=545361, group="hitting", stats_type="")
@@ -864,6 +901,18 @@ async def test_mlb_game_win_probability_public_api() -> None:
 
 
 @pytest.mark.asyncio
+@patch("polars_baseball.apis.mlb.game.mlb_game_play_by_play")
+async def test_mlb_game_win_probability_delegates(mock_pbp: AsyncMock) -> None:
+    mock_pbp.return_value = pl.DataFrame()
+    ctx = BaseballContext(http=AsyncMock(spec=HttpClient))
+
+    df = await mlb_game_win_probability(game_pk=715789, force_update=True, context=ctx)
+
+    mock_pbp.assert_awaited_once_with(game_pk=715789, win_probability=True, force_update=True, context=ctx)
+    assert isinstance(df, pl.DataFrame)
+
+
+@pytest.mark.asyncio
 async def test_mlb_game_win_probability_invalid_parameters() -> None:
     with pytest.raises(InvalidParameterError, match="game_pk must be a positive integer"):
         await mlb_game_win_probability(game_pk=-1)
@@ -998,7 +1047,7 @@ async def test_mlb_team_stats_invalid_params() -> None:
         await mlb_team_stats(team_id=-1, season=2025)
     with pytest.raises(InvalidParameterError, match="Invalid season"):
         await mlb_team_stats(team_id=119, season=1800)
-    with pytest.raises(InvalidParameterError, match="group must be a non-empty string"):
+    with pytest.raises(InvalidParameterError, match="group must be one of"):
         await mlb_team_stats(team_id=119, season=2025, group="")
 
 
@@ -1224,6 +1273,10 @@ async def test_mlb_transactions_invalid_params() -> None:
         await mlb_transactions(start_date="05-01-2024")
     with pytest.raises(InvalidParameterError, match="sport_id must be a positive integer."):
         await mlb_transactions(sport_id=0)
+    with pytest.raises(InvalidParameterError, match="date or start_date/end_date"):
+        await mlb_transactions(date="2024-05-01", start_date="2024-05-01")
+    with pytest.raises(InvalidParameterError, match="date or start_date/end_date"):
+        await mlb_transactions(date="2024-05-01", end_date="2024-05-02")
 
 
 _MOCK_VENUES_JSON = {

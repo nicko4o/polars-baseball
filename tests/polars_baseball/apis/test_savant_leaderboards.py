@@ -95,6 +95,46 @@ async def test_legacy_batter_wrappers_emit_deprecation_warning() -> None:
 
 
 @pytest.mark.asyncio
+async def test_snake_case_min_params() -> None:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _MOCK_CSV
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    df1 = await statcast_exitvelo_barrels(2026, player_type="batter", min_bbe=100, context=ctx)
+    df2 = await statcast_expected_stats(2026, player_type="batter", min_pa=100, context=ctx)
+    df3 = await statcast_pitch_arsenal_stats(2026, player_type="batter", min_pitches=50, context=ctx)
+    df4 = await statcast_bat_tracking(2026, player_type="batter", min_swings=100, context=ctx)
+
+    assert isinstance(df1, pl.DataFrame)
+    assert df1.height == 2
+    assert df2.height == 2
+    assert df3.height == 2
+    assert df4.height == 2
+
+
+@pytest.mark.asyncio
+async def test_camel_case_min_params_deprecated() -> None:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _MOCK_CSV
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    with pytest.warns(DeprecationWarning, match="min_bbe"):
+        await statcast_exitvelo_barrels(2026, player_type="batter", minBBE=100, context=ctx)
+    with pytest.warns(DeprecationWarning, match="min_pa"):
+        await statcast_expected_stats(2026, player_type="batter", minPA=100, context=ctx)
+    with pytest.warns(DeprecationWarning, match="min_pitches"):
+        await statcast_pitch_arsenal_stats(2026, player_type="batter", min_count=50, context=ctx)
+    with pytest.warns(DeprecationWarning, match="min_swings"):
+        await statcast_bat_tracking(2026, player_type="batter", minSwings=100, context=ctx)
+
+
+@pytest.mark.asyncio
 async def test_percentile_ranks_filtering() -> None:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None

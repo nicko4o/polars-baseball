@@ -64,6 +64,8 @@ async def mlb_transactions(
     date = coerce_datestring(date)
     start_date = coerce_datestring(start_date)
     end_date = coerce_datestring(end_date)
+    if date is not None and (start_date is not None or end_date is not None):
+        raise InvalidParameterError("Provide either date or start_date/end_date, not both.")
     if sport_id <= 0:
         raise InvalidParameterError("sport_id must be a positive integer.")
 

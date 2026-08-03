@@ -14,6 +14,8 @@ ROOT_PUBLIC_API = {
     "FangraphsStatColumn",
     "FangraphsStatsCategory",
     "KeyType",
+    "MlbRosterType",
+    "MlbStatsGroup",
     "Position",
     "bref",
     "chadwick_register",
