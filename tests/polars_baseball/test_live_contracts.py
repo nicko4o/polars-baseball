@@ -7,7 +7,7 @@ from polars_baseball import (
     statcast,
     statcast_single_game,
 )
-from polars_baseball.apis.savant_leaderboards import statcast_batter_exitvelo_barrels
+from polars_baseball.apis.savant_leaderboards import statcast_exitvelo_barrels
 from tests._async_utils import run_async
 
 
@@ -45,7 +45,7 @@ def test_live_savant_exit_velo_barrels() -> None:
     # Fetch batter exit velocity leaderboard for 2023 season
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await statcast_batter_exitvelo_barrels(year=2023, context=ctx)
+            return await statcast_exitvelo_barrels(year=2023, player_type="batter", context=ctx)
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)

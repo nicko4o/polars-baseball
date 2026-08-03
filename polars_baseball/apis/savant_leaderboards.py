@@ -1,5 +1,5 @@
 import warnings
-from typing import Literal, TypeVar
+from typing import Final, Literal, TypeVar
 
 import polars as pl
 
@@ -24,10 +24,23 @@ PATH_SPIN_COMP = "/leaderboard/spin-direction-comparison"
 
 SAVANT_DEFAULT_PITCH_TEMPO_MIN = 250
 
+# Version at which the deprecated legacy APIs and parameters are removed.
+_REMOVAL_VERSION: Final[str] = "0.16.0"
+
 
 def _warn_deprecated_param(old_name: str, new_name: str) -> None:
     warnings.warn(
-        f"The `{old_name}` parameter is deprecated; use `{new_name}` instead.",
+        f"The `{old_name}` parameter is deprecated; use `{new_name}` instead. "
+        f"It will be removed in v{_REMOVAL_VERSION}.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def _warn_deprecated_function(old_name: str, replacement: str) -> None:
+    """Warn that a function is deprecated and scheduled for removal."""
+    warnings.warn(
+        f"{old_name} is deprecated; use {replacement} instead. It will be removed in v{_REMOVAL_VERSION}.",
         DeprecationWarning,
         stacklevel=3,
     )
@@ -161,11 +174,9 @@ async def statcast_batter_exitvelo_barrels(
 
     Deprecated; use :func:`statcast_exitvelo_barrels` with ``player_type="batter"``.
     """
-    warnings.warn(
-        "statcast_batter_exitvelo_barrels is deprecated; use "
-        "statcast_exitvelo_barrels(year, player_type='batter', ...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_function(
+        "statcast_batter_exitvelo_barrels",
+        "statcast_exitvelo_barrels(year, player_type='batter', ...)",
     )
     min_bbe = _resolve_min_alias(min_bbe, "minBBE", "min_bbe", minBBE)
     return await statcast_exitvelo_barrels(year, "batter", min_bbe, context=context)
@@ -181,11 +192,9 @@ async def statcast_batter_expected_stats(
 
     Deprecated; use :func:`statcast_expected_stats` with ``player_type="batter"``.
     """
-    warnings.warn(
-        "statcast_batter_expected_stats is deprecated; use "
-        "statcast_expected_stats(year, player_type='batter', ...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_function(
+        "statcast_batter_expected_stats",
+        "statcast_expected_stats(year, player_type='batter', ...)",
     )
     min_pa = _resolve_min_alias(min_pa, "minPA", "min_pa", minPA)
     return await statcast_expected_stats(year, "batter", min_pa, context=context)
@@ -212,11 +221,9 @@ async def statcast_batter_pitch_arsenal(
 
     Deprecated; use :func:`statcast_pitch_arsenal_stats` with ``player_type="batter"``.
     """
-    warnings.warn(
-        "statcast_batter_pitch_arsenal is deprecated; use "
-        "statcast_pitch_arsenal_stats(year, player_type='batter', ...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_function(
+        "statcast_batter_pitch_arsenal",
+        "statcast_pitch_arsenal_stats(year, player_type='batter', ...)",
     )
     min_pitches = _resolve_min_alias(min_pitches, "minPA", "min_pitches", minPA)
     return await statcast_pitch_arsenal_stats(year, "batter", min_pitches, context=context)
@@ -232,11 +239,9 @@ async def statcast_batter_bat_tracking(
 
     Deprecated; use :func:`statcast_bat_tracking` with ``player_type="batter"``.
     """
-    warnings.warn(
-        "statcast_batter_bat_tracking is deprecated; use "
-        "statcast_bat_tracking(year, player_type='batter', ...) instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_function(
+        "statcast_batter_bat_tracking",
+        "statcast_bat_tracking(year, player_type='batter', ...)",
     )
     min_swings = _resolve_min_alias(min_swings, "minSwings", "min_swings", minSwings)
     return await statcast_bat_tracking(year, "batter", min_swings, context=context)
@@ -250,10 +255,9 @@ async def statcast_batter_run_value(
 
     Deprecated; use :func:`statcast_run_value` with ``player_type="batter"``.
     """
-    warnings.warn(
-        "statcast_batter_run_value is deprecated; use statcast_run_value(year, player_type='batter') instead.",
-        DeprecationWarning,
-        stacklevel=2,
+    _warn_deprecated_function(
+        "statcast_batter_run_value",
+        "statcast_run_value(year, player_type='batter')",
     )
     return await statcast_run_value(year, "batter", context=context)
 
