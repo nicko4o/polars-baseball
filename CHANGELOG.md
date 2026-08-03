@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Accept `datetime.date` objects (in addition to `YYYY-MM-DD` strings) for date parameters on `pb.statcast`, `pb.statcast_batter`, `pb.statcast_pitcher`, `pb.mlb.schedule`, `pb.mlb.player_stats`, and `pb.mlb.transactions`.
+- Export `Position`, `FangraphsStatsCategory`, `FangraphsMonth`, `FangraphsLeague`, `FangraphsPositions`, and `FangraphsStatColumn` from the package root (`pb.*`) for typed parameter discovery.
+- Emit a `UserWarning` pointing to `pb.player_name_suggestions` when `pb.playerid_lookup` finds no matching player.
+
+### Deprecated
+- Legacy batter-specific Savant leaderboard functions (`pb.savant.batter_exitvelo_barrels`, `pb.savant.batter_expected_stats`, `pb.savant.batter_pitch_arsenal`, `pb.savant.batter_bat_tracking`, `pb.savant.batter_run_value`). Use the unified `player_type` APIs (`pb.savant.exitvelo_barrels`, etc.) instead.
+
+### Fixed
+- Fix broken code examples in the error-handling guide, Retrosheet reference, and player-lookup reference that referenced removed or renamed parameters.
+
 ## [0.13.1] - 2026-07-29
 
 ### Fixed

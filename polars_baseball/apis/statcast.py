@@ -157,8 +157,8 @@ async def _run_statcast_sequential(
 
 
 async def statcast(
-    start_date: str | None = None,
-    end_date: str | None = None,
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
     team: str | None = None,
     verbose: bool = True,
     parallel: bool = True,
@@ -298,8 +298,8 @@ def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
 
 async def _statcast_player(
     player_type: Literal["batter", "pitcher"],
-    start_dt: str | None,
-    end_dt: str | None,
+    start_dt: str | date | None,
+    end_dt: str | date | None,
     player_id: int | None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -319,8 +319,8 @@ async def _statcast_player(
 
 
 async def statcast_batter(
-    start_date: str | None = None,
-    end_date: str | None = None,
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -333,8 +333,8 @@ async def statcast_batter(
 
 
 async def statcast_pitcher(
-    start_date: str | None = None,
-    end_date: str | None = None,
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:

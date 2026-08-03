@@ -1,5 +1,7 @@
 > [!NOTE]
 > All public data-fetching APIs are asynchronous. Use `await` inside an async environment, or wrap calls with `asyncio.run()` in scripts.
+>
+> Date parameters accept both `YYYY-MM-DD` strings and `datetime.date` objects.
 
 # API Use-Case Index
 

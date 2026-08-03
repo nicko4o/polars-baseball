@@ -1,10 +1,11 @@
 import re
+from datetime import date as date_type
 
 import polars as pl
 
 from polars_baseball._cache import cached
 from polars_baseball._config import MLB_FIRST_YEAR
-from polars_baseball._season import most_recent_season
+from polars_baseball._season import coerce_datestring, most_recent_season
 from polars_baseball.apis.mlb._contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
@@ -62,7 +63,7 @@ async def _fetch_mlb_postseason_schedule(
 
 async def mlb_schedule(
     season: int | None = None,
-    date: str | None = None,
+    date: date_type | str | None = None,
     team_id: int | None = None,
     hydrate: str | None = None,
     force_update: bool = False,
@@ -71,13 +72,15 @@ async def mlb_schedule(
     """Fetch MLB schedule for a season, date, and/or team from the Stats API.
 
     At least one of season or date must be provided. season is validated
-    against the valid MLB season range.
+    against the valid MLB season range. ``date`` accepts a ``YYYY-MM-DD``
+    string or a ``datetime.date`` object.
 
     Note:
         Raises InvalidParameterError if neither season nor date is given,
         the season is out of range, date is not in YYYY-MM-DD format, or
         team_id is non-positive.
     """
+    date = coerce_datestring(date)
     if season is None and date is None:
         raise InvalidParameterError("Either season or date must be provided.")
     if season is not None and (season < MLB_FIRST_YEAR or season > most_recent_season() + 1):
