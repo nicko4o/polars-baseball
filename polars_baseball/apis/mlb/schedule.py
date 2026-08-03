@@ -81,6 +81,8 @@ async def mlb_schedule(
         team_id is non-positive.
     """
     date = coerce_datestring(date)
+    if season is not None and date is not None:
+        raise InvalidParameterError("Cannot provide both season and date.")
     if season is None and date is None:
         raise InvalidParameterError("Either season or date must be provided.")
     if season is not None and (season < MLB_FIRST_YEAR or season > most_recent_season() + 1):

@@ -60,22 +60,24 @@ Retrieve aggregate batter performance statistics.
 
 ### Functions
 
-- `savant.batter_exitvelo_barrels(year: int, minBBE: int | str = "q") -> pl.DataFrame`
-- `savant.batter_expected_stats(year: int, minPA: int | str = "q") -> pl.DataFrame`
+- `savant.batter_exitvelo_barrels(year: int, min_bbe: int | str = "q") -> pl.DataFrame`
+- `savant.batter_expected_stats(year: int, min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.batter_percentile_ranks(year: int) -> pl.DataFrame`
-- `savant.batter_pitch_arsenal(year: int, minPA: int = 25) -> pl.DataFrame`
+- `savant.batter_pitch_arsenal(year: int, min_pitches: int = 25) -> pl.DataFrame`
 - `savant.batter_run_value(year: int) -> pl.DataFrame`
-- `savant.batter_bat_tracking(year: int, minSwings: int | str = "q") -> pl.DataFrame`
-- `savant.exitvelo_barrels(year: int, player_type: str = "batter", minBBE: int | str = "q") -> pl.DataFrame`
-- `savant.expected_stats(year: int, player_type: str = "batter", minPA: int | str = "q") -> pl.DataFrame`
+- `savant.batter_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
+- `savant.exitvelo_barrels(year: int, player_type: str = "batter", min_bbe: int | str = "q") -> pl.DataFrame`
+- `savant.expected_stats(year: int, player_type: str = "batter", min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.run_value(year: int, player_type: str = "batter") -> pl.DataFrame`
-- `savant.bat_tracking(year: int, player_type: str = "batter", minSwings: int | str = "q") -> pl.DataFrame`
+- `savant.bat_tracking(year: int, player_type: str = "batter", min_swings: int | str = "q") -> pl.DataFrame`
 
 ### Arguments
 
 - `year`: Leaderboard season.
-- `minPA`, `minBBE`, `minSwings`: Minimum playing-time/event thresholds. Accept `"q"` for qualifying hitters.
+- `min_pa`, `min_bbe`, `min_swings`: Minimum playing-time/event thresholds. Accept `"q"` for qualifying hitters.
 - `player_type`: `"batter"` or `"pitcher"`.
+
+Note: The camelCase forms (`minPA`, `minBBE`, `minSwings`) remain accepted but are deprecated.
 
 ---
 
@@ -85,26 +87,28 @@ Retrieve aggregate pitcher performance statistics.
 
 ### Functions
 
-- `savant.pitcher_exitvelo_barrels(year: int, minBBE: int | str = "q") -> pl.DataFrame`
-- `savant.pitcher_expected_stats(year: int, minPA: int | str = "q") -> pl.DataFrame`
-- `savant.pitcher_pitch_arsenal(year: int, minP: int = 250, arsenal_type: ArsenalType = ArsenalType.AVG_SPEED) -> pl.DataFrame`
-- `savant.pitcher_arsenal_stats(year: int, minPA: int = 25) -> pl.DataFrame`
-- `savant.pitcher_pitch_movement(year: int, minP: int | str = "q", pitch_type: str = "FF") -> pl.DataFrame`
-- `savant.pitcher_active_spin(year: int, minP: int = 250) -> pl.DataFrame`
+- `savant.pitcher_exitvelo_barrels(year: int, min_bbe: int | str = "q") -> pl.DataFrame`
+- `savant.pitcher_expected_stats(year: int, min_pa: int | str = "q") -> pl.DataFrame`
+- `savant.pitcher_pitch_arsenal(year: int, min_pitches: int = 250, arsenal_type: ArsenalType = ArsenalType.AVG_SPEED) -> pl.DataFrame`
+- `savant.pitcher_arsenal_stats(year: int, min_pitches: int = 25) -> pl.DataFrame`
+- `savant.pitcher_pitch_movement(year: int, min_pitches: int | str = "q", pitch_type: str = "FF") -> pl.DataFrame`
+- `savant.pitcher_active_spin(year: int, min_pitches: int = 250) -> pl.DataFrame`
 - `savant.pitcher_percentile_ranks(year: int) -> pl.DataFrame`
-- `savant.pitcher_spin_dir_comp(year: int, pitch_a: str = "FF", pitch_b: str = "CH", minP: int = 100, pitcher_pov: bool = True) -> pl.DataFrame`
+- `savant.pitcher_spin_dir_comp(year: int, pitch_a: str = "FF", pitch_b: str = "CH", min_pitches: int = 100, pitcher_pov: bool = True) -> pl.DataFrame`
 - `savant.pitcher_run_value(year: int) -> pl.DataFrame`
-- `savant.pitcher_bat_tracking(year: int, minSwings: int | str = "q") -> pl.DataFrame`
-- `savant.pitch_arsenal_stats(year: int, player_type: str = "pitcher", min_count: int = 25) -> pl.DataFrame`
+- `savant.pitcher_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
+- `savant.pitch_arsenal_stats(year: int, player_type: str = "pitcher", min_pitches: int = 25) -> pl.DataFrame`
 - `savant.pitch_tempo(year: int, min_pitches: int = 250) -> pl.DataFrame`
 
 ### Arguments
 
-- `minP`, `minPA`, `minBBE`, `minSwings`: Minimum pitches, plate appearances, batted ball events, or swings thresholds.
+- `min_pitches`, `min_pa`, `min_bbe`, `min_swings`: Minimum pitches, plate appearances, batted ball events, or swings thresholds.
 - `arsenal_type`: High-level pitch arsenal metric selection (`ArsenalType.AVG_SPEED`, etc.).
 - `pitch_type`: Pitch code (e.g. `"FF"` for four-seam fastball, `"SL"` for slider).
 - `pitch_a` / `pitch_b`: Pitch types to compare.
 - `pitcher_pov`: Point-of-view perspective. `True` for pitcher view, `False` for batter view.
+
+Note: The camelCase forms (`minP`, `minPA`, `min_count`) remain accepted but are deprecated.
 
 ---
 
@@ -217,8 +221,8 @@ async def main() -> None:
     print("Single Game:", game_df.head(2))
 
     # 2. Leaderboards
-    expected = await pb.savant.batter_expected_stats(2026, minPA=100)
-    arsenal = await pb.savant.pitcher_pitch_arsenal(2026, minP=250)
+    expected = await pb.savant.batter_expected_stats(2026, min_pa=100)
+    arsenal = await pb.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
     print("Expected Stats:", expected.head(2))
     print("Pitcher Arsenal:", arsenal.head(2))
 

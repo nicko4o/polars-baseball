@@ -46,9 +46,9 @@ if __name__ == "__main__":
 
 ## 2. Roster (`mlb.roster`)
 
-`mlb.roster(team_id: int, season: int | None = None, roster_type: str = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.roster(team_id: int, season: int | None = None, roster_type: str | MlbRosterType = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves the roster for a team-season.
+Retrieves the roster for a team-season. `roster_type` accepts an `MlbRosterType` enum or a case-insensitive string (e.g. `"active"`, `"40Man"`).
 
 ```python
 import asyncio
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
 `mlb.schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves MLB game schedules filtered by season, date, or team.
+Retrieves MLB game schedules filtered by season, date, or team. Provide either `season` or `date`, not both.
 
 ```python
 import asyncio
@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
 ## 4. Player Stats (`mlb.player_stats`)
 
-`mlb.player_stats(person_id: int, group: str, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.player_stats(person_id: int, group: str | MlbStatsGroup, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves hitting, pitching, or fielding statistics for a player.
+Retrieves hitting, pitching, or fielding statistics for a player. `group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
 
 ```python
 import asyncio
@@ -138,9 +138,9 @@ if __name__ == "__main__":
 
 ## 7. Team Stats (`mlb.team_stats`)
 
-`mlb.team_stats(team_id: int, season: int | None = None, group: str = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.team_stats(team_id: int, season: int | None = None, group: str | MlbStatsGroup = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves team-level hitting, pitching, or fielding statistics.
+Retrieves team-level hitting, pitching, or fielding statistics. `group` accepts an `MlbStatsGroup` enum or a string.
 
 ```python
 import asyncio
@@ -156,9 +156,9 @@ if __name__ == "__main__":
 
 ## 8. Stat Leaders (`mlb.stat_leaders`)
 
-`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | MlbStatsGroup | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves league leaders for one or more stat categories.
+Retrieves league leaders for one or more stat categories. `stat_group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
 
 ```python
 import asyncio
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
 `mlb.game_win_probability(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves per-play win probability, WPA, leverage, and drama index fields for a single game.
+Retrieves per-play win probability, WPA, leverage, and drama index fields for a single game. Convenience wrapper for `mlb.game_play_by_play(win_probability=True)`.
 
 ```python
 import asyncio
@@ -274,7 +274,7 @@ if __name__ == "__main__":
 
 `mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
-Retrieves transaction records for a specific date or date range.
+Retrieves transaction records for a specific date or date range. Provide either `date` or the `start_date`/`end_date` range, not both.
 
 ```python
 import asyncio

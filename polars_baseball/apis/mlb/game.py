@@ -156,12 +156,14 @@ async def mlb_game_win_probability(
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
-    """Fetch per-play win probability and WPA data for an MLB game."""
-    if game_pk <= 0:
-        raise InvalidParameterError("game_pk must be a positive integer.")
+    """Fetch per-play win probability and WPA data for an MLB game.
 
-    return await _fetch_mlb_game_win_probability(
+    Thin wrapper around :func:`mlb_game_play_by_play` with
+    ``win_probability=True``.
+    """
+    return await mlb_game_play_by_play(
         game_pk=game_pk,
+        win_probability=True,
         force_update=force_update,
         context=context,
     )

@@ -21,6 +21,7 @@ from polars_baseball.apis.mlb._contracts import (
     team_stats_url,
 )
 from polars_baseball.context import BaseballContext
+from polars_baseball.enums.mlb import MlbStatsGroup, resolve_group
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import (
@@ -61,7 +62,7 @@ async def _fetch_mlb_player_stats(
 
 async def mlb_player_stats(
     person_id: int,
-    group: str,
+    group: str | MlbStatsGroup,
     stats_type: str = MLB_DEFAULT_STATS_TYPE,
     season: int | None = None,
     start_date: date_type | str | None = None,
@@ -71,15 +72,15 @@ async def mlb_player_stats(
 ) -> pl.DataFrame:
     """Fetch player stats from the MLB Stats API for a given stat group.
 
-    ``start_date`` and ``end_date`` accept ``YYYY-MM-DD`` strings or
-    ``datetime.date`` objects.
+    ``group`` accepts a ``MlbStatsGroup`` enum or its string value
+    (e.g. ``"hitting"``). ``start_date`` and ``end_date`` accept
+    ``YYYY-MM-DD`` strings or ``datetime.date`` objects.
     """
     start_date = coerce_datestring(start_date)
     end_date = coerce_datestring(end_date)
     if person_id <= 0:
         raise InvalidParameterError("person_id must be a positive integer.")
-    if not group:
-        raise InvalidParameterError("group must be a non-empty string.")
+    group = resolve_group(group)
     if not stats_type:
         raise InvalidParameterError("stats_type must be a non-empty string.")
     if season is not None and (season < MLB_FIRST_YEAR or season > most_recent_season() + 1):
@@ -150,15 +151,16 @@ async def mlb_stat_leaders(
     season: int,
     categories: list[str],
     limit: int = MLB_DEFAULT_LEADER_LIMIT,
-    stat_group: str | None = None,
+    stat_group: str | MlbStatsGroup | None = None,
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch league leaders for one or more statistical categories.
 
-    The stat_group parameter further scopes results (e.g. "hitting",
-    "pitching"). Returns an empty DataFrame when no leader data is
-    available for the given season and categories.
+    The stat_group parameter further scopes results (e.g. ``"hitting"``,
+    ``"pitching"``) and accepts a ``MlbStatsGroup`` enum. Returns an empty
+    DataFrame when no leader data is available for the given season and
+    categories.
 
     Note:
         Raises InvalidParameterError if the season is out of range,
@@ -170,6 +172,8 @@ async def mlb_stat_leaders(
         raise InvalidParameterError("categories must not be empty.")
     if limit <= 0:
         raise InvalidParameterError("limit must be a positive integer.")
+    if stat_group is not None:
+        stat_group = resolve_group(stat_group)
 
     return await _fetch_mlb_stat_leaders(
         season=season,
@@ -184,27 +188,27 @@ async def mlb_stat_leaders(
 async def mlb_team_stats(
     team_id: int,
     season: int | None = None,
-    group: str = MLB_DEFAULT_STATS_GROUP,
+    group: str | MlbStatsGroup = MLB_DEFAULT_STATS_GROUP,
     stats_type: str = MLB_DEFAULT_STATS_TYPE,
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch team-level stats from the MLB Stats API.
 
-    The group parameter specifies the stat category (e.g. "hitting",
-    "pitching", "fielding"). The stats_type parameter controls the time
-    frame (e.g. "season", "career").
+    The group parameter specifies the stat category (e.g. ``"hitting"``,
+    ``"pitching"``, ``"fielding"``) and accepts a ``MlbStatsGroup`` enum.
+    The stats_type parameter controls the time frame (e.g. ``"season"``,
+    ``"career"``).
 
     Note:
         Raises InvalidParameterError if team_id is non-positive, the
-        season is out of range, or group or stats_type is empty.
+        season is out of range, group is invalid, or stats_type is empty.
     """
     if team_id <= 0:
         raise InvalidParameterError("team_id must be a positive integer.")
     if season is not None and (season < MLB_FIRST_YEAR or season > most_recent_season() + 1):
         raise InvalidParameterError(f"Invalid season: {season}.")
-    if not group:
-        raise InvalidParameterError("group must be a non-empty string.")
+    group = resolve_group(group)
     if not stats_type:
         raise InvalidParameterError("stats_type must be a non-empty string.")
 

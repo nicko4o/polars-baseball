@@ -94,12 +94,30 @@ async def test_pitcher_pitch_movement() -> None:
     mock_http.get_text.return_value = _MOCK_CSV
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
 
-    df = await statcast_pitcher_pitch_movement(2026, context=ctx)
+    df = await statcast_pitcher_pitch_movement(2026, min_pitches=100, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
     called_params = mock_http.get_text.call_args.kwargs["params"]
     assert called_params["pitch_type"] == norm_pitch_code("FF")
+    assert called_params["min"] == "100"
+
+
+@pytest.mark.asyncio
+async def test_pitcher_min_p_deprecated() -> None:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _MOCK_CSV
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    with pytest.warns(DeprecationWarning, match="min_pitches"):
+        df = await statcast_pitcher_pitch_movement(2026, minP=100, context=ctx)
+
+    assert df.height == 2
+    called_params = mock_http.get_text.call_args.kwargs["params"]
+    assert called_params["min"] == "100"
 
 
 @pytest.mark.asyncio
