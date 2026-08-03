@@ -144,8 +144,20 @@ async def test_player_name_suggestions_returns_fuzzy_matches(
 
     df = await player_name_suggestions(last="Trut", first="Mike")
 
-    assert df.height == 3
-    assert 545361 in df["key_mlbam"].to_list()
+    assert df.height == 1
+    assert df["key_mlbam"].to_list() == [545361]
+
+
+@pytest.mark.asyncio
+@patch("polars_baseball.apis.playerid.get_lookup_table")
+async def test_player_name_suggestions_rejects_unrelated_names(
+    mock_get_table: MagicMock, mock_player_table: pl.DataFrame
+) -> None:
+    mock_get_table.return_value = mock_player_table
+
+    df = await player_name_suggestions(last="Xjqwz", first="Qwe")
+
+    assert df.height == 0
 
 
 @pytest.mark.asyncio

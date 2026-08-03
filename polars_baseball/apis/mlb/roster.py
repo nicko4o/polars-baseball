@@ -10,6 +10,7 @@ from polars_baseball.apis.mlb._contracts import (
     roster_url,
 )
 from polars_baseball.context import BaseballContext
+from polars_baseball.enums.mlb import MlbRosterType, resolve_roster_type
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.mlb import parse_mlb_roster
@@ -36,7 +37,7 @@ async def _fetch_mlb_roster(
 async def mlb_roster(
     team_id: int,
     season: int | None = None,
-    roster_type: str = MLB_ACTIVE_ROSTER_TYPE,
+    roster_type: str | MlbRosterType = MLB_ACTIVE_ROSTER_TYPE,
     force_update: bool = False,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -47,14 +48,13 @@ async def mlb_roster(
 
     Note:
         Raises InvalidParameterError if team_id is non-positive, the season
-        is out of range, or roster_type is empty.
+        is out of range, or roster_type is not a valid roster type.
     """
     if team_id <= 0:
         raise InvalidParameterError("team_id must be a positive integer.")
     if season is not None and (season < MLB_FIRST_YEAR or season > most_recent_season() + 1):
         raise InvalidParameterError(f"Invalid season: {season}.")
-    if not roster_type:
-        raise InvalidParameterError("roster_type must be a non-empty string.")
+    roster_type = resolve_roster_type(roster_type)
 
     return await _fetch_mlb_roster(
         team_id=team_id,
