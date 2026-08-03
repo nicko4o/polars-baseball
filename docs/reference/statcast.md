@@ -66,6 +66,8 @@ Retrieve aggregate batter performance statistics.
 - `savant.batter_pitch_arsenal(year: int, min_pitches: int = 25) -> pl.DataFrame`
 - `savant.batter_run_value(year: int) -> pl.DataFrame`
 - `savant.batter_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
+
+Note: The legacy `savant.batter_*` functions above are deprecated and scheduled for removal in `v0.16.0`. Use the unified functions (`savant.exitvelo_barrels`, `savant.expected_stats`, etc.) with `player_type="batter"` instead.
 - `savant.exitvelo_barrels(year: int, player_type: str = "batter", min_bbe: int | str = "q") -> pl.DataFrame`
 - `savant.expected_stats(year: int, player_type: str = "batter", min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.run_value(year: int, player_type: str = "batter") -> pl.DataFrame`
@@ -77,7 +79,7 @@ Retrieve aggregate batter performance statistics.
 - `min_pa`, `min_bbe`, `min_swings`: Minimum playing-time/event thresholds. Accept `"q"` for qualifying hitters.
 - `player_type`: `"batter"` or `"pitcher"`.
 
-Note: The camelCase forms (`minPA`, `minBBE`, `minSwings`) remain accepted but are deprecated.
+Note: The camelCase forms (`minPA`, `minBBE`, `minSwings`) remain accepted but are deprecated and scheduled for removal in `v0.16.0`.
 
 ---
 
@@ -108,7 +110,7 @@ Retrieve aggregate pitcher performance statistics.
 - `pitch_a` / `pitch_b`: Pitch types to compare.
 - `pitcher_pov`: Point-of-view perspective. `True` for pitcher view, `False` for batter view.
 
-Note: The camelCase forms (`minP`, `minPA`, `min_count`) remain accepted but are deprecated.
+Note: The camelCase forms (`minP`, `minPA`, `min_count`) remain accepted but are deprecated and scheduled for removal in `v0.16.0`.
 
 ---
 

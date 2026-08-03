@@ -1,8 +1,7 @@
-import logging
 from collections.abc import Callable, Coroutine
 from datetime import timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import polars as pl
 import pytest
@@ -12,7 +11,6 @@ from polars_baseball._client import HttpClient
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamStructureChangedError, UpstreamUnavailableError
 from polars_baseball.gateways.bref import BRefGateway
-from polars_baseball.parsers.bref import BRefHTMLParser
 
 
 @pytest.mark.asyncio
@@ -85,41 +83,7 @@ async def test_get_dataset_chain_failure_raises() -> None:
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamStructureChangedError, match="chain execute failed"):
-        gateway._parse_response("raw_text", parser=None, chain=mock_chain)
-
-
-@pytest.mark.asyncio
-async def test_get_dataset_parser_failure_raises() -> None:
-    """4. Parser/chain failure must fail fast and not be swallowed into an empty table (parser failure)."""
-    mock_parser = MagicMock()
-    mock_parser.parse.side_effect = ValueError("legacy parse failed")
-
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=MagicMock(spec=FileCacheAdapter))
-    gateway = BRefGateway(ctx)
-
-    with pytest.raises(ValueError, match="legacy parse failed"):
-        gateway._parse_response("raw_text", parser=mock_parser, chain=None)
-
-
-@pytest.mark.asyncio
-async def test_get_dataset_auto_chain_fails_and_falls_back_to_legacy_parser(caplog: pytest.LogCaptureFixture) -> None:
-    """4. Auto-chain fallback to legacy parser when execution fails."""
-    mock_parser = MagicMock(spec=BRefHTMLParser)
-    mock_parser.parse.return_value = pl.DataFrame({"fallback": [1]})
-
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=MagicMock(spec=FileCacheAdapter))
-    gateway = BRefGateway(ctx)
-
-    # Passing garbage_text that does not conform to the BRef HTML structure
-    # will cause the auto-chain strategy to throw an exception,
-    # triggering a fallback to mock_parser.parse.
-    with caplog.at_level(logging.WARNING, logger="polars_baseball.gateways.bref"):
-        df = gateway._parse_response("garbage_text", parser=mock_parser, chain=None)
-
-    assert isinstance(df, pl.DataFrame)
-    assert df.equals(pl.DataFrame({"fallback": [1]}))
-    mock_parser.parse.assert_called_once_with("garbage_text")
-    assert "BRef auto-chain failed; falling back to legacy parser" in caplog.text
+        gateway._parse_response("raw_text", chain=mock_chain)
 
 
 @pytest.mark.asyncio
@@ -202,22 +166,6 @@ async def test_get_dataset_default_csv_parser() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_dataset_auto_chain_success() -> None:
-    """Test get_dataset auto-chain execution succeeds."""
-    mock_parser = MagicMock(spec=BRefHTMLParser)
-
-    mock_chain = MagicMock()
-    mock_chain.execute.return_value.df = pl.DataFrame({"auto": [42]})
-
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=MagicMock(spec=FileCacheAdapter))
-    gateway = BRefGateway(ctx)
-
-    with patch("polars_baseball.gateways.bref._build_default_chain", return_value=mock_chain):
-        df = gateway._parse_response("html_text", parser=mock_parser, chain=None)
-        assert df.equals(pl.DataFrame({"auto": [42]}))
-
-
-@pytest.mark.asyncio
 async def test_fetch_and_parse_success() -> None:
     """Test _fetch_and_parse successfully fetches and parses data."""
     mock_http = AsyncMock(spec=HttpClient)
@@ -230,7 +178,6 @@ async def test_fetch_and_parse_success() -> None:
         "https://www.baseball-reference.com/dummy",
         params=None,
         headers=None,
-        parser=None,
         chain=None,
     )
     assert df.equals(pl.DataFrame({"col1": [10], "col2": [20]}))
