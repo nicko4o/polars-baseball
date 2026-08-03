@@ -1,5 +1,5 @@
 import warnings
-from typing import Final, Literal, TypeVar
+from typing import Literal
 
 import polars as pl
 
@@ -23,37 +23,6 @@ PATH_ACTIVE_SPIN = "/leaderboard/active-spin"
 PATH_SPIN_COMP = "/leaderboard/spin-direction-comparison"
 
 SAVANT_DEFAULT_PITCH_TEMPO_MIN = 250
-
-# Version at which the deprecated legacy APIs and parameters are removed.
-_REMOVAL_VERSION: Final[str] = "0.16.0"
-
-
-def _warn_deprecated_param(old_name: str, new_name: str) -> None:
-    warnings.warn(
-        f"The `{old_name}` parameter is deprecated; use `{new_name}` instead. "
-        f"It will be removed in v{_REMOVAL_VERSION}.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-
-def _warn_deprecated_function(old_name: str, replacement: str) -> None:
-    """Warn that a function is deprecated and scheduled for removal."""
-    warnings.warn(
-        f"{old_name} is deprecated; use {replacement} instead. It will be removed in v{_REMOVAL_VERSION}.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-
-_MinParam = TypeVar("_MinParam")
-
-
-def _resolve_min_alias(primary: _MinParam, old_name: str, new_name: str, legacy: _MinParam | None) -> _MinParam:
-    if legacy is not None:
-        _warn_deprecated_param(old_name, new_name)
-        return legacy
-    return primary
 
 
 async def _get_savant_leaderboard(
@@ -94,11 +63,9 @@ async def statcast_exitvelo_barrels(
     year: int,
     player_type: Literal["batter", "pitcher"] = "batter",
     min_bbe: int | str = SAVANT_MIN_QUALIFYING,
-    minBBE: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch exit velocity and barrel rate leaderboard data."""
-    min_bbe = _resolve_min_alias(min_bbe, "minBBE", "min_bbe", minBBE)
     return await get_leaderboard(
         "exitvelo_barrels", context=context, type=player_type, year=str(year), min=str(min_bbe)
     )
@@ -108,11 +75,9 @@ async def statcast_expected_stats(
     year: int,
     player_type: Literal["batter", "pitcher"] = "batter",
     min_pa: int | str = SAVANT_MIN_QUALIFYING,
-    minPA: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast expected statistics (xBA, xSLG, xwOBA) leaderboard data."""
-    min_pa = _resolve_min_alias(min_pa, "minPA", "min_pa", minPA)
     return await get_leaderboard("expected_stats", context=context, type=player_type, year=str(year), min=str(min_pa))
 
 
@@ -120,11 +85,9 @@ async def statcast_bat_tracking(
     year: int,
     player_type: Literal["batter", "pitcher"] = "batter",
     min_swings: int | str = SAVANT_MIN_QUALIFYING,
-    minSwings: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast bat tracking (swing path, attack angle) leaderboard data."""
-    min_swings = _resolve_min_alias(min_swings, "minSwings", "min_swings", minSwings)
     return await get_leaderboard(
         "bat_tracking",
         context=context,
@@ -151,53 +114,12 @@ async def statcast_pitch_arsenal_stats(
     year: int,
     player_type: Literal["batter", "pitcher"] = "batter",
     min_pitches: int = 25,
-    min_count: int | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch pitch arsenal usage and performance leaderboard data."""
-    min_pitches = _resolve_min_alias(min_pitches, "min_count", "min_pitches", min_count)
     return await get_leaderboard(
         "pitch_arsenal_stats", context=context, type=player_type, year=str(year), min=str(min_pitches)
     )
-
-
-# Legacy batter wrappers
-
-
-async def statcast_batter_exitvelo_barrels(
-    year: int,
-    min_bbe: int | str = SAVANT_MIN_QUALIFYING,
-    minBBE: int | str | None = None,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame:
-    """Fetch exit velocity and barrel rate leaderboard for batters.
-
-    Deprecated; use :func:`statcast_exitvelo_barrels` with ``player_type="batter"``.
-    """
-    _warn_deprecated_function(
-        "statcast_batter_exitvelo_barrels",
-        "statcast_exitvelo_barrels(year, player_type='batter', ...)",
-    )
-    min_bbe = _resolve_min_alias(min_bbe, "minBBE", "min_bbe", minBBE)
-    return await statcast_exitvelo_barrels(year, "batter", min_bbe, context=context)
-
-
-async def statcast_batter_expected_stats(
-    year: int,
-    min_pa: int | str = SAVANT_MIN_QUALIFYING,
-    minPA: int | str | None = None,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame:
-    """Fetch Statcast expected statistics (xBA, xSLG, xwOBA) for batters.
-
-    Deprecated; use :func:`statcast_expected_stats` with ``player_type="batter"``.
-    """
-    _warn_deprecated_function(
-        "statcast_batter_expected_stats",
-        "statcast_expected_stats(year, player_type='batter', ...)",
-    )
-    min_pa = _resolve_min_alias(min_pa, "minPA", "min_pa", minPA)
-    return await statcast_expected_stats(year, "batter", min_pa, context=context)
 
 
 async def statcast_batter_percentile_ranks(
@@ -211,86 +133,30 @@ async def statcast_batter_percentile_ranks(
     return await _percentile_ranks_generic("batter", year, context=context)
 
 
-async def statcast_batter_pitch_arsenal(
-    year: int,
-    min_pitches: int = 25,
-    minPA: int | None = None,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame:
-    """Fetch pitch arsenal stats for batters.
-
-    Deprecated; use :func:`statcast_pitch_arsenal_stats` with ``player_type="batter"``.
-    """
-    _warn_deprecated_function(
-        "statcast_batter_pitch_arsenal",
-        "statcast_pitch_arsenal_stats(year, player_type='batter', ...)",
-    )
-    min_pitches = _resolve_min_alias(min_pitches, "minPA", "min_pitches", minPA)
-    return await statcast_pitch_arsenal_stats(year, "batter", min_pitches, context=context)
-
-
-async def statcast_batter_bat_tracking(
-    year: int,
-    min_swings: int | str = SAVANT_MIN_QUALIFYING,
-    minSwings: int | str | None = None,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame:
-    """Fetch bat tracking (swing path, attack angle) data for batters.
-
-    Deprecated; use :func:`statcast_bat_tracking` with ``player_type="batter"``.
-    """
-    _warn_deprecated_function(
-        "statcast_batter_bat_tracking",
-        "statcast_bat_tracking(year, player_type='batter', ...)",
-    )
-    min_swings = _resolve_min_alias(min_swings, "minSwings", "min_swings", minSwings)
-    return await statcast_bat_tracking(year, "batter", min_swings, context=context)
-
-
-async def statcast_batter_run_value(
-    year: int,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame:
-    """Fetch run value leaderboard for batters.
-
-    Deprecated; use :func:`statcast_run_value` with ``player_type="batter"``.
-    """
-    _warn_deprecated_function(
-        "statcast_batter_run_value",
-        "statcast_run_value(year, player_type='batter')",
-    )
-    return await statcast_run_value(year, "batter", context=context)
-
-
 # Pitcher wrappers
 
 
 async def statcast_pitcher_exitvelo_barrels(
     year: int,
     min_bbe: int | str = SAVANT_MIN_QUALIFYING,
-    minBBE: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch exit velocity and barrel rate leaderboard for pitchers."""
-    min_bbe = _resolve_min_alias(min_bbe, "minBBE", "min_bbe", minBBE)
     return await statcast_exitvelo_barrels(year, "pitcher", min_bbe, context=context)
 
 
 async def statcast_pitcher_expected_stats(
     year: int,
     min_pa: int | str = SAVANT_MIN_QUALIFYING,
-    minPA: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast expected statistics (xBA, xSLG, xwOBA) for pitchers."""
-    min_pa = _resolve_min_alias(min_pa, "minPA", "min_pa", minPA)
     return await statcast_expected_stats(year, "pitcher", min_pa, context=context)
 
 
 async def statcast_pitcher_pitch_arsenal(
     year: int,
     min_pitches: int = 250,
-    minP: int | None = None,
     arsenal_type: ArsenalType = ArsenalType.AVG_SPEED,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -300,7 +166,6 @@ async def statcast_pitcher_pitch_arsenal(
     """
     if not isinstance(arsenal_type, ArsenalType):
         raise InvalidParameterError("arsenal_type must be an ArsenalType enum value.")
-    min_pitches = _resolve_min_alias(min_pitches, "minP", "min_pitches", minP)
     url = f"{SAVANT_ROOT}{PATH_PITCH_ARSENALS}"
     params = {
         "year": str(year),
@@ -315,18 +180,15 @@ async def statcast_pitcher_pitch_arsenal(
 async def statcast_pitcher_arsenal_stats(
     year: int,
     min_pitches: int = 25,
-    minPA: int | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch pitch arsenal stats for pitchers."""
-    min_pitches = _resolve_min_alias(min_pitches, "minPA", "min_pitches", minPA)
     return await statcast_pitch_arsenal_stats(year, "pitcher", min_pitches, context=context)
 
 
 async def statcast_pitcher_pitch_movement(
     year: int,
     min_pitches: int | str = SAVANT_MIN_QUALIFYING,
-    minP: int | str | None = None,
     pitch_type: str = "FF",
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -334,7 +196,6 @@ async def statcast_pitcher_pitch_movement(
 
     Note: pitch_type is normalized via norm_pitch_code; defaults to "FF" (four-seam fastball).
     """
-    min_pitches = _resolve_min_alias(min_pitches, "minP", "min_pitches", minP)
     pitch_code = norm_pitch_code(pitch_type)
     url = f"{SAVANT_ROOT}{PATH_PITCH_MOVEMENT}"
     params = {
@@ -373,7 +234,6 @@ async def _try_fetch_active_spin(
 async def statcast_pitcher_active_spin(
     year: int,
     min_pitches: int = 250,
-    minP: int | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch Statcast active spin leaderboard data for pitchers.
@@ -381,7 +241,6 @@ async def statcast_pitcher_active_spin(
     Note: Tries "spin-based" results first, falls back to "observed";
     raises UpstreamParseError if neither variant returns data.
     """
-    min_pitches = _resolve_min_alias(min_pitches, "minP", "min_pitches", minP)
     for idx, spin_type in enumerate(_ACTIVE_SPIN_TYPE_ORDER):
         df = await _try_fetch_active_spin(year, min_pitches, spin_type, context=context)
         if df is not None:
@@ -411,7 +270,6 @@ async def statcast_pitcher_spin_dir_comp(
     pitch_a: str = "FF",
     pitch_b: str = "CH",
     min_pitches: int = 100,
-    minP: int | None = None,
     pitcher_pov: bool = True,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
@@ -420,7 +278,6 @@ async def statcast_pitcher_spin_dir_comp(
     Note: pitch_a and pitch_b are normalized via norm_pitch_code;
     pitcher_pov controls the perspective (True = Pitcher view, False = Batter view).
     """
-    min_pitches = _resolve_min_alias(min_pitches, "minP", "min_pitches", minP)
     code_a = norm_pitch_code(pitch_a, to_word=True)
     code_b = norm_pitch_code(pitch_b, to_word=True)
     pov = "Pit" if pitcher_pov else "Bat"
@@ -441,11 +298,9 @@ async def statcast_pitcher_spin_dir_comp(
 async def statcast_pitcher_bat_tracking(
     year: int,
     min_swings: int | str = SAVANT_MIN_QUALIFYING,
-    minSwings: int | str | None = None,
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     """Fetch bat tracking (swing path, attack angle) data for pitchers."""
-    min_swings = _resolve_min_alias(min_swings, "minSwings", "min_swings", minSwings)
     return await statcast_bat_tracking(year, "pitcher", min_swings, context=context)
 
 

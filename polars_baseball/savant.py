@@ -61,22 +61,7 @@ from polars_baseball.apis.savant_leaderboards import (
     statcast_bat_tracking as bat_tracking,
 )
 from polars_baseball.apis.savant_leaderboards import (
-    statcast_batter_bat_tracking as batter_bat_tracking,
-)
-from polars_baseball.apis.savant_leaderboards import (
-    statcast_batter_exitvelo_barrels as batter_exitvelo_barrels,
-)
-from polars_baseball.apis.savant_leaderboards import (
-    statcast_batter_expected_stats as batter_expected_stats,
-)
-from polars_baseball.apis.savant_leaderboards import (
     statcast_batter_percentile_ranks as batter_percentile_ranks,
-)
-from polars_baseball.apis.savant_leaderboards import (
-    statcast_batter_pitch_arsenal as batter_pitch_arsenal,
-)
-from polars_baseball.apis.savant_leaderboards import (
-    statcast_batter_run_value as batter_run_value,
 )
 from polars_baseball.apis.savant_leaderboards import (
     statcast_exitvelo_barrels as exitvelo_barrels,
@@ -142,12 +127,7 @@ __all__ = [
     "baserunning_run_value",
     "bat_tracking",
     "batter",
-    "batter_bat_tracking",
-    "batter_exitvelo_barrels",
-    "batter_expected_stats",
     "batter_percentile_ranks",
-    "batter_pitch_arsenal",
-    "batter_run_value",
     "catcher_blocking",
     "catcher_framing",
     "catcher_poptime",
