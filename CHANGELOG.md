@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-08-04
+
 ### Fixed
 - Importing `polars_baseball` no longer creates the default cache directory. The directory is initialized only when a cached request is made.
 - Concurrent cache reads, writes, and clearing are synchronized to prevent cache entries from reappearing after a clear operation.
