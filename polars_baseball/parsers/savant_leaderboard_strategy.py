@@ -17,7 +17,7 @@ import lxml.etree
 import polars as pl
 from lxml.etree import _Element
 
-from polars_baseball.exceptions import UpstreamParseError
+from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
 from polars_baseball.parsers._strategy import ProbeResult, StructureFingerprint
 from polars_baseball.parsers.savant import SavantCSVParser
 
@@ -70,17 +70,17 @@ class SavantHTMLTableStrategy:
         try:
             tree = lxml.etree.HTML(raw)
             if tree is None:
-                return pl.DataFrame()
+                raise UpstreamStructureChangedError("Savant HTML response has no document tree.")
 
             tables = cast(list[_Element], tree.xpath("//table"))
             if not tables:
-                return pl.DataFrame()
+                raise UpstreamStructureChangedError("Savant HTML response has no table.")
 
             table = tables[0]
 
             th_elements = cast(list[_Element], table.xpath(".//thead//th | .//tr[1]//th"))
             if not th_elements:
-                return pl.DataFrame()
+                raise UpstreamStructureChangedError("Savant HTML leaderboard table has no headers.")
 
             headers = [self._cell_text(th) for th in th_elements]
 
@@ -101,6 +101,8 @@ class SavantHTMLTableStrategy:
                     rows.append(row)
 
             return pl.DataFrame(rows)
+        except UpstreamStructureChangedError:
+            raise
         except Exception as exc:
             raise UpstreamParseError("Savant HTML leaderboard parsing failed.") from exc
 
