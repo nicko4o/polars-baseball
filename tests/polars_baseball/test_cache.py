@@ -1,4 +1,10 @@
 import asyncio
+import gc
+import hashlib
+import json
+import os
+import subprocess
+import sys
 import threading
 from datetime import timedelta
 from pathlib import Path
@@ -8,6 +14,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._cache import (
+    _IN_FLIGHT_LOCKS,
     FileCacheAdapter,
     GlobalCache,
     NullCacheAdapter,
@@ -48,6 +55,28 @@ def test_generate_cache_key() -> None:
     assert key1 == key2
     assert isinstance(key1, str)
     assert len(key1) == 32
+
+
+def test_import_does_not_create_default_cache_directory(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["HOME"] = str(tmp_path)
+    env.pop("POLARS_BASEBALL_CACHE_DIR", None)
+
+    subprocess.run([sys.executable, "-c", "import polars_baseball"], check=True, env=env)
+
+    assert not (tmp_path / ".polars_baseball" / "cache").exists()
+
+
+def test_cache_key_includes_schema_version() -> None:
+    from polars_baseball._config import CACHE_SCHEMA_VERSION
+
+    url = "https://example.com/api"
+    params = {"season": 2026}
+    legacy_params = json.dumps(sorted((key, str(value)) for key, value in params.items()))
+    legacy_key = hashlib.md5(f"{url}?{legacy_params}".encode()).hexdigest()
+
+    assert CACHE_SCHEMA_VERSION > 0
+    assert generate_cache_key(url, params) != legacy_key
 
 
 def test_file_cache_adapter_get_set(tmp_path: Path) -> None:
@@ -165,6 +194,19 @@ async def test_cached_coalesces_concurrent_misses() -> None:
 
 
 @pytest.mark.asyncio
+async def test_in_flight_lock_registry_releases_unused_lock() -> None:
+    cache = object()
+    key = f"released-lock-{id(cache)}"
+    lock = _in_flight_lock_for(cache, key)
+    assert lock is not None
+
+    del lock
+    gc.collect()
+
+    assert all(key not in composite_key for composite_key in _IN_FLIGHT_LOCKS)
+
+
+@pytest.mark.asyncio
 async def test_cached_checks_cache_before_lock() -> None:
     """Cache hits must return before acquiring the in-flight asyncio.Lock."""
     context = _MemoryContext()
@@ -200,6 +242,35 @@ def test_file_cache_adapter_set_os_error_cleanup(tmp_path: Path, caplog: pytest.
 
     adapter.set("another-key", df)
     assert adapter.get("another-key") is None
+
+
+def test_file_cache_clear_waits_for_concurrent_write(tmp_path: Path) -> None:
+    import polars_baseball._cache as cache_module
+
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    write_started = threading.Event()
+    release_write = threading.Event()
+    original_write = cache_module._write_cached_file
+
+    def blocked_write(path: Path, value: pl.DataFrame) -> bool:
+        write_started.set()
+        assert release_write.wait(timeout=5)
+        return original_write(path, value)
+
+    with patch.object(cache_module, "_write_cached_file", side_effect=blocked_write):
+        writer = threading.Thread(target=adapter.set, args=("race-key", pl.DataFrame({"a": [1]})))
+        writer.start()
+        assert write_started.wait(timeout=5)
+
+        clearer = threading.Thread(target=adapter.clear)
+        clearer.start()
+        release_write.set()
+        writer.join(timeout=5)
+        clearer.join(timeout=5)
+
+    assert not writer.is_alive()
+    assert not clearer.is_alive()
+    assert adapter.get("race-key") is None
 
 
 def test_file_cache_adapter_init_os_error_defensive(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
