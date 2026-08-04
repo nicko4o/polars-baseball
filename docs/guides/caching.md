@@ -1,10 +1,10 @@
 # Caching Guide
 
-`polars-baseball` includes an opt-in file cache to avoid redundant network requests during large data queries.
+`polars-baseball` includes a file cache to avoid redundant network requests during large data queries.
 
 ## Caching Strategy
 
-- **Default status**: Caching is disabled until you call `configure_cache()` or pass a file-backed context.
+- **Default status**: Importing the package performs no cache I/O. The default file cache is initialized on the first cached request.
 - **Storage location**: File cache data is stored in the directory you configure.
 - **Storage format**: Cached tables are written as Parquet for fast I/O and columnar compression.
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 ### Lifecycle & Concurrency in Web Services
 
-The global default context (used when calling package APIs without `context=`) is a lazy singleton designed for CLI scripts. It does not write cache files unless `configure_cache()` has been called. It is not thread-safe or loop-safe in long-running concurrent apps (like FastAPI or Celery).
+The global default context (used when calling package APIs without `context=`) is a lazy singleton designed for CLI scripts. Its default file cache is also initialized lazily on first use. It is not thread-safe or loop-safe in long-running concurrent apps (like FastAPI or Celery).
 
 For web services, always initialize and inject a custom `BaseballContext` tied to your application's lifecycle:
 
@@ -98,7 +98,7 @@ Call `configure_cache()` or `BaseballContext.with_file_cache()` to enable file c
 
 ## Cache Behavior
 
-- **Parameter-level matching**: The cache key is based on the function and exact arguments. Identical calls reuse cached results.
+- **Parameter-level matching**: The cache key is based on the function, exact arguments, and cache schema version. Identical calls reuse cached results.
 - **No subset matching**: A cached query for `statcast("2026-06-01", "2026-06-10")` is not reused for `statcast("2026-06-05", "2026-06-06")`.
 - **Compiled datasets**: Lahman and Chadwick Register tables are cached as per-table Parquet files under `compiled-datasets/`.
 - **Compiled dataset CDN**: Set `POLARS_BASEBALL_DATASETS_URL` to a hosted compiled dataset root. The client then downloads `dataset/table.parquet` files instead of compiling from upstream ZIP archives.

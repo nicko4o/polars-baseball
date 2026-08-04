@@ -6,6 +6,7 @@ import json
 import logging
 import tempfile
 import threading
+import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ from typing import ParamSpec, Protocol, TypeVar, cast
 import polars as pl
 from polars.exceptions import ComputeError
 
-from polars_baseball._config import DEFAULT_CACHE_DIR
+from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR
 from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
@@ -23,12 +24,12 @@ logger = logging.getLogger(__name__)
 P = ParamSpec("P")
 R = TypeVar("R")
 
-_IN_FLIGHT_LOCKS: dict[str, asyncio.Lock] = {}
+_IN_FLIGHT_LOCKS: weakref.WeakValueDictionary[tuple[int, int, str], asyncio.Lock] = weakref.WeakValueDictionary()
 _IN_FLIGHT_LOCKS_GUARD = threading.Lock()
 
 
 def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
-    composite_key = f"{id(cache)}:{key}"
+    composite_key = (id(asyncio.get_running_loop()), id(cache), key)
     with _IN_FLIGHT_LOCKS_GUARD:
         lock = _IN_FLIGHT_LOCKS.get(composite_key)
         if lock is None:
@@ -50,7 +51,7 @@ def generate_cache_key(
         sorted_params = sorted((k, str(v)) for k, v in params.items())
         serialized_params = json.dumps(sorted_params)
 
-    raw_str = f"{url}?{serialized_params}"
+    raw_str = f"{CACHE_SCHEMA_VERSION}:{url}?{serialized_params}"
     return hashlib.md5(raw_str.encode("utf-8")).hexdigest()
 
 
@@ -182,16 +183,18 @@ class FileCacheAdapter(CacheAdapter):
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         if self._disabled:
             return None
-        with self._lock_for(key):
-            return _try_read_cached(self._get_path(key), key, max_age)
+        with self._clear_lock:
+            with self._lock_for(key):
+                return _try_read_cached(self._get_path(key), key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:
             return
-        with self._lock_for(key):
-            write_ok = _write_cached_file(self._get_path(key), value)
-            if not write_ok:
-                self._disabled = True
+        with self._clear_lock:
+            with self._lock_for(key):
+                write_ok = _write_cached_file(self._get_path(key), value)
+                if not write_ok:
+                    self._disabled = True
 
     def clear(self) -> None:
         if self._disabled:
@@ -217,32 +220,40 @@ class GlobalCache(CacheAdapter):
     """Thread-safe process-wide cache adapter with dynamic backend switching."""
 
     def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
+        self._cache_dir = cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR
         if use_null_default and cache_dir is None:
-            self._adapter: CacheAdapter = NullCacheAdapter()
+            self._adapter: CacheAdapter | None = NullCacheAdapter()
         else:
-            self._adapter = FileCacheAdapter(cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR)
+            self._adapter = None
         self._lock = threading.Lock()
 
     @property
     def cache_dir(self) -> Path:
         with self._lock:
-            if not isinstance(self._adapter, FileCacheAdapter):
+            if isinstance(self._adapter, NullCacheAdapter):
                 raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
-            return self._adapter.cache_dir
+            return self._cache_dir
+
+    def _get_adapter(self) -> CacheAdapter:
+        with self._lock:
+            if self._adapter is None:
+                self._adapter = FileCacheAdapter(self._cache_dir)
+            return self._adapter
 
     def configure(self, cache_dir: Path) -> None:
         adapter = FileCacheAdapter(cache_dir)
         with self._lock:
+            self._cache_dir = cache_dir
             self._adapter = adapter
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        return self._adapter.get(key, max_age)
+        return self._get_adapter().get(key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
-        self._adapter.set(key, value)
+        self._get_adapter().set(key, value)
 
     def clear(self) -> None:
-        self._adapter.clear()
+        self._get_adapter().clear()
 
 
 global_cache = GlobalCache()

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Importing `polars_baseball` no longer creates the default cache directory. The directory is initialized only when a cached request is made.
+- Concurrent cache reads, writes, and clearing are synchronized to prevent cache entries from reappearing after a clear operation.
+- Savant leaderboard responses with malformed HTML now raise an upstream structure error instead of silently returning an empty table.
+
 ## [0.16.0] - 2026-08-03
 
 ### Removed

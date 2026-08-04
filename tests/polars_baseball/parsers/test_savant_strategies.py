@@ -243,8 +243,8 @@ def test_html_strategy_empty_table() -> None:
     html = "<html><body><table></table></body></html>"
     strategy = SavantHTMLTableStrategy()
     assert strategy.can_handle(html).can_handle is True
-    df = strategy.extract(html)
-    assert df.is_empty()
+    with pytest.raises(UpstreamStructureChangedError):
+        strategy.extract(html)
 
 
 def test_html_strategy_no_table_in_html() -> None:
