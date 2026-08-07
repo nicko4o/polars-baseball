@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `HttpClient` and `BaseballContext` automatically detect and pass `CF_COOKIE`, `CF_CLEARANCE`, and `USER_AGENT` environment variables in HTTP request headers for Cloudflare-protected providers (FanGraphs, BRef).
+
 ## [0.16.1] - 2026-08-04
 
 ### Fixed

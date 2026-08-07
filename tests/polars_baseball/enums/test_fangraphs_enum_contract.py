@@ -1,5 +1,6 @@
 """Live contract tests for FanGraphs enum column codes."""
 
+import os
 import typing
 
 import polars as pl
@@ -43,6 +44,7 @@ class TestLiveFetchAndValidate:
     ) -> pl.DataFrame:
         from polars_baseball.apis.fangraphs import fg_data
         from polars_baseball.context import BaseballContext
+        from polars_baseball.exceptions import PolarsBaseballHttpError
 
         request = builder(**kwargs)
 
@@ -50,7 +52,19 @@ class TestLiveFetchAndValidate:
             async with BaseballContext() as ctx:
                 return await fg_data(request, context=ctx)
 
-        df = run_async(run())
+        try:
+            df = run_async(run())
+        except PolarsBaseballHttpError as e:
+            if e.status_code == 403 or "Cloudflare" in str(e):
+                if os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true":
+                    raise PolarsBaseballHttpError(
+                        f"FanGraphs live enum contract test failed on CI due to HTTP 403. "
+                        f"Verify CF_COOKIE / CF_CLEARANCE in GitHub Secrets is set: {e}",
+                        status_code=403,
+                    ) from e
+                pytest.skip(f"FanGraphs live test skipped locally due to Cloudflare protection: {e}")
+            raise
+
         missing = critical - set(df.columns)
         assert not missing, f"Missing critical columns: {missing}"
         return df
@@ -111,6 +125,7 @@ class TestLiveCodeToNameMapping:
     ) -> None:
         from polars_baseball.apis.fangraphs import fg_data
         from polars_baseball.context import BaseballContext
+        from polars_baseball.exceptions import PolarsBaseballHttpError
 
         request = builder(start_season=2024, stat_columns=[enum_class.parse(c) for c in codes])
 
@@ -118,7 +133,19 @@ class TestLiveCodeToNameMapping:
             async with BaseballContext() as ctx:
                 return await fg_data(request, context=ctx)
 
-        df = run_async(run())
+        try:
+            df = run_async(run())
+        except PolarsBaseballHttpError as e:
+            if e.status_code == 403 or "Cloudflare" in str(e):
+                if os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true":
+                    raise PolarsBaseballHttpError(
+                        f"FanGraphs live code mapping contract test failed on CI due to HTTP 403. "
+                        f"Verify CF_COOKIE / CF_CLEARANCE in GitHub Secrets is set: {e}",
+                        status_code=403,
+                    ) from e
+                pytest.skip(f"FanGraphs live test skipped locally due to Cloudflare protection: {e}")
+            raise
+
         for expected_name in codes.values():
             assert expected_name in df.columns, f"Missing column: {expected_name}"
 
