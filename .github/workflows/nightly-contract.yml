@@ -36,6 +36,9 @@ jobs:
 
       - name: Run live contract tests
         run: uv run pytest tests/polars_baseball/test_live_contracts.py -m "live" -v
+        env:
+          CF_COOKIE: ${{ secrets.CF_COOKIE }}
+          CF_CLEARANCE: ${{ secrets.CF_CLEARANCE }}
 
       - name: Open issue on failure
         if: failure()

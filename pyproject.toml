@@ -90,6 +90,7 @@ dev = [
     "vulture>=2.16",
     "bump-my-version>=0.28.1",
     "rich>=13.0.0",
+    "playwright>=1.62.0",
 ]
 
 [tool.bumpversion]

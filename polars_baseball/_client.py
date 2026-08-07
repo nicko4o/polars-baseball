@@ -1,4 +1,5 @@
 import asyncio
+import os
 import ssl
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -56,7 +57,7 @@ class HttpClient:
         self._bref_delay = (
             SECONDS_PER_MINUTE / bref_requests_per_minute if bref_requests_per_minute is not None else None
         )
-        self._extra_headers: dict[str, str] = dict(extra_headers) if extra_headers is not None else {}
+        self._extra_headers: dict[str, str] = self._resolve_extra_headers(extra_headers)
         self._max_retries = max_retries
         self._retry_backoff_base_seconds = retry_backoff_base_seconds
         self._timeout = timeout
@@ -73,6 +74,24 @@ class HttpClient:
     @extra_headers.setter
     def extra_headers(self, value: Mapping[str, str] | None) -> None:
         self._extra_headers = dict(value) if value is not None else {}
+
+    @staticmethod
+    def _resolve_extra_headers(extra_headers: Mapping[str, str] | None) -> dict[str, str]:
+        resolved: dict[str, str] = {}
+        cf_cookie = os.environ.get("CF_COOKIE")
+        cf_clearance = os.environ.get("CF_CLEARANCE")
+        user_agent = os.environ.get("USER_AGENT")
+
+        if cf_cookie:
+            resolved["Cookie"] = cf_cookie
+        elif cf_clearance:
+            resolved["Cookie"] = f"cf_clearance={cf_clearance}"
+        if user_agent:
+            resolved["User-Agent"] = user_agent
+
+        if extra_headers is not None:
+            resolved.update(extra_headers)
+        return resolved
 
     def get_httpx_client(self) -> httpx.AsyncClient:
         if self._httpx_client is None:
