@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-08-11
+
 ### Added
 - `pb.savant.park_factors()` to fetch Statcast Park Factors from Baseball Savant with support for single years, multi-year lists, year range tuples `(start_year, end_year)`, and venue filtering.
 - Register `SavantEmbeddedJSONStrategy` into the global Savant leaderboard parsing chain, enabling extraction of embedded `var data = [...]` payloads across all Savant leaderboard endpoints.
