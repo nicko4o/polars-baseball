@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-08-11
+
 ### Added
 - `mlb_game_highlights()` (and `pb.mlb.game_highlights()`) to fetch single-game video highlight metadata and MP4 playback URLs from the MLB Stats API as a `polars.DataFrame`.
 
