@@ -26,6 +26,7 @@ ROOT_PUBLIC_API = {
     "get_lookup_table",
     "lahman",
     "mlb",
+    "mlb_game_highlights",
     "player_name_suggestions",
     "player_search_list",
     "playerid_lookup",

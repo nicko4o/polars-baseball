@@ -17,7 +17,7 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 | --- | --- | --- |
 | Identity | `mlb.people`, `mlb.people_awards` | You need official person metadata or award timelines. |
 | Schedule and team metadata | `mlb.schedule`, `mlb.teams`, `mlb.roster`, `mlb.venues`, `mlb.divisions`, `mlb.leagues` | You need game lists, roster snapshots, or joinable dimension tables. |
-| Game data | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore` | You need single-game player, play, live-feed, or inning data. |
+| Game data | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore`, `mlb.game_highlights` | You need single-game player, play, live-feed, inning, or video highlight data. |
 | Stats and leaderboards | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `standings` | You need official stat groups, league leaders, or standings. |
 | Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | You need roster movement, draft records, or postseason schedule rows. |
 
@@ -343,7 +343,25 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 19. Divisions (`mlb.divisions`)
+## 19. Game Highlights (`mlb.game_highlights`)
+
+`mlb.game_highlights(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+
+Retrieves video highlight metadata and MP4 playback URLs for a single game. Selects the highest available bitrate MP4 video URL per highlight item.
+
+```python
+import asyncio
+import polars_baseball as pb
+
+async def main() -> None:
+    df = await pb.mlb.game_highlights(game_pk=745585)
+    print(df.select(["title", "playId", "url"]))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 20. Divisions (`mlb.divisions`)
 
 `mlb.divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -361,7 +379,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 20. Leagues (`mlb.leagues`)
+## 21. Leagues (`mlb.leagues`)
 
 `mlb.leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -379,7 +397,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 21. People Awards (`mlb.people_awards`)
+## 22. People Awards (`mlb.people_awards`)
 
 `mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -397,7 +415,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 22. Standings (`standings`)
+## 23. Standings (`standings`)
 
 `standings(season: int | None = None) -> pl.DataFrame`
 

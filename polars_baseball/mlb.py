@@ -16,6 +16,9 @@ from polars_baseball.apis.mlb import (
     mlb_game_feed_live as game_feed_live,
 )
 from polars_baseball.apis.mlb import (
+    mlb_game_highlights as game_highlights,
+)
+from polars_baseball.apis.mlb import (
     mlb_game_linescore as game_linescore,
 )
 from polars_baseball.apis.mlb import (
@@ -70,6 +73,7 @@ __all__ = [
     "game_boxscore",
     "game_boxscore_stats",
     "game_feed_live",
+    "game_highlights",
     "game_linescore",
     "game_play_by_play",
     "game_win_probability",

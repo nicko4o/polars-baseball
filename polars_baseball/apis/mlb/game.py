@@ -9,6 +9,8 @@ from polars_baseball.apis.mlb._contracts import (
     boxscore_cache_key,
     boxscore_stats_cache_key,
     boxscore_url,
+    game_content_url,
+    game_highlights_cache_key,
     linescore_cache_key,
     linescore_url,
     live_feed_cache_key,
@@ -25,6 +27,7 @@ from polars_baseball.parsers.mlb import (
     parse_mlb_boxscore,
     parse_mlb_boxscore_stats,
     parse_mlb_game_feed_live,
+    parse_mlb_game_highlights,
     parse_mlb_game_linescore,
     parse_mlb_play_by_play,
     parse_mlb_win_probability,
@@ -247,5 +250,43 @@ async def mlb_game_linescore(
         game_pk=game_pk,
         force_update=force_update,
         cache_max_age=cache_max_age,
+        context=context,
+    )
+
+
+@cached(key=game_highlights_cache_key, max_age=MLB_CACHE_MAX_AGE)
+async def _fetch_mlb_game_highlights(
+    game_pk: int,
+    force_update: bool = False,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    url = game_content_url(game_pk)
+    ctx = context or BaseballContext.default()
+    return await MlbStatsGateway(ctx).fetch(
+        url,
+        None,
+        "Failed to fetch or parse MLB game highlights",
+        lambda d: parse_mlb_game_highlights(d, game_pk),
+    )
+
+
+async def mlb_game_highlights(
+    game_pk: int,
+    force_update: bool = False,
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    """Fetch video highlight metadata and playback URLs for a single game from MLB Stats API.
+
+    Args:
+        game_pk: The game's MLB ID (e.g. 715789).
+        force_update: Bypass cache and fetch fresh data.
+        context: Optional BaseballContext.
+    """
+    if game_pk <= 0:
+        raise InvalidParameterError("game_pk must be a positive integer.")
+
+    return await _fetch_mlb_game_highlights(
+        game_pk=game_pk,
+        force_update=force_update,
         context=context,
     )
