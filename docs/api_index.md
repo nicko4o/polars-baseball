@@ -23,6 +23,7 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 | Query player or team stats | `pb.mlb.player_stats`, `pb.mlb.team_stats` | Stat rows | MLB Stats API | Official hitting, pitching, and fielding stat groups |
 | Query boxscore data | `pb.mlb.game_boxscore`, `pb.mlb.game_boxscore_stats` | Player-game or stat rows | MLB Stats API | Single-game lineups, participation, and boxscore stats |
 | Query play-by-play data | `pb.mlb.game_play_by_play`, `pb.mlb.game_win_probability` | One row per play | MLB Stats API | Play logs, WPA, leverage, and event sequencing |
+| Query game highlight videos | `pb.mlb.game_highlights`, `mlb_game_highlights` | One row per highlight | MLB Stats API | Single-game video highlight metadata and MP4 URLs |
 | Query live game feed data | `pb.mlb.game_feed_live`, `pb.mlb.game_linescore` | Event or inning rows | MLB Stats API | Live feed polling and inning-by-inning game state |
 | Query official metadata | `pb.mlb.teams`, `pb.mlb.venues`, `pb.mlb.divisions`, `pb.mlb.leagues` | Dimension rows | MLB Stats API | Joining team, venue, division, and league metadata |
 | Query transactions or draft records | `pb.mlb.transactions`, `pb.mlb.draft` | Transaction or pick rows | MLB Stats API | Roster movement and amateur draft analysis |

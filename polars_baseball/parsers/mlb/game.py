@@ -1,6 +1,7 @@
 """MLB Stats API parsers for game data—boxscores, boxscore stats, play-by-play, win probability, and linescore."""
 
-from typing import Any, cast
+import re
+from typing import Any, Final, cast
 
 import polars as pl
 
@@ -9,6 +10,8 @@ from polars_baseball._schemas.mlb import (
     MLB_BOXSCORE_REQUIRED,
     MLB_BOXSCORE_STATS_TYPES,
     MLB_BOXSCORE_TYPES,
+    MLB_GAME_HIGHLIGHTS_REQUIRED,
+    MLB_GAME_HIGHLIGHTS_TYPES,
     MLB_LINESCORE_REQUIRED,
     MLB_LINESCORE_TYPES,
     MLB_LIVE_FEED_REQUIRED,
@@ -264,4 +267,96 @@ def parse_mlb_game_linescore(data: dict[str, Any], game_pk: int) -> pl.DataFrame
         return pl.DataFrame()
     return validate_and_cast_schema(
         pl.DataFrame(rows, infer_schema_length=None), MLB_LINESCORE_REQUIRED, MLB_LINESCORE_TYPES
+    )
+
+
+_BITRATE_REGEX: Final[re.Pattern[str]] = re.compile(r"(\d+)[kK]")
+
+
+def _extract_playback_bitrate(url: str) -> int:
+    match = _BITRATE_REGEX.search(url)
+    return int(match.group(1)) if match else 0
+
+
+def _select_highest_bitrate_playback_url(playbacks: list[dict[str, Any]]) -> str | None:
+    if not playbacks:
+        return None
+
+    valid_urls: list[str] = [
+        cast(str, pb["url"]) for pb in playbacks if isinstance(pb, dict) and isinstance(pb.get("url"), str)
+    ]
+    if not valid_urls:
+        return None
+
+    return max(valid_urls, key=_extract_playback_bitrate)
+
+
+def _extract_keyword_value(keywords_all: object, target_type: str) -> str | None:
+    if not isinstance(keywords_all, list):
+        return None
+    for kw in keywords_all:
+        if isinstance(kw, dict) and kw.get("type") == target_type and kw.get("value") is not None:
+            return str(kw.get("value"))
+    return None
+
+
+def _parse_highlight_item(item: dict[str, Any], game_pk: int) -> dict[str, Any] | None:
+    playbacks = item.get("playbacks", [])
+    best_url = _select_highest_bitrate_playback_url(playbacks if isinstance(playbacks, list) else [])
+    if not best_url:
+        return None
+
+    keywords_all = item.get("keywordsAll", [])
+    raw_player_id = _extract_keyword_value(keywords_all, "player_id")
+    try:
+        player_id = int(raw_player_id) if raw_player_id is not None else None
+    except ValueError:
+        player_id = None
+
+    play_id = item.get("playId") or _extract_keyword_value(keywords_all, "play_id")
+    raw_id = item.get("id") or item.get("mediaPlaybackId")
+    highlight_id = str(raw_id) if raw_id is not None else None
+
+    return {
+        "gamePk": game_pk,
+        "highlightId": highlight_id,
+        "playId": play_id,
+        "playerId": player_id,
+        "title": item.get("headline"),
+        "blurb": item.get("blurb"),
+        "duration": item.get("duration"),
+        "date": item.get("date"),
+        "url": best_url,
+    }
+
+
+def parse_mlb_game_highlights(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
+    """Parse highlight metadata and playback URLs from MLB Stats API /game/{gamePk}/content response."""
+    highlights_container = data.get("highlights", {})
+    if not isinstance(highlights_container, dict):
+        return pl.DataFrame(schema=MLB_GAME_HIGHLIGHTS_TYPES)
+
+    inner_highlights = highlights_container.get("highlights", {})
+    if not isinstance(inner_highlights, dict):
+        return pl.DataFrame(schema=MLB_GAME_HIGHLIGHTS_TYPES)
+
+    items = inner_highlights.get("items", [])
+    if not isinstance(items, list) or not items:
+        return pl.DataFrame(schema=MLB_GAME_HIGHLIGHTS_TYPES)
+
+    rows = [
+        row
+        for item in items
+        if isinstance(item, dict)
+        for row in [_parse_highlight_item(item, game_pk)]
+        if row is not None
+    ]
+
+    if not rows:
+        return pl.DataFrame(schema=MLB_GAME_HIGHLIGHTS_TYPES)
+
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, infer_schema_length=None),
+        MLB_GAME_HIGHLIGHTS_REQUIRED,
+        MLB_GAME_HIGHLIGHTS_TYPES,
     )

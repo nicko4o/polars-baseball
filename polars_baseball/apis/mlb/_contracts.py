@@ -31,6 +31,7 @@ _DRAFT_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/draft/{{}}"
 _PLAY_BY_PLAY_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/game/{{}}/playByPlay"
 _WIN_PROBABILITY_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/game/{{}}/winProbability"
 _LIVE_FEED_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT[:-3]}/v1.1/game/{{}}/feed/live"
+_GAME_CONTENT_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/game/{{}}/content"
 _TRANSACTIONS_URL: Final[str] = f"{STATS_API_ROOT}/transactions"
 _VENUES_URL: Final[str] = f"{STATS_API_ROOT}/venues"
 _VENUE_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/venues/{{}}"
@@ -98,6 +99,10 @@ def win_probability_url(game_pk: int) -> str:
 
 def live_feed_url(game_pk: int) -> str:
     return _LIVE_FEED_URL_TEMPLATE.format(game_pk)
+
+
+def game_content_url(game_pk: int) -> str:
+    return _GAME_CONTENT_URL_TEMPLATE.format(game_pk)
 
 
 def transactions_url() -> str:
@@ -267,6 +272,11 @@ def live_feed_cache_key(**kw: object) -> str:
 def linescore_cache_key(**kw: object) -> str:
     game_pk = cast(int, kw.get("game_pk"))
     return generate_cache_key(linescore_url(game_pk), {})
+
+
+def game_highlights_cache_key(**kw: object) -> str:
+    game_pk = cast(int, kw.get("game_pk"))
+    return generate_cache_key(game_content_url(game_pk), {})
 
 
 def transactions_cache_key(**kw: object) -> str:

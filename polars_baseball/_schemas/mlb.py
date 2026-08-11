@@ -329,3 +329,16 @@ MLB_LINESCORE_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "awayHits": pl.Int64,
     "awayErrors": pl.Int64,
 }
+
+MLB_GAME_HIGHLIGHTS_REQUIRED: Final[tuple[str, ...]] = ("gamePk", "highlightId", "title", "url")
+MLB_GAME_HIGHLIGHTS_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
+    "gamePk": pl.Int64,
+    "highlightId": pl.String,
+    "playId": pl.String,
+    "playerId": pl.Int64,
+    "title": pl.String,
+    "blurb": pl.String,
+    "duration": pl.String,
+    "date": pl.String,
+    "url": pl.String,
+}
