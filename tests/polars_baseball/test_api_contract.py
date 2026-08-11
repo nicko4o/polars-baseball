@@ -89,6 +89,7 @@ def test_provider_namespace_functions_are_async() -> None:
     assert inspect.iscoroutinefunction(pb.mlb.schedule)
     assert inspect.iscoroutinefunction(pb.mlb.game_boxscore)
     assert inspect.iscoroutinefunction(pb.savant.statcast)
+    assert inspect.iscoroutinefunction(pb.savant.park_factors)
     assert inspect.iscoroutinefunction(pb.savant.gamefeed_pitch_data)
     assert inspect.iscoroutinefunction(pb.savant.arm_strength)
     assert inspect.iscoroutinefunction(pb.lahman.batting)

@@ -58,6 +58,9 @@ from polars_baseball.apis.savant_gamefeed import (
     savant_gamefeed_pitch_data_many as gamefeed_pitch_data_many,
 )
 from polars_baseball.apis.savant_leaderboards import (
+    savant_park_factors as park_factors,
+)
+from polars_baseball.apis.savant_leaderboards import (
     statcast_bat_tracking as bat_tracking,
 )
 from polars_baseball.apis.savant_leaderboards import (
@@ -144,6 +147,7 @@ __all__ = [
     "outfield_directional_oaa",
     "outfielder_jump",
     "outs_above_average",
+    "park_factors",
     "pitch_arsenal_stats",
     "pitch_tempo",
     "pitcher",

@@ -14,6 +14,7 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 | Query pitch-level data for one batter | `statcast_batter` | One row per pitch | Baseball Savant | Batter matchup, swing, contact, and batted-ball analysis |
 | Query pitch-level data for one game | `statcast_single_game` | One row per pitch | Baseball Savant | Single-game pitch breakdowns by `game_pk` |
 | Query batter or pitcher leaderboards | `pb.savant.batter_expected_stats`, `pb.savant.pitcher_pitch_arsenal`, and related helpers | Leaderboard rows | Baseball Savant | Season-level Statcast leaderboard metrics |
+| Query venue Statcast Park Factors | `pb.savant.park_factors` | Park factor rows | Baseball Savant | Stadium HR, wOBA, SO, BB, and hit metric park factors |
 | Query FanGraphs player leaderboards | `pb.fangraphs.batting`, `pb.fangraphs.pitching`, `pb.fangraphs.fielding` | Leaderboard rows | FanGraphs | Player batting, pitching, and fielding leaderboards |
 | Query FanGraphs team leaderboards | `pb.fangraphs.team_batting`, `pb.fangraphs.team_pitching`, `pb.fangraphs.team_fielding`, `pb.fangraphs.team_starters`, `pb.fangraphs.team_relievers` | Team leaderboard rows | FanGraphs | Team-level season comparisons |
 | Query schedules or find `gamePk` | `pb.mlb.schedule` | One row per game | MLB Stats API | Game lists, daily slates, team schedules, and IDs for game endpoints |

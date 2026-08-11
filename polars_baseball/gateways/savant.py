@@ -13,6 +13,7 @@ from polars_baseball.parsers.savant import SavantCSVParser
 from polars_baseball.parsers.savant_gamefeed import JsonObject
 from polars_baseball.parsers.savant_leaderboard_strategy import (
     SavantCSVStrategy,
+    SavantEmbeddedJSONStrategy,
     SavantHTMLTableStrategy,
 )
 
@@ -27,7 +28,13 @@ _DEFAULT_LEADERBOARD_CHAIN: ProviderChain | None = None
 def _get_leaderboard_chain() -> ProviderChain:
     global _DEFAULT_LEADERBOARD_CHAIN
     if _DEFAULT_LEADERBOARD_CHAIN is None:
-        _DEFAULT_LEADERBOARD_CHAIN = ProviderChain([SavantCSVStrategy(), SavantHTMLTableStrategy()])
+        _DEFAULT_LEADERBOARD_CHAIN = ProviderChain(
+            [
+                SavantCSVStrategy(),
+                SavantEmbeddedJSONStrategy(),
+                SavantHTMLTableStrategy(),
+            ]
+        )
     return _DEFAULT_LEADERBOARD_CHAIN
 
 

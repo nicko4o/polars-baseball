@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `pb.savant.park_factors()` to fetch Statcast Park Factors from Baseball Savant with support for single years, multi-year lists, year range tuples `(start_year, end_year)`, and venue filtering.
+- Register `SavantEmbeddedJSONStrategy` into the global Savant leaderboard parsing chain, enabling extraction of embedded `var data = [...]` payloads across all Savant leaderboard endpoints.
 - `HttpClient` and `BaseballContext` automatically detect and pass `CF_COOKIE`, `CF_CLEARANCE`, and `USER_AGENT` environment variables in HTTP request headers for Cloudflare-protected providers (FanGraphs, BRef).
 
 ## [0.16.1] - 2026-08-04
