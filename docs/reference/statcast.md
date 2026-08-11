@@ -92,6 +92,8 @@ Retrieve aggregate pitcher performance statistics.
 - `savant.pitcher_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
 - `savant.pitch_arsenal_stats(year: int, player_type: str = "pitcher", min_pitches: int = 25) -> pl.DataFrame`
 - `savant.pitch_tempo(year: int, min_pitches: int = 250) -> pl.DataFrame`
+- `savant.park_factors(year: int | list[int] | tuple[int, int] | None = None, start_year: int | None = None, end_year: int | None = None, venue_id: int | list[int] | None = None, bat_side: str = "all") -> pl.DataFrame`
+
 
 ### Arguments
 

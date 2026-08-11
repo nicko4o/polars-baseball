@@ -33,3 +33,42 @@ class SavantCSVParser(BaseParser):
             df = df.with_columns(pl.col(k).cast(v, strict=False).alias(k) for k, v in active_casts.items())
 
         return df
+
+
+def parse_savant_park_factors(df: pl.DataFrame) -> pl.DataFrame:
+    """Parse and normalize Savant Statcast Park Factors dataset."""
+    from polars_baseball._schema_utils import validate_and_cast_schema
+    from polars_baseball._schemas.savant import SAVANT_PARK_FACTORS_REQUIRED, SAVANT_PARK_FACTORS_TYPES
+
+    if df.is_empty():
+        return pl.DataFrame()
+
+    column_mapping = {
+        "venue_id": "venue_id",
+        "venue_name": "venue_name",
+        "main_team_id": "team_id",
+        "name_display_club": "team_name",
+        "key_year": "year",
+        "year_range": "year_range",
+        "key_bat_side": "bat_side",
+        "n_pa": "n_pa",
+        "index_woba": "park_factor",
+        "index_runs": "runs_factor",
+        "index_hr": "hr_factor",
+        "index_hits": "hits_factor",
+        "index_1b": "singles_factor",
+        "index_2b": "doubles_factor",
+        "index_3b": "triples_factor",
+        "index_so": "so_factor",
+        "index_bb": "bb_factor",
+        "index_hardhit": "hard_hit_factor",
+    }
+
+    existing_renames = {k: v for k, v in column_mapping.items() if k in df.columns}
+    df = df.rename(existing_renames)
+
+    if "park_factor" in df.columns and "woba_factor" not in df.columns:
+        df = df.with_columns(pl.col("park_factor").alias("woba_factor"))
+
+    df = validate_and_cast_schema(df, SAVANT_PARK_FACTORS_REQUIRED, SAVANT_PARK_FACTORS_TYPES)
+    return df.filter(pl.col("venue_id").is_not_null() & (pl.col("venue_id") > 0))

@@ -11,6 +11,8 @@ Both implement the ExtractionStrategy Protocol from parsers._strategy.
 
 from __future__ import annotations
 
+import json
+import re
 from typing import cast
 
 import lxml.etree
@@ -47,6 +49,38 @@ class SavantCSVStrategy:
 
     def fingerprint(self) -> StructureFingerprint:
         return StructureFingerprint(source="Savant-CSV", required_indicators=_CSV_INDICATORS)
+
+
+_JSON_VAR_INDICATORS = ("var data =",)
+
+
+class SavantEmbeddedJSONStrategy:
+    """Strategy for parsing embedded 'var data = [...];' JSON objects in Savant HTML pages."""
+
+    def can_handle(self, raw: str) -> ProbeResult:
+        stripped = raw.strip()
+        if not stripped:
+            return ProbeResult(can_handle=False, diagnostics="Empty content")
+
+        if "var data =" in stripped:
+            return ProbeResult(can_handle=True, diagnostics="Embedded 'var data =' found")
+
+        return ProbeResult(can_handle=False, diagnostics="No 'var data =' found")
+
+    def extract(self, raw: str) -> pl.DataFrame:
+        match = re.search(r"var data = (\[.*?\]);", raw, re.DOTALL)
+        if not match:
+            raise UpstreamStructureChangedError("Could not extract 'var data = [...]' JSON payload.")
+        try:
+            rows = json.loads(match.group(1))
+            if not isinstance(rows, list):
+                raise UpstreamStructureChangedError("Embedded JSON payload is not a list.")
+            return pl.DataFrame(rows)
+        except json.JSONDecodeError as exc:
+            raise UpstreamParseError("Savant embedded JSON is not valid JSON.") from exc
+
+    def fingerprint(self) -> StructureFingerprint:
+        return StructureFingerprint(source="Savant-Embedded-JSON", required_indicators=_JSON_VAR_INDICATORS)
 
 
 class SavantHTMLTableStrategy:

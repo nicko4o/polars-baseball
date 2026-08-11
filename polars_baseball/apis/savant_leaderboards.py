@@ -1,15 +1,23 @@
+import asyncio
 import warnings
 from typing import Literal
 
 import polars as pl
 
-from polars_baseball._config import SAVANT_INVALID_PLAYER_ID, SAVANT_ROOT
+from polars_baseball._config import (
+    DEFAULT_STATCAST_CONCURRENCY_LIMIT,
+    SAVANT_INVALID_PLAYER_ID,
+    SAVANT_ROOT,
+    STATCAST_PARK_FACTORS_START_YEAR,
+)
+from polars_baseball._season import most_recent_season
 from polars_baseball.apis._leaderboard_registry import get_leaderboard
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.pitch import norm_pitch_code
 from polars_baseball.enums.savant import ArsenalType
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 from polars_baseball.gateways.savant import SavantGateway
+from polars_baseball.parsers.savant import parse_savant_park_factors
 
 # Savant leaderboard constants
 SAVANT_CSV_PARAM = "true"
@@ -21,6 +29,7 @@ PATH_PITCH_ARSENALS = "/leaderboard/pitch-arsenals"
 PATH_PITCH_MOVEMENT = "/leaderboard/pitch-movement"
 PATH_ACTIVE_SPIN = "/leaderboard/active-spin"
 PATH_SPIN_COMP = "/leaderboard/spin-direction-comparison"
+PATH_PARK_FACTORS = "/leaderboard/statcast-park-factors"
 
 SAVANT_DEFAULT_PITCH_TEMPO_MIN = 250
 
@@ -319,3 +328,137 @@ async def statcast_pitch_tempo(
 ) -> pl.DataFrame:
     """Fetch pitch tempo (pace-of-game) leaderboard data."""
     return await get_leaderboard("pitch_tempo", context=context, year=str(year), min=str(min_pitches))
+
+
+async def _fetch_savant_park_factors(
+    year: int,
+    bat_side: str = "All",
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    url = f"{SAVANT_ROOT}{PATH_PARK_FACTORS}"
+    params = {
+        "type": "year",
+        "year": str(year),
+        "batSide": bat_side,
+    }
+    raw_df = await _get_savant_leaderboard(url, params, context=context)
+    return parse_savant_park_factors(raw_df)
+
+
+def _normalize_bat_side(bat_side: str) -> str:
+    norm = str(bat_side).upper()
+    if norm == "ALL":
+        return "All"
+    if norm in ("L", "R"):
+        return norm
+    raise InvalidParameterError("bat_side must be one of 'all', 'L', or 'R'.")
+
+
+def _extract_years_list(
+    year: int | list[int] | tuple[int, int] | None,
+    start_year: int | None,
+    end_year: int | None,
+) -> list[int]:
+    if start_year is not None or end_year is not None:
+        if start_year is None or end_year is None or not isinstance(start_year, int) or not isinstance(end_year, int):
+            raise InvalidParameterError("Both start_year and end_year must be integers provided together.")
+        if start_year > end_year:
+            raise InvalidParameterError("start_year cannot be greater than end_year.")
+        return list(range(start_year, end_year + 1))
+
+    if isinstance(year, tuple):
+        if len(year) != 2 or not isinstance(year[0], int) or not isinstance(year[1], int) or year[0] > year[1]:
+            raise InvalidParameterError(
+                "year tuple must be (start_year, end_year) with integer start_year <= end_year."
+            )
+        return list(range(year[0], year[1] + 1))
+
+    if isinstance(year, list):
+        if not year:
+            raise InvalidParameterError("year list cannot be empty.")
+        return list(year)
+
+    if isinstance(year, int):
+        return [year]
+
+    if year is None:
+        return [most_recent_season()]
+
+    raise InvalidParameterError(f"Invalid year specification: {year}")
+
+
+def _resolve_year_range(
+    year: int | list[int] | tuple[int, int] | None,
+    start_year: int | None,
+    end_year: int | None,
+) -> list[int]:
+    years = _extract_years_list(year, start_year, end_year)
+    for yr in years:
+        if not isinstance(yr, int) or yr < STATCAST_PARK_FACTORS_START_YEAR:
+            raise InvalidParameterError(f"Year must be an integer >= {STATCAST_PARK_FACTORS_START_YEAR}.")
+    return years
+
+
+def _normalize_venue_ids(venue_id: int | list[int] | None) -> list[int] | None:
+    if venue_id is None:
+        return None
+    if isinstance(venue_id, int):
+        if venue_id <= 0:
+            raise InvalidParameterError("venue_id must be a positive integer.")
+        return [venue_id]
+    if isinstance(venue_id, list):
+        if not all(isinstance(v, int) and v > 0 for v in venue_id):
+            raise InvalidParameterError("All venue_ids must be positive integers.")
+        return list(venue_id)
+    raise InvalidParameterError(f"Invalid venue_id specification: {type(venue_id).__name__}")
+
+
+async def savant_park_factors(
+    year: int | list[int] | tuple[int, int] | None = None,
+    start_year: int | None = None,
+    end_year: int | None = None,
+    venue_id: int | list[int] | None = None,
+    bat_side: Literal["all", "L", "R"] = "all",
+    context: BaseballContext | None = None,
+) -> pl.DataFrame:
+    """Fetch Statcast Park Factors from Baseball Savant.
+
+    Args:
+        year: Single year (int), list of years, or tuple (start_year, end_year).
+        start_year: Start year for range query.
+        end_year: End year for range query.
+        venue_id: Single MLB venue ID or list of venue IDs to filter.
+        bat_side: Batter side filter ('all', 'L', or 'R').
+        context: Optional BaseballContext.
+
+    Returns:
+        DataFrame containing normalized Statcast Park Factors.
+    """
+    savant_bat_side = _normalize_bat_side(bat_side)
+    years = _resolve_year_range(year, start_year, end_year)
+    venue_ids = _normalize_venue_ids(venue_id)
+
+    if len(years) == 1:
+        df = await _fetch_savant_park_factors(
+            year=years[0],
+            bat_side=savant_bat_side,
+            context=context,
+        )
+    else:
+        sem = asyncio.Semaphore(DEFAULT_STATCAST_CONCURRENCY_LIMIT)
+
+        async def _fetch_sem(yr: int) -> pl.DataFrame:
+            async with sem:
+                return await _fetch_savant_park_factors(
+                    year=yr,
+                    bat_side=savant_bat_side,
+                    context=context,
+                )
+
+        results = await asyncio.gather(*[_fetch_sem(yr) for yr in years])
+        df = pl.concat(results, how="vertical") if results else pl.DataFrame()
+
+    if venue_ids is not None and not df.is_empty():
+        df = df.filter(pl.col("venue_id").is_in(venue_ids))
+
+    return df
