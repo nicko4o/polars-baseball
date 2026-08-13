@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "polars-baseball: The unified Polars-native baseball data SDK"
+abstract: "A typed, async-first Python library for retrieving MLB and baseball analytics data from Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, and the MLB Stats API natively into Polars DataFrames."
+authors:
+  - family-names: "Nick"
+    email: "polarsbaseball99@gmail.com"
+repository-code: "https://github.com/nicko4o/polars-baseball"
+url: "https://nicko4o.github.io/polars-baseball/"
+keywords:
+  - baseball
+  - sabermetrics
+  - polars
+  - statcast
+  - mlb
+license: MIT
+version: 0.18.0

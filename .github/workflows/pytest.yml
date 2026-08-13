@@ -46,8 +46,11 @@ jobs:
         run: uv audit
       - name: Check examples syntax
         run: uv run python -m py_compile examples/*.py
+      - name: Validate Documentation Build
+        run: uv run mkdocs build --strict
       - name: Dry-run Package Build
         run: uv build
+
 
   test:
     needs: lint

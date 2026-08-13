@@ -2,6 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
 [![Python versions](https://img.shields.io/pypi/pyversions/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs--material-blue.svg)](https://nicko4o.github.io/polars-baseball/)
 [![CI](https://github.com/nicko4o/polars-baseball/actions/workflows/pytest.yml/badge.svg)](https://github.com/nicko4o/polars-baseball/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/nicko4o/polars-baseball)](https://codecov.io/gh/nicko4o/polars-baseball)
 [![License](https://img.shields.io/pypi/l/polars-baseball.svg)](https://github.com/nicko4o/polars-baseball/blob/main/LICENSE)
@@ -226,10 +227,11 @@ Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 packa
 
 以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 
-## 文件
+## 文件與資源
 
-- [Documentation](docs/index.md)
-- [API 用途索引 (English)](docs/api_index.md)：依任務選擇正確 API。
+- [官方線上文件門戶 (Official Docs Portal)](https://nicko4o.github.io/polars-baseball/)
+- [API 用途索引 (API Index)](docs/api_index.md)：依任務選擇正確 API。
+- [維護者指南 (Maintaining Guide)](docs/MAINTAINING.md)：套件發布與維護流程。
 
 ## Showcase
 
@@ -239,10 +241,32 @@ Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 packa
 - 中文棒球網站資料工作流
 - Threads bot 棒球資料 pipeline
 
-## 貢獻
+## 社群規範與專案治理
 
-開發流程與專案結構請參考 [CONTRIBUTING.zh-TW.md](.github/CONTRIBUTING.zh-TW.md)。
+我們非常歡迎社群貢獻！在提交 Pull Request 或 Issue 前，請閱讀相關規範：
+
+- [開發與貢獻指南](.github/CONTRIBUTING.zh-TW.md) (包含 AI 輔助程式碼提交規範)
+- [行為準則](.github/CODE_OF_CONDUCT.zh-TW.md)
+- [資安漏洞通報政策](.github/SECURITY.zh-TW.md)
+
+## 數據源聲明與版權 (Data Attribution & Copyright Notices)
+
+`polars-baseball` 為資料擷取 SDK，並不主張任何上游數據源之所有權：
+
+- **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
+- **Statcast & MLB Stats API**: 資料由 Major League Baseball / Baseball Savant 提供。
+- **FanGraphs & Baseball Reference**: 資料由 FanGraphs 與 Baseball Reference 授權提供，請遵循上游服務條款與請求頻率限制。
+- **Lahman**: Lahman's Baseball Database by Sean Lahman.
+
+## 學術與研究引用 (Citation)
+
+若您在學術研究、棒球分析論文或軟體專案中使用 `polars-baseball`，請參考 [`CITATION.cff`](CITATION.cff) 進行引用。
 
 ## 作者
 
 由 Nick 建立與維護。
+
+## 授權條款
+
+本專案採用 [MIT License](LICENSE) 授權。
+
