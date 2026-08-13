@@ -441,7 +441,7 @@ if __name__ == "__main__":
 
 ## Output DataFrame Schema & Internal Definitions
 
-All `polars_baseball.mlb` endpoints enforce strict Polars schemas. Complete column name lists and Polars data types are defined in [polars_baseball/_schemas/mlb.py](../../polars_baseball/_schemas/mlb.py).
+All `polars_baseball.mlb` endpoints enforce strict Polars schemas. Complete column name lists and Polars data types are defined in [`polars_baseball/_schemas/mlb.py`](https://github.com/nicko4o/polars-baseball/blob/main/polars_baseball/_schemas/mlb.py).
 
 ### Major Endpoint Schema Summary
 

@@ -15,9 +15,9 @@ Start with the use-case index when you know the task but not the API name.
 
 Interactive Jupyter notebooks demonstrating real workflows:
 
-- [`notebooks/statcast_pitch_mix_demo.ipynb`](../notebooks/statcast_pitch_mix_demo.ipynb)
-- [`notebooks/fangraphs_leaderboard_demo.ipynb`](../notebooks/fangraphs_leaderboard_demo.ipynb)
-- [`notebooks/mlb_schedule_demo.ipynb`](../notebooks/mlb_schedule_demo.ipynb)
+- [`notebooks/statcast_pitch_mix_demo.ipynb`](https://github.com/nicko4o/polars-baseball/blob/main/notebooks/statcast_pitch_mix_demo.ipynb)
+- [`notebooks/fangraphs_leaderboard_demo.ipynb`](https://github.com/nicko4o/polars-baseball/blob/main/notebooks/fangraphs_leaderboard_demo.ipynb)
+- [`notebooks/mlb_schedule_demo.ipynb`](https://github.com/nicko4o/polars-baseball/blob/main/notebooks/mlb_schedule_demo.ipynb)
 
 ## Reference
 

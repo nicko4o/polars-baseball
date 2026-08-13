@@ -2,6 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
 [![Python versions](https://img.shields.io/pypi/pyversions/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
+[![Documentation](https://img.shields.io/badge/docs-mkdocs--material-blue.svg)](https://nicko4o.github.io/polars-baseball/)
 [![CI](https://github.com/nicko4o/polars-baseball/actions/workflows/pytest.yml/badge.svg)](https://github.com/nicko4o/polars-baseball/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/nicko4o/polars-baseball)](https://codecov.io/gh/nicko4o/polars-baseball)
 [![License](https://img.shields.io/pypi/l/polars-baseball.svg)](https://github.com/nicko4o/polars-baseball/blob/main/LICENSE)
@@ -240,10 +241,11 @@ the package root for use in typed parameters.
 Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part
 of the compatibility contract.
 
-## Documentation
+## Documentation & Resources
 
-- [Documentation](docs/index.md)
-- [API Use-Case Index](docs/api_index.md): choose the right API by task.
+- [Official Documentation Portal](https://nicko4o.github.io/polars-baseball/)
+- [API Use-Case Index](docs/api_index.md): Choose the right API by task.
+- [Maintaining Guide](docs/MAINTAINING.md): Package publishing and maintenance steps.
 
 ## Showcase
 
@@ -253,10 +255,32 @@ Projects using `polars-baseball`:
 - Chinese baseball website data jobs
 - Threads bot baseball data pipelines
 
-## Contributing
+## Community & Governance
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for development workflow and architecture notes.
+We welcome contributions! Please review our repository policies before submitting PRs or issues:
+
+- [Contributing Guidelines](.github/CONTRIBUTING.md) (Includes AI-Assisted Contribution Policy)
+- [Code of Conduct](.github/CODE_OF_CONDUCT.md)
+- [Security Policy](.github/SECURITY.md)
+
+## Data Attribution & Copyright Notices
+
+`polars-baseball` is a data retrieval library and does not claim ownership of upstream datasets:
+
+- **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
+- **Statcast & MLB Stats API**: Data provided courtesy of Major League Baseball / Baseball Savant.
+- **FanGraphs & Baseball Reference**: Data provided courtesy of FanGraphs and Baseball Reference. Please respect upstream terms of service and rate limits.
+- **Lahman**: Lahman's Baseball Database by Sean Lahman.
+
+## Citation
+
+If you use `polars-baseball` in research, academic work, or software projects, please cite it using [`CITATION.cff`](CITATION.cff).
 
 ## Author
 
 Created and maintained by Nick.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+

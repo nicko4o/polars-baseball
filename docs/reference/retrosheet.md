@@ -24,7 +24,7 @@ Retrosheet functions retrieve game logs, schedules, rosters, park codes, and eve
 
 ## Output DataFrame Schema & Internal Definitions
 
-Retrosheet schemas and column definitions are defined in [polars_baseball/_schemas/retrosheet.py](../../polars_baseball/_schemas/retrosheet.py).
+Retrosheet schemas and column definitions are defined in [`polars_baseball/_schemas/retrosheet.py`](https://github.com/nicko4o/polars-baseball/blob/main/polars_baseball/_schemas/retrosheet.py).
 
 ### Endpoint Schema Summary
 
