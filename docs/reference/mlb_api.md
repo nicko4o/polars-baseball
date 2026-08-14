@@ -17,7 +17,7 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 | --- | --- | --- |
 | Identity | `mlb.people`, `mlb.people_awards` | You need official person metadata or award timelines. |
 | Schedule and team metadata | `mlb.schedule`, `mlb.teams`, `mlb.roster`, `mlb.venues`, `mlb.divisions`, `mlb.leagues` | You need game lists, roster snapshots, or joinable dimension tables. |
-| Game data | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore`, `mlb.game_highlights` | You need single-game player, play, live-feed, inning, or video highlight data. |
+| Game data | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore`, `mlb.game_highlights`, `mlb.film_room_search` | You need single-game player, play, live-feed, inning, or video highlight and Film Room search data. |
 | Stats and leaderboards | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `standings` | You need official stat groups, league leaders, or standings. |
 | Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | You need roster movement, draft records, or postseason schedule rows. |
 
@@ -361,7 +361,30 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 20. Divisions (`mlb.divisions`)
+## 20. Film Room Search (`mlb.film_room_search`)
+
+`mlb.film_room_search(player_ids: list[int] | int | None = None, team_ids: list[int] | int | None = None, seasons: list[int] | int | None = None, date_range: tuple[str, str] | None = None, event_types: list[str] | str | None = None, pitch_types: list[str] | str | None = None, min_exit_velocity: float | None = None, max_exit_velocity: float | None = None, min_distance: int | None = None, max_distance: int | None = None, limit: int = 100, query: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+
+Searches MLB Film Room video clips across players, teams, seasons, date ranges, pitch types, hit results, and Statcast metrics (exit velocity, hit distance).
+
+```python
+import asyncio
+import polars_baseball as pb
+
+async def main() -> None:
+    df = await pb.mlb.film_room_search(
+        player_ids=660271,
+        event_types="Home Run",
+        min_exit_velocity=110.0,
+        limit=20,
+    )
+    print(df.select(["date", "title", "exit_velocity", "hit_distance", "best_mp4_url"]))
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 21. Divisions (`mlb.divisions`)
 
 `mlb.divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -379,7 +402,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 21. Leagues (`mlb.leagues`)
+## 22. Leagues (`mlb.leagues`)
 
 `mlb.leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -397,7 +420,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 22. People Awards (`mlb.people_awards`)
+## 23. People Awards (`mlb.people_awards`)
 
 `mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
@@ -415,7 +438,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 23. Standings (`standings`)
+## 24. Standings (`standings`)
 
 `standings(season: int | None = None) -> pl.DataFrame`
 
@@ -457,5 +480,6 @@ All `polars_baseball.mlb` endpoints enforce strict Polars schemas. Complete colu
 | `mlb.draft` | `year`, `round`, `pickNumber`, `playerName`, `playerId`, `teamId` | `year`: `Int64`, `pickNumber`: `Int64`, `playerName`: `String` |
 | `mlb.transactions` | `id`, `date`, `description`, `typeCode`, `playerId`, `fromTeamId`, `toTeamId` | `id`: `Int64`, `date`: `String`, `typeCode`: `String` |
 | `mlb.game_feed_live` | `gamePk`, `atBatIndex`, `pitchIndex`, `batterId`, `pitcherId`, `releaseSpeed` | `gamePk`: `Int64`, `releaseSpeed`: `Float64`, `spinRate`: `Int64` |
+| `mlb.film_room_search` | `content_id`, `date`, `title`, `blurb`, `player_id`, `player_name`, `event_type`, `exit_velocity`, `hit_distance`, `best_mp4_url`, `hls_url`, `playbacks` | `content_id`: `String`, `date`: `Date`, `exit_velocity`: `Float64`, `best_mp4_url`: `String` |
 
 

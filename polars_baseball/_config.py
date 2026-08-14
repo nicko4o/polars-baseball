@@ -20,6 +20,7 @@ GITHUB_ROOT = "https://github.com"
 GITHUB_API_ROOT = "https://api.github.com"
 CHADWICK_ORG = "chadwickbureau"
 
+FILM_ROOM_GRAPHQL_URL = "https://fastball-gateway.mlb.com/graphql"
 SAVANT_STATCAST_SEARCH_URL = f"{SAVANT_ROOT}/statcast_search/csv"
 SAVANT_GAMEFEED_URL = f"{SAVANT_ROOT}/gf"
 FG_LEADERS_URL = f"{FG_ROOT}/leaders.aspx"

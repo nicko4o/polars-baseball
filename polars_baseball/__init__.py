@@ -3,7 +3,7 @@ import logging as _logging
 from polars_baseball import bref, fangraphs, lahman, mlb, retrosheet, savant
 from polars_baseball._cache import configure_cache
 from polars_baseball.apis.fangraphs import FanGraphsFilter, FanGraphsFilterOp, FanGraphsRequest, fg_data
-from polars_baseball.apis.mlb import mlb_game_highlights
+from polars_baseball.apis.mlb import mlb_film_room_search, mlb_game_highlights
 from polars_baseball.apis.playerid import (
     chadwick_register,
     get_lookup_table,
@@ -57,6 +57,7 @@ __all__ = [
     "get_lookup_table",
     "lahman",
     "mlb",
+    "mlb_film_room_search",
     "mlb_game_highlights",
     "player_name_suggestions",
     "player_search_list",
