@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-08-14
+
 ### Added
 - `mlb_film_room_search()` (and `pb.mlb.film_room_search()`) to search MLB Film Room video clips across players, teams, seasons, date ranges, pitch types, hit results, exit velocity, and hit distance, returning a flattened `polars.DataFrame` with high-bitrate MP4 URLs and HLS streams.
 
