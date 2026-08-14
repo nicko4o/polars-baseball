@@ -195,3 +195,161 @@ async def test_film_room_search_parameter_validation() -> None:
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty string"):
         await film_room_search(query="")
+
+
+def test_parse_film_room_search_forge_cdn_fallback() -> None:
+    mock_payload = {
+        "data": {
+            "search": {
+                "total": 1,
+                "plays": [
+                    {
+                        "id": "play-100",
+                        "gameDate": "2024-08-13",
+                        "mediaPlayback": [
+                            {
+                                "id": "mb-100",
+                                "title": "Kerry Carpenter's two-run homer",
+                                "blurb": "Kerry Carpenter hits a homer",
+                                "date": "2024-08-13",
+                                "mediaPlaybackId": "f7071359-b8485b07-ba6767c1-csvm-diamondx64-asset",
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+    }
+    df = parse_film_room_search(mock_payload)
+    assert len(df) == 1
+    row = df.to_dicts()[0]
+    expected_url = (
+        "https://mlb-cuts-diamond.mlb.com/FORGE/2024/2024-08/13/"
+        "f7071359-b8485b07-ba6767c1-csvm-diamondx64-asset_1280x720_59_4000K.mp4"
+    )
+    assert row["best_mp4_url"] == expected_url
+    assert len(row["playbacks"]) == 1
+    assert row["playbacks"][0]["url"] == expected_url
+    assert row["playbacks"][0]["bitrate"] == 4000
+
+
+def test_film_room_query_builder_date_range_formats() -> None:
+    from datetime import date, datetime
+
+    # String ISO timestamps
+    q1 = FilmRoomQueryBuilder.build(date_range=("2024-08-13T00:00:00Z", "2024-08-14T23:59:59Z"))
+    assert 'Date = ["2024-08-13", "2024-08-14"]' in q1
+
+    # Python date objects
+    q2 = FilmRoomQueryBuilder.build(date_range=(date(2024, 8, 13), date(2024, 8, 14)))  # type: ignore[arg-type]
+    assert 'Date = ["2024-08-13", "2024-08-14"]' in q2
+
+    # Python datetime objects
+    q3 = FilmRoomQueryBuilder.build(date_range=(datetime(2024, 8, 13, 10, 0), datetime(2024, 8, 14, 20, 0)))  # type: ignore[arg-type]
+    assert 'Date = ["2024-08-13", "2024-08-14"]' in q3
+
+
+@pytest.mark.asyncio
+async def test_film_room_gateway_pagination_early_break() -> None:
+    from unittest.mock import AsyncMock
+
+    from polars_baseball._client import HttpClient
+    from polars_baseball.context import BaseballContext
+    from polars_baseball.gateways.film_room import FilmRoomGateway
+
+    mock_http = AsyncMock(spec=HttpClient)
+
+    page_1_data = {
+        "data": {
+            "search": {
+                "total": 24,
+                "plays": [
+                    {
+                        "id": f"play-{i}",
+                        "gameDate": "2024-08-13",
+                        "mediaPlayback": [{"title": f"Play {i}", "date": "2024-08-13"}],
+                    }
+                    for i in range(20)
+                ],
+            }
+        }
+    }
+    page_2_data = {
+        "data": {
+            "search": {
+                "total": 24,
+                "plays": [
+                    {
+                        "id": f"play-{i}",
+                        "gameDate": "2024-08-13",
+                        "mediaPlayback": [{"title": f"Play {i}", "date": "2024-08-13"}],
+                    }
+                    for i in range(20, 24)
+                ],
+            }
+        }
+    }
+
+    import json
+
+    mock_http.post_json = AsyncMock(
+        side_effect=[
+            json.dumps(page_1_data),
+            json.dumps(page_2_data),
+        ]
+    )
+    ctx = BaseballContext(http=mock_http)
+    gateway = FilmRoomGateway(ctx)
+
+    # Request limit=100 (which would be 5 pages with PAGE_SIZE=20)
+    df = await gateway.fetch_search("dummy_query", limit=100, error_msg="Error", parser=parse_film_room_search)
+
+    # Because page 2 returned 4 items (< 20 fetch_limit), it must break early and make only 2 HTTP requests
+    assert len(df) == 24
+    assert mock_http.post_json.call_count == 2
+
+
+def test_parse_film_room_search_forge_cdn_fallback_with_existing_hls() -> None:
+    mock_payload = {
+        "data": {
+            "search": {
+                "total": 1,
+                "plays": [
+                    {
+                        "id": "play-200",
+                        "gameDate": "2024-08-13",
+                        "mediaPlayback": [
+                            {
+                                "id": "mb-200",
+                                "title": "Highlight with HLS only",
+                                "date": "2024-08-13",
+                                "mediaPlaybackId": "f7071359-b8485b07-ba6767c1-csvm-diamondx64-asset",
+                            }
+                        ],
+                        "playbacks": [
+                            {
+                                "name": "hlsStream",
+                                "url": "https://media.mlb.com/stream.m3u8",
+                                "bitrate": 0,
+                                "width": 0,
+                                "height": 0,
+                            }
+                        ],
+                    }
+                ],
+            }
+        }
+    }
+    df = parse_film_room_search(mock_payload)
+    assert len(df) == 1
+    row = df.to_dicts()[0]
+    expected_url = (
+        "https://mlb-cuts-diamond.mlb.com/FORGE/2024/2024-08/13/"
+        "f7071359-b8485b07-ba6767c1-csvm-diamondx64-asset_1280x720_59_4000K.mp4"
+    )
+    assert row["best_mp4_url"] == expected_url
+    assert row["hls_url"] == "https://media.mlb.com/stream.m3u8"
+    assert len(row["playbacks"]) == 2
+    playback_urls = [p["url"] for p in row["playbacks"]]
+    assert "https://media.mlb.com/stream.m3u8" in playback_urls
+    assert expected_url in playback_urls
