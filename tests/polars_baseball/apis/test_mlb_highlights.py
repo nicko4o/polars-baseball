@@ -91,6 +91,7 @@ async def test_mlb_game_highlights_success() -> None:
         "duration",
         "date",
         "url",
+        "best_mp4_url",
     ]
 
     # Verify highest bitrate url selection (2500k vs 450k/1200k)
@@ -103,12 +104,14 @@ async def test_mlb_game_highlights_success() -> None:
     assert row_0["blurb"] == "Aaron Judge crushes a solo home run."
     assert row_0["duration"] == "00:00:35"
     assert row_0["url"] == "https://cuts.mlb.com/2500k.mp4"
+    assert row_0["best_mp4_url"] == "https://cuts.mlb.com/2500k.mp4"
 
     row_1 = df.to_dicts()[1]
     assert row_1["highlightId"] == "789102"
     assert row_1["playId"] is None
     assert row_1["playerId"] is None
     assert row_1["url"] == "https://cuts.mlb.com/cole_1800k.mp4"
+    assert row_1["best_mp4_url"] == "https://cuts.mlb.com/cole_1800k.mp4"
 
 
 @pytest.mark.asyncio
@@ -128,6 +131,7 @@ async def test_mlb_game_highlights_keyword_extraction() -> None:
     assert row["playerId"] == 660271
     assert row["title"] == "Ohtani RBI double"
     assert row["url"] == "https://cuts.mlb.com/ohtani_2500k.mp4"
+    assert row["best_mp4_url"] == "https://cuts.mlb.com/ohtani_2500k.mp4"
 
 
 @pytest.mark.asyncio
@@ -150,6 +154,7 @@ async def test_mlb_game_highlights_empty() -> None:
         "duration",
         "date",
         "url",
+        "best_mp4_url",
     ]
 
 

@@ -327,6 +327,7 @@ def _parse_highlight_item(item: dict[str, Any], game_pk: int) -> dict[str, Any] 
         "duration": item.get("duration"),
         "date": item.get("date"),
         "url": best_url,
+        "best_mp4_url": best_url,
     }
 
 

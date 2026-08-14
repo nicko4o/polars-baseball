@@ -75,7 +75,7 @@ def test_cache_key_includes_schema_version() -> None:
     legacy_params = json.dumps(sorted((key, str(value)) for key, value in params.items()))
     legacy_key = hashlib.md5(f"{url}?{legacy_params}".encode()).hexdigest()
 
-    assert CACHE_SCHEMA_VERSION > 0
+    assert CACHE_SCHEMA_VERSION == 2
     assert generate_cache_key(url, params) != legacy_key
 
 

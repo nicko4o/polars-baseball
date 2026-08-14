@@ -341,4 +341,5 @@ MLB_GAME_HIGHLIGHTS_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "duration": pl.String,
     "date": pl.String,
     "url": pl.String,
+    "best_mp4_url": pl.String,
 }

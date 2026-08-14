@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `best_mp4_url` column to `pb.mlb.game_highlights()` output DataFrame as an alias of `url` for cross-API naming consistency with `film_room_search`.
+
+### Fixed
+- Fix `pb.mlb.film_room_search()` returning empty DataFrame when `limit > 20` by aligning pagination chunk size with upstream constraints and handling empty page early termination.
+- Fix `pb.mlb.film_room_search()` producing missing MP4 video URLs by generating fallback MLB Cuts CDN URLs from media playback IDs.
+- Allow `pb.mlb.film_room_search()` `date_range` parameter to accept Python `datetime.date`, `datetime.datetime` objects, and ISO 8601 timestamp strings in addition to `YYYY-MM-DD` strings.
+
 ## [0.19.0] - 2026-08-14
 
 ### Added

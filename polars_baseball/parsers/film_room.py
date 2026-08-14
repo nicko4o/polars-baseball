@@ -155,12 +155,33 @@ def _parse_playbacks(raw_playbacks: Any) -> tuple[list[dict[str, Any]], str | No
     return playback_list, best_mp4_url, hls_url
 
 
+_FORGE_DEFAULT_BITRATE = _FOUR_K_CANONICAL_BITRATE
+_FORGE_DEFAULT_WIDTH = 1280
+_FORGE_DEFAULT_HEIGHT = 720
+_FORGE_DEFAULT_FPS = 59
+_FORGE_CDN_BASE_URL = "https://mlb-cuts-diamond.mlb.com/FORGE"
+
+
+def _build_forge_cdn_mp4_url(media_playback_id: str, dt: date | None) -> str | None:
+    if not media_playback_id or dt is None:
+        return None
+    year = dt.strftime("%Y")
+    year_month = dt.strftime("%Y-%m")
+    day = dt.strftime("%d")
+    filename = (
+        f"{media_playback_id}_{_FORGE_DEFAULT_WIDTH}x{_FORGE_DEFAULT_HEIGHT}"
+        f"_{_FORGE_DEFAULT_FPS}_{_FORGE_DEFAULT_BITRATE}K.mp4"
+    )
+    return f"{_FORGE_CDN_BASE_URL}/{year}/{year_month}/{day}/{filename}"
+
+
 def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
     content_id = str(item.get("id") or item.get("content_id") or item.get("mediaPlaybackId") or "")
-    dt_val = _parse_date(item.get("gameDate") or item.get("date") or item.get("timestamp"))
-
     mp_list = item.get("mediaPlayback")
     mp = mp_list[0] if (isinstance(mp_list, list) and mp_list and isinstance(mp_list[0], dict)) else {}
+
+    dt_val = _parse_date(item.get("gameDate") or mp.get("date") or item.get("date") or item.get("timestamp"))
+    media_playback_id = str(mp.get("mediaPlaybackId") or item.get("mediaPlaybackId") or "")
 
     title = str(mp.get("title") or item.get("title") or item.get("headline") or "")
     blurb = str(mp.get("blurb") or mp.get("description") or item.get("blurb") or item.get("description") or "")
@@ -175,6 +196,21 @@ def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
 
     raw_playbacks = item.get("playbacks") or mp.get("playbacks") or []
     playback_list, best_mp4_url, hls_url = _parse_playbacks(raw_playbacks)
+
+    if not best_mp4_url and media_playback_id and dt_val is not None:
+        forge_url = _build_forge_cdn_mp4_url(media_playback_id, dt_val)
+        if forge_url:
+            best_mp4_url = forge_url
+            if not any(p.get("url") == forge_url for p in playback_list):
+                playback_list.append(
+                    {
+                        "name": f"mp4 {_FORGE_DEFAULT_BITRATE}K",
+                        "url": forge_url,
+                        "bitrate": _FORGE_DEFAULT_BITRATE,
+                        "width": _FORGE_DEFAULT_WIDTH,
+                        "height": _FORGE_DEFAULT_HEIGHT,
+                    }
+                )
 
     return {
         "content_id": content_id,

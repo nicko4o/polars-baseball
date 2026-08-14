@@ -1,4 +1,5 @@
-from datetime import datetime
+from collections.abc import Sequence
+from datetime import date, datetime
 from typing import cast
 
 import polars as pl
@@ -59,11 +60,36 @@ def _validate_non_empty_param(name: str, val: object) -> None:
             raise InvalidParameterError(f"{name} cannot be an empty string")
 
 
+def _normalize_date_str(val: str | date | datetime, field_name: str) -> str:
+    if isinstance(val, date):
+        return val.strftime("%Y-%m-%d")
+    if isinstance(val, str):
+        cleaned = val.strip().split("T")[0]
+        try:
+            datetime.strptime(cleaned, "%Y-%m-%d")
+            return cleaned
+        except ValueError as exc:
+            raise InvalidParameterError(f"{field_name} date must be in 'YYYY-MM-DD' format, got {val!r}") from exc
+    raise InvalidParameterError(f"{field_name} date must be a str, date, or datetime, got {type(val).__name__}")
+
+
+def _validate_date_range(date_range: Sequence[str | date | datetime] | None) -> tuple[str, str] | None:
+    if date_range is None:
+        return None
+    if len(date_range) != 2:
+        raise InvalidParameterError(f"date_range must be a tuple of (start_date, end_date), got {date_range}")
+    start_str = _normalize_date_str(date_range[0], "start_date")
+    end_str = _normalize_date_str(date_range[1], "end_date")
+    if start_str > end_str:
+        raise InvalidParameterError(f"start_date ({start_str}) cannot be after end_date ({end_str})")
+    return (start_str, end_str)
+
+
 def _validate_film_room_params(
     player_ids: list[int] | int | None,
     team_ids: list[int] | int | None,
     seasons: list[int] | int | None,
-    date_range: tuple[str, str] | None,
+    date_range: Sequence[str | date | datetime] | None,
     event_types: list[str] | str | None,
     pitch_types: list[str] | str | None,
     min_exit_velocity: float | None,
@@ -83,16 +109,7 @@ def _validate_film_room_params(
     _validate_non_empty_param("pitch_types", pitch_types)
     _validate_non_empty_param("query", query)
 
-    if date_range is not None:
-        if len(date_range) != 2:
-            raise InvalidParameterError(f"date_range must be a tuple of (start_date, end_date), got {date_range}")
-        try:
-            d_start = datetime.strptime(date_range[0], "%Y-%m-%d").date()
-            d_end = datetime.strptime(date_range[1], "%Y-%m-%d").date()
-        except ValueError as exc:
-            raise InvalidParameterError(f"date_range dates must be in 'YYYY-MM-DD' format, got {date_range}") from exc
-        if d_start > d_end:
-            raise InvalidParameterError(f"start_date ({date_range[0]}) cannot be after end_date ({date_range[1]})")
+    _validate_date_range(date_range)
 
     if min_exit_velocity is not None and max_exit_velocity is not None and min_exit_velocity > max_exit_velocity:
         raise InvalidParameterError(
@@ -112,7 +129,7 @@ class FilmRoomQueryBuilder:
         player_ids: list[int] | int | None = None,
         team_ids: list[int] | int | None = None,
         seasons: list[int] | int | None = None,
-        date_range: tuple[str, str] | None = None,
+        date_range: Sequence[str | date | datetime] | None = None,
         event_types: list[str] | str | None = None,
         pitch_types: list[str] | str | None = None,
         min_exit_velocity: float | None = None,
@@ -125,13 +142,15 @@ class FilmRoomQueryBuilder:
         if query is not None and query.strip():
             return query.strip()
 
+        norm_dates = _validate_date_range(date_range)
+
         clauses: list[str] = []
 
         for c in (
             _build_int_clause("PlayerID", player_ids),
             _build_int_clause("TeamID", team_ids),
             _build_int_clause("Season", seasons),
-            f'Date = ["{date_range[0]}", "{date_range[1]}"]' if (date_range and len(date_range) == 2) else None,
+            f'Date = ["{norm_dates[0]}", "{norm_dates[1]}"]' if norm_dates else None,
             _build_str_clause("HitResult", event_types),
             _build_str_clause("PitchType", pitch_types),
         ):
@@ -151,7 +170,7 @@ def film_room_cache_key(**kw: object) -> str:
         player_ids=cast(list[int] | int | None, kw.get("player_ids")),
         team_ids=cast(list[int] | int | None, kw.get("team_ids")),
         seasons=cast(list[int] | int | None, kw.get("seasons")),
-        date_range=cast(tuple[str, str] | None, kw.get("date_range")),
+        date_range=cast(Sequence[str | date | datetime] | None, kw.get("date_range")),
         event_types=cast(list[str] | str | None, kw.get("event_types")),
         pitch_types=cast(list[str] | str | None, kw.get("pitch_types")),
         min_exit_velocity=cast(float | None, kw.get("min_exit_velocity")),
@@ -169,7 +188,7 @@ async def mlb_film_room_search(
     player_ids: list[int] | int | None = None,
     team_ids: list[int] | int | None = None,
     seasons: list[int] | int | None = None,
-    date_range: tuple[str, str] | None = None,
+    date_range: Sequence[str | date | datetime] | None = None,
     event_types: list[str] | str | None = None,
     pitch_types: list[str] | str | None = None,
     min_exit_velocity: float | None = None,
@@ -187,7 +206,7 @@ async def mlb_film_room_search(
         player_ids: MLB player ID or list of player IDs.
         team_ids: MLB team ID or list of team IDs.
         seasons: Season year or list of season years.
-        date_range: Date range tuple (start_date, end_date).
+        date_range: Date range sequence (start_date, end_date) supporting str, date, or datetime.
         event_types: Event type or list of event types.
         pitch_types: Pitch code or list of pitch codes.
         min_exit_velocity: Minimum exit velocity in mph.
