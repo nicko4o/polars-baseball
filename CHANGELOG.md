@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-08-14
+
 ### Added
 - Add `best_mp4_url` column to `pb.mlb.game_highlights()` output DataFrame as an alias of `url` for cross-API naming consistency with `film_room_search`.
 
