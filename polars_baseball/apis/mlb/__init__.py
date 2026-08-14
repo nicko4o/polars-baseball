@@ -1,6 +1,7 @@
 """MLB Stats API public endpoint functions."""
 
 from polars_baseball.apis.mlb.draft import mlb_draft
+from polars_baseball.apis.mlb.film_room import mlb_film_room_search
 from polars_baseball.apis.mlb.game import (
     mlb_game_boxscore,
     mlb_game_boxscore_stats,
@@ -21,6 +22,7 @@ from polars_baseball.apis.mlb.venues import mlb_venues
 __all__ = [
     "mlb_divisions",
     "mlb_draft",
+    "mlb_film_room_search",
     "mlb_game_boxscore",
     "mlb_game_boxscore_stats",
     "mlb_game_feed_live",

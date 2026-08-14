@@ -7,6 +7,9 @@ from polars_baseball.apis.mlb import (
     mlb_draft as draft,
 )
 from polars_baseball.apis.mlb import (
+    mlb_film_room_search as film_room_search,
+)
+from polars_baseball.apis.mlb import (
     mlb_game_boxscore as game_boxscore,
 )
 from polars_baseball.apis.mlb import (
@@ -70,6 +73,7 @@ from polars_baseball.apis.mlb import (
 __all__ = [
     "divisions",
     "draft",
+    "film_room_search",
     "game_boxscore",
     "game_boxscore_stats",
     "game_feed_live",

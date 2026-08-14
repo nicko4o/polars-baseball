@@ -26,6 +26,7 @@ ROOT_PUBLIC_API = {
     "get_lookup_table",
     "lahman",
     "mlb",
+    "mlb_film_room_search",
     "mlb_game_highlights",
     "player_name_suggestions",
     "player_search_list",
@@ -89,6 +90,7 @@ def test_cleanup_is_async_function() -> None:
 def test_provider_namespace_functions_are_async() -> None:
     assert inspect.iscoroutinefunction(pb.mlb.schedule)
     assert inspect.iscoroutinefunction(pb.mlb.game_boxscore)
+    assert inspect.iscoroutinefunction(pb.mlb.film_room_search)
     assert inspect.iscoroutinefunction(pb.savant.statcast)
     assert inspect.iscoroutinefunction(pb.savant.park_factors)
     assert inspect.iscoroutinefunction(pb.savant.gamefeed_pitch_data)

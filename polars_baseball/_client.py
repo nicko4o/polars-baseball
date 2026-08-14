@@ -285,3 +285,33 @@ class HttpClient:
         headers: Mapping[str, str] | None = None,
     ) -> bytes:
         return cast(bytes, await self._httpx_request(url, params, headers, as_text=False))
+
+    async def post_json(
+        self,
+        url: str,
+        json_data: Mapping[str, object],
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> str:
+        client = self.get_httpx_client()
+        merged_headers = dict(self._extra_headers)
+        if headers is not None:
+            merged_headers.update(headers)
+
+        async def request_once() -> str:
+            try:
+                response = await client.post(url, json=json_data, headers=merged_headers if merged_headers else None)
+                response.raise_for_status()
+                return response.text
+            except httpx.HTTPStatusError as e:
+                msg = f"HTTP status error: {e}"
+                if e.response.status_code == 403:
+                    msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
+                raise PolarsBaseballHttpError(
+                    msg,
+                    status_code=e.response.status_code,
+                ) from e
+            except httpx.RequestError as e:
+                raise PolarsBaseballTransportError(f"Network request failed: {e}") from e
+
+        return await self._with_retries(request_once)
