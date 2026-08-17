@@ -54,6 +54,53 @@ Pitch-level functions (`statcast`, `statcast_single_game`, `statcast_batter`, `s
 
 ---
 
+## Compiled Dataset (Local Parquet)
+
+Persist full-season Statcast pitch data as Hive-partitioned Parquet files under
+`{cache_dir}/compiled-datasets/statcast/year={year}/statcast.parquet`, then query
+them lazily with Polars predicate and projection pushdown.
+
+### Functions
+
+- `scan_statcast(seasons=None, *, auto_download=False, context=None)` — lazily scan local partitions (also available as `savant.scan_statcast`)
+- `sync_statcast(seasons, *, force_update=False, verbose=True, concurrency_limit=3, context=None)` — scrape full seasons into partitions (also available as `savant.sync_statcast`)
+
+### Arguments
+
+- `seasons`: Target season(s) to scan or sync. When `None`, all locally synced partitions are scanned.
+- `auto_download`: When `True`, missing seasons are synced before scanning.
+- `force_update`: When `True`, re-scrape and overwrite existing partitions.
+- `concurrency_limit`: Maximum parallel Savant sub-queries during sync.
+
+### Example
+
+```python
+import asyncio
+import polars as pl
+import polars_baseball as pb
+
+async def main() -> None:
+    # 1. Scrape and persist 2023 + 2024 full seasons
+    await pb.sync_statcast([2023, 2024])
+
+    # 2. Query locally with predicate pushdown
+    lf = await pb.scan_statcast(seasons=[2024])
+    mean_velo = lf.filter(pl.col("pitch_type") == "FF").group_by("player_name").agg(
+        pl.col("release_speed").mean().alias("mean_velo")
+    ).collect()
+    print(mean_velo)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+> [!NOTE]
+> `scan_statcast` raises `UpstreamUnavailableError` when a requested season has no
+> local partition and `auto_download` is `False`. Requires a file-backed cache
+> directory (set via `pb.configure_cache(Path)`).
+
+---
+
 ## Batter Leaderboards
 
 Retrieve aggregate batter performance statistics.
