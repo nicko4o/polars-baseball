@@ -123,6 +123,12 @@ from polars_baseball.apis.statcast import (
 from polars_baseball.apis.statcast import (
     statcast_single_game as single_game,
 )
+from polars_baseball.apis.statcast_dataset import (
+    scan_statcast as scan_statcast,
+)
+from polars_baseball.apis.statcast_dataset import (
+    sync_statcast as sync_statcast,
+)
 
 __all__ = [
     "arm_strength",
@@ -163,7 +169,9 @@ __all__ = [
     "pitcher_spin_dir_comp",
     "run_value",
     "running_splits",
+    "scan_statcast",
     "single_game",
     "sprint_speed",
     "statcast",
+    "sync_statcast",
 ]

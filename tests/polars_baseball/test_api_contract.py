@@ -35,11 +35,13 @@ ROOT_PUBLIC_API = {
     "prospect_rankings",
     "retrosheet",
     "savant",
+    "scan_statcast",
     "standings",
     "statcast",
     "statcast_batter",
     "statcast_pitcher",
     "statcast_single_game",
+    "sync_statcast",
     "team_ids",
     "top_prospects",
 }
@@ -81,6 +83,16 @@ def test_root_namespace_has_no_unlisted_user_facing_symbols() -> None:
 
 def test_statcast_is_async_function() -> None:
     assert inspect.iscoroutinefunction(pb.statcast)
+
+
+def test_scan_sync_statcast_are_async_functions() -> None:
+    assert inspect.iscoroutinefunction(pb.scan_statcast)
+    assert inspect.iscoroutinefunction(pb.sync_statcast)
+
+
+def test_savant_namespace_exposes_scan_sync_statcast() -> None:
+    assert inspect.iscoroutinefunction(pb.savant.scan_statcast)
+    assert inspect.iscoroutinefunction(pb.savant.sync_statcast)
 
 
 def test_cleanup_is_async_function() -> None:

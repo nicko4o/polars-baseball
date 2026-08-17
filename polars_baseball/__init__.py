@@ -14,6 +14,7 @@ from polars_baseball.apis.playerid import (
 )
 from polars_baseball.apis.standings import standings
 from polars_baseball.apis.statcast import statcast, statcast_batter, statcast_pitcher, statcast_single_game
+from polars_baseball.apis.statcast_dataset import scan_statcast, sync_statcast
 from polars_baseball.apis.teamid import team_ids
 from polars_baseball.apis.top_prospects import prospect_rankings, top_prospects
 from polars_baseball.context import BaseballContext, cleanup
@@ -66,11 +67,13 @@ __all__ = [
     "prospect_rankings",
     "retrosheet",
     "savant",
+    "scan_statcast",
     "standings",
     "statcast",
     "statcast_batter",
     "statcast_pitcher",
     "statcast_single_game",
+    "sync_statcast",
     "team_ids",
     "top_prospects",
 ]
