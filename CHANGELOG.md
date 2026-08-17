@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-08-17
+
 ### Added
 - `sync_statcast()` (and `pb.savant.sync_statcast()`) to scrape and persist full-season Statcast pitch data as Hive-partitioned Parquet files in the local compiled dataset (`{cache_dir}/compiled-datasets/statcast/year={year}/statcast.parquet`), with atomic writes and optional `force_update`.
 - `scan_statcast()` (and `pb.savant.scan_statcast()`) to lazily scan the local Statcast compiled dataset as a `polars.LazyFrame`, with predicate and projection pushdown, `auto_download` for missing seasons, and cross-year schema normalization.
