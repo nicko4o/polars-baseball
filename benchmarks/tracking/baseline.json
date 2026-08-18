@@ -1,0 +1,98 @@
+[
+  {
+    "name": "lahman_batting",
+    "dimensions": {
+      "api": "lahman",
+      "start_date": "all",
+      "end_date": "all",
+      "team": null,
+      "parallel": true,
+      "cache_state": "cold",
+      "concurrency": null
+    },
+    "metrics": {
+      "wall_time_seconds": 0.02168306999374181,
+      "cpu_time_seconds": 0.027188059999999986,
+      "peak_python_mib": 0.007714271545410156,
+      "gc_collections": 29,
+      "result_rows": 110495,
+      "result_columns": 22
+    },
+    "timestamp": "2026-08-18T04:54:51.434619+00:00",
+    "version": "0.20.0",
+    "python_version": "3.11.15",
+    "platform": "linux"
+  },
+  {
+    "name": "lahman_pitching",
+    "dimensions": {
+      "api": "lahman",
+      "start_date": "all",
+      "end_date": "all",
+      "team": null,
+      "parallel": true,
+      "cache_state": "cold",
+      "concurrency": null
+    },
+    "metrics": {
+      "wall_time_seconds": 0.014971958007663488,
+      "cpu_time_seconds": 0.02138735,
+      "peak_python_mib": 0.007716178894042969,
+      "gc_collections": 29,
+      "result_rows": 49430,
+      "result_columns": 30
+    },
+    "timestamp": "2026-08-18T04:54:54.239371+00:00",
+    "version": "0.20.0",
+    "python_version": "3.11.15",
+    "platform": "linux"
+  },
+  {
+    "name": "lahman_people",
+    "dimensions": {
+      "api": "lahman",
+      "start_date": "all",
+      "end_date": "all",
+      "team": null,
+      "parallel": true,
+      "cache_state": "cold",
+      "concurrency": null
+    },
+    "metrics": {
+      "wall_time_seconds": 0.012906618998385966,
+      "cpu_time_seconds": 0.019635890000000045,
+      "peak_python_mib": 0.007712364196777344,
+      "gc_collections": 29,
+      "result_rows": 20673,
+      "result_columns": 24
+    },
+    "timestamp": "2026-08-18T04:54:57.261337+00:00",
+    "version": "0.20.0",
+    "python_version": "3.11.15",
+    "platform": "linux"
+  },
+  {
+    "name": "statcast_7day_warm",
+    "dimensions": {
+      "api": "statcast",
+      "start_date": "2024-04-01",
+      "end_date": "2024-04-07",
+      "team": null,
+      "parallel": true,
+      "cache_state": "warm",
+      "concurrency": null
+    },
+    "metrics": {
+      "wall_time_seconds": 0.03570190095342696,
+      "cpu_time_seconds": 0.09170866999999999,
+      "peak_python_mib": 0.018964767456054688,
+      "gc_collections": 90,
+      "result_rows": 25000,
+      "result_columns": 119
+    },
+    "timestamp": "2026-08-18T04:55:00.735898+00:00",
+    "version": "0.20.0",
+    "python_version": "3.11.15",
+    "platform": "linux"
+  }
+]

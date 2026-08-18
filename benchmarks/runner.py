@@ -29,6 +29,9 @@ async def run_benchmark(
     /,
     **kwargs: object,
 ) -> BenchmarkRun:
+    if dimensions.cache_state == "warm":
+        await fn(**kwargs)
+
     gc.collect()
     gc_before = sum(gc.get_count())
     tracemalloc.start()

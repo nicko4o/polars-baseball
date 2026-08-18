@@ -79,7 +79,7 @@ def _division_metadata(division_record: Mapping[str, object]) -> dict[str, objec
     }
 
 
-def _parse_division_records(division_record: Mapping[str, object], season: int) -> pl.DataFrame:
+def _extract_division_records(division_record: Mapping[str, object], season: int) -> list[dict[str, object]]:
     team_records = division_record.get("teamRecords")
     metadata = _division_metadata(division_record)
     parsed_records = []
@@ -88,7 +88,11 @@ def _parse_division_records(division_record: Mapping[str, object], season: int) 
             if isinstance(row, Mapping):
                 typed_row = {str(k): v for k, v in row.items()}
                 parsed_records.append({"season": season, **metadata, **_parse_team_record(typed_row)})
+    return parsed_records
 
+
+def _parse_division_records(division_record: Mapping[str, object], season: int) -> pl.DataFrame:
+    parsed_records = _extract_division_records(division_record, season)
     if not parsed_records:
         return pl.DataFrame(schema=STANDINGS_TYPES)
 
@@ -115,7 +119,13 @@ def parse_standings_payload(payload: object, season: int) -> pl.DataFrame:
     if not isinstance(records, list):
         return pl.DataFrame(schema=STANDINGS_TYPES)
 
-    divisions = [_parse_division_records(rec, season) for rec in records if isinstance(rec, Mapping)]
-    if not divisions:
+    parsed_records: list[dict[str, object]] = []
+    for division_record in records:
+        if isinstance(division_record, Mapping):
+            parsed_records.extend(_extract_division_records(division_record, season))
+
+    if not parsed_records:
         return pl.DataFrame(schema=STANDINGS_TYPES)
-    return pl.concat(divisions)
+
+    df = pl.DataFrame(parsed_records, schema=STANDINGS_TYPES)
+    return validate_and_cast_schema(df, STANDINGS_REQUIRED, STANDINGS_TYPES)

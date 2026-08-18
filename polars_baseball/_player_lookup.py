@@ -141,8 +141,12 @@ class PlayerLookupService:
         players: list[tuple[str, str]],
         context: BaseballContext | None = None,
     ) -> pl.DataFrame:
-        results = [await self.search(last, first, context=context) for last, first in players]
-        return pl.concat(results, how="diagonal") if results else pl.DataFrame()
+        if not players:
+            return pl.DataFrame()
+        table = await self._ensure_table(context)
+        keys = [f"{last.lower()}|{first.lower()}" for last, first in players]
+        results = table.filter((pl.col("name_last") + "|" + pl.col("name_first")).is_in(keys))
+        return _without_normalized_names(results)
 
     async def reverse_lookup(
         self,

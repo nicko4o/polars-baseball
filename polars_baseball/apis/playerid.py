@@ -152,8 +152,8 @@ async def player_search_list(
 ) -> pl.DataFrame:
     """Batch lookup for multiple player name pairs.
 
-    Each tuple is ``(last, first)``.  Delegates to :func:`playerid_lookup` for each pair
-    and concatenates results.
+    Each tuple is ``(last, first)``. Performs a vectorized lookup across all pairs
+    and returns matching player records.
 
     Note:
         - Returns empty DataFrame when the input list is empty or no players match.

@@ -121,9 +121,8 @@ class SavantGateway:
         if not raw:
             raise UpstreamUnavailableError("Savant returned empty response.")
 
-        raw_text = ensure_str(raw)
-        self._verify_error_response(raw_text)
-        return self._csv_parser.parse(raw_text)
+        self._verify_error_response(raw)
+        return self._csv_parser.parse(raw)
 
     async def _fetch_optional_dataset(
         self,
@@ -136,7 +135,7 @@ class SavantGateway:
         raw_text = ensure_str(raw)
         if "<html" in raw_text.lower():
             return None
-        return self._csv_parser.parse(raw_text)
+        return self._csv_parser.parse(raw)
 
     async def _fetch_and_parse_leaderboard(
         self,
@@ -172,22 +171,20 @@ class SavantGateway:
             raise UpstreamParseError("Savant gamefeed JSON root must be an object.")
         return parser(game_pk, payload)
 
-    def _verify_error_response(self, raw_text: str) -> None:
+    def _verify_error_response(self, raw_data: str | bytes) -> None:
         """Inspect response for upstream errors reported as CSV error rows.
 
         Only used by the legacy get_dataset path; the ProviderChain in
         get_leaderboard handles errors through its probe mechanism.
         """
-        import io
-
         from polars_baseball._encoding import ensure_bytes
 
-        if "error" not in raw_text[:_ERROR_SCAN_LIMIT]:
+        raw_bin = ensure_bytes(raw_data)
+        if b"error" not in raw_bin[:_ERROR_SCAN_LIMIT]:
             return
 
-        raw_bin = ensure_bytes(raw_text)
         try:
-            df_err = pl.read_csv(io.BytesIO(raw_bin))
+            df_err = pl.read_csv(raw_bin)
         except pl.exceptions.PolarsError:
             raise UpstreamParseError("Savant request failed with an error row.") from None
 

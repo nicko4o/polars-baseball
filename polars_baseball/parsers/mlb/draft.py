@@ -58,4 +58,4 @@ def parse_mlb_draft(data: dict[str, Any], year: int) -> pl.DataFrame:
             rows.append(parse_draft_pick(pick, year))
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows, infer_schema_length=None), MLB_DRAFT_REQUIRED, MLB_DRAFT_TYPES)
+    return validate_and_cast_schema(pl.DataFrame(rows, schema=MLB_DRAFT_TYPES), MLB_DRAFT_REQUIRED, MLB_DRAFT_TYPES)

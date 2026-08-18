@@ -1,5 +1,3 @@
-import io
-
 import polars as pl
 
 from polars_baseball._config import DEFAULT_CSV_INFER_SCHEMA_LENGTH
@@ -8,16 +6,17 @@ from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
 
 
 class SavantCSVParser(BaseParser):
-    def parse(self, raw: str) -> pl.DataFrame:
+    def parse(self, raw: str | bytes) -> pl.DataFrame:
         return self._to_dataframe(raw)
 
     @staticmethod
-    def _to_dataframe(csv_data: str) -> pl.DataFrame:
+    def _to_dataframe(csv_data: str | bytes) -> pl.DataFrame:
         if not csv_data.strip():
             return pl.DataFrame()
 
+        raw_bytes = csv_data if isinstance(csv_data, bytes) else csv_data.encode("utf-8")
         df = pl.read_csv(
-            io.BytesIO(csv_data.encode("utf-8")),
+            raw_bytes,
             infer_schema_length=DEFAULT_CSV_INFER_SCHEMA_LENGTH,
             null_values=[""],
         )

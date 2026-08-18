@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class PersonDict(TypedDict, total=False):
+class PersonDict(TypedDict):
     id: int | None
     fullName: str | None
     firstName: str | None
@@ -29,7 +29,7 @@ class PersonDict(TypedDict, total=False):
     pitchHandCode: str | None
 
 
-class GameDict(TypedDict, total=False):
+class GameDict(TypedDict):
     gamePk: int | None
     gameType: str | None
     season: str | None
@@ -73,7 +73,7 @@ class GameDict(TypedDict, total=False):
     savePitcherName: str | None
 
 
-class RosterMemberDict(TypedDict, total=False):
+class RosterMemberDict(TypedDict):
     teamId: int | None
     personId: int | None
     fullName: str | None
@@ -81,30 +81,6 @@ class RosterMemberDict(TypedDict, total=False):
     positionCode: str | None
     positionName: str | None
     positionAbbrev: str | None
-    isInBattingOrder: bool | None
-    battingOrder: int | None
-    batting_atBats: int | None
-    batting_runs: int | None
-    batting_hits: int | None
-    batting_doubles: int | None
-    batting_triples: int | None
-    batting_homeRuns: int | None
-    batting_rbi: int | None
-    batting_baseOnBalls: int | None
-    batting_strikeOuts: int | None
-    batting_leftOnBase: int | None
-    batting_groundIntoDoublePlay: int | None
-    batting_stolenBases: int | None
-    batting_caughtStealing: int | None
-    fielding_errors: int | None
-    pitching_inningsPitched: str | None
-    pitching_hits: int | None
-    pitching_runs: int | None
-    pitching_earnedRuns: int | None
-    pitching_baseOnBalls: int | None
-    pitching_strikeOuts: int | None
-    pitching_homeRuns: int | None
-    pitching_outs: int | None
     positionType: str | None
     statusCode: str | None
     statusDesc: str | None
@@ -128,7 +104,7 @@ class TeamStatsDict(TypedDict, total=False):
     statType: str | None
 
 
-class TeamDict(TypedDict, total=False):
+class TeamDict(TypedDict):
     id: int | None
     name: str | None
     abbreviation: str | None
@@ -144,7 +120,7 @@ class TeamDict(TypedDict, total=False):
     season: int | None
 
 
-class DivisionDict(TypedDict, total=False):
+class DivisionDict(TypedDict):
     id: int | None
     name: str | None
     nameShort: str | None
@@ -158,7 +134,7 @@ class DivisionDict(TypedDict, total=False):
     active: bool | None
 
 
-class LeagueDict(TypedDict, total=False):
+class LeagueDict(TypedDict):
     id: int | None
     name: str | None
     nameShort: str | None
@@ -176,7 +152,7 @@ class LeagueDict(TypedDict, total=False):
     sortOrder: int | None
 
 
-class PeopleAwardDict(TypedDict, total=False):
+class PeopleAwardDict(TypedDict):
     personId: int | None
     awardId: str | None
     awardName: str | None
@@ -190,7 +166,7 @@ class PeopleAwardDict(TypedDict, total=False):
     positionAbbreviation: str | None
 
 
-class PlayByPlayDict(TypedDict, total=False):
+class PlayByPlayDict(TypedDict):
     gamePk: int | None
     atBatIndex: int | None
     inning: int | None
@@ -215,7 +191,7 @@ class PlayByPlayDict(TypedDict, total=False):
     dramaIndex: float | None
 
 
-class StatLeaderDict(TypedDict, total=False):
+class StatLeaderDict(TypedDict):
     rank: int | None
     personId: int | None
     personName: str | None
@@ -228,7 +204,7 @@ class StatLeaderDict(TypedDict, total=False):
     statGroup: str | None
 
 
-class DraftPickDict(TypedDict, total=False):
+class DraftPickDict(TypedDict):
     year: int | None
     round: str | None
     pickNumber: int | None
@@ -241,7 +217,7 @@ class DraftPickDict(TypedDict, total=False):
     homeSchool: str | None
 
 
-class PitchArsenalDict(TypedDict, total=False):
+class PitchArsenalDict(TypedDict):
     personId: int | None
     season: int | None
     pitchTypeCode: str | None
@@ -250,7 +226,7 @@ class PitchArsenalDict(TypedDict, total=False):
     averageSpeed: float | None
 
 
-class TransactionDict(TypedDict, total=False):
+class TransactionDict(TypedDict):
     id: int | None
     date: str | None
     description: str | None
@@ -264,7 +240,7 @@ class TransactionDict(TypedDict, total=False):
     toTeamName: str | None
 
 
-class VenueDict(TypedDict, total=False):
+class VenueDict(TypedDict):
     id: int | None
     name: str | None
     link: str | None
@@ -272,7 +248,7 @@ class VenueDict(TypedDict, total=False):
     season: str | None
 
 
-class LiveFeedPitchDict(TypedDict, total=False):
+class LiveFeedPitchDict(TypedDict):
     gamePk: int | None
     atBatIndex: int | None
     pitchIndex: int | None
@@ -289,7 +265,7 @@ class LiveFeedPitchDict(TypedDict, total=False):
     spinRate: int | None
 
 
-class LinescoreDict(TypedDict, total=False):
+class LinescoreDict(TypedDict):
     gamePk: int | None
     inning: int | None
     homeRuns: int | None

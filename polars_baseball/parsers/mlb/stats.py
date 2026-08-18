@@ -172,7 +172,7 @@ def parse_mlb_stat_leaders(data: dict[str, Any], season: int, stat_group: str | 
     if not rows:
         return pl.DataFrame()
     return validate_and_cast_schema(
-        pl.DataFrame(rows, infer_schema_length=None), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES
+        pl.DataFrame(rows, schema=MLB_STAT_LEADERS_TYPES), MLB_STAT_LEADERS_REQUIRED, MLB_STAT_LEADERS_TYPES
     )
 
 
@@ -197,5 +197,5 @@ def parse_mlb_pitch_arsenal(data: dict[str, Any], person_id: int, season: int) -
     if not rows:
         return pl.DataFrame()
     return validate_and_cast_schema(
-        pl.DataFrame(rows, infer_schema_length=None), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES
+        pl.DataFrame(rows, schema=MLB_PITCH_ARSENAL_TYPES), MLB_PITCH_ARSENAL_REQUIRED, MLB_PITCH_ARSENAL_TYPES
     )

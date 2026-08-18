@@ -274,7 +274,7 @@ def _apply_casts(dfs: list[pl.DataFrame], conflicts: dict[str, pl.DataType | typ
         casts = [
             pl.col(col).cast(target_dtype, strict=False).alias(col)
             for col, target_dtype in conflicts.items()
-            if col in df.columns
+            if col in df.columns and df.schema[col] != target_dtype
         ]
         if casts:
             aligned_dfs.append(df.with_columns(casts))
