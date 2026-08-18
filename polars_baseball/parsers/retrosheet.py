@@ -1,4 +1,3 @@
-import io
 import json
 
 import polars as pl
@@ -54,7 +53,7 @@ def parse_roster_csv(raw: str | bytes) -> pl.DataFrame:
         from ROSTER_COLUMNS.
     """
     return pl.read_csv(
-        io.BytesIO(ensure_bytes(raw)),
+        ensure_bytes(raw),
         has_header=False,
         new_columns=list(ROSTER_COLUMNS),
         quote_char='"',
@@ -73,7 +72,7 @@ def parse_park_codes_csv(raw: str | bytes) -> pl.DataFrame:
         The CSV's column count may exceed PARK_CODE_COLUMNS; only the
         first N columns are renamed.
     """
-    df = pl.read_csv(io.BytesIO(ensure_bytes(raw)))
+    df = pl.read_csv(ensure_bytes(raw))
     return df.rename(dict(zip(df.columns[: len(PARK_CODE_COLUMNS)], PARK_CODE_COLUMNS, strict=False)))
 
 
@@ -85,7 +84,7 @@ def parse_schedule_csv(raw: str | bytes) -> pl.DataFrame:
         from SCHEDULE_COLUMNS.
     """
     return pl.read_csv(
-        io.BytesIO(ensure_bytes(raw)),
+        ensure_bytes(raw),
         has_header=False,
         new_columns=list(SCHEDULE_COLUMNS),
         quote_char='"',
@@ -100,7 +99,7 @@ def parse_gamelog_csv(raw: str | bytes) -> pl.DataFrame:
         counts in historical gamelog files. File has no header row.
     """
     return pl.read_csv(
-        io.BytesIO(ensure_bytes(raw)),
+        ensure_bytes(raw),
         has_header=False,
         new_columns=list(GAMELOG_COLUMNS),
         quote_char='"',

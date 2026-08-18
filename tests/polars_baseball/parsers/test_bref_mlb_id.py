@@ -88,3 +88,30 @@ def test_parse_mlbid_empty_when_no_href() -> None:
     # mlbID should be null/None when no href exists
     assert "mlbID" in df.columns
     assert df["mlbID"][0] is None
+
+
+def test_parse_ragged_rows_with_subheaders() -> None:
+    """BRefHTMLParser must gracefully handle ragged rows and subheader rows with fewer columns."""
+    html = """\
+<html><body>
+<table>
+  <thead><tr><th>Player</th><th>G</th><th>HR</th></tr></thead>
+  <tbody>
+    <tr><th colspan="3">Section Header</th></tr>
+    <tr>
+      <td><a href="/players/t/troutmi01.shtml?mlb_ID=545361">Mike Trout</a></td>
+      <td>100</td>
+      <td>40</td>
+    </tr>
+    <tr><td>Single Cell Only</td></tr>
+  </tbody>
+</table>
+</body></html>
+"""
+    parser = BRefHTMLParser()
+    df = parser.parse(html)
+    assert df.height == 3
+    assert "Player" in df.columns
+    assert "G" in df.columns
+    assert "HR" in df.columns
+    assert "mlbID" in df.columns

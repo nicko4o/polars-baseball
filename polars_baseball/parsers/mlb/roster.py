@@ -38,4 +38,4 @@ def parse_mlb_roster(data: dict[str, Any], team_id: int) -> pl.DataFrame:
     if not roster:
         return pl.DataFrame()
     rows = [parse_roster_member(member, team_id) for member in roster]
-    return validate_and_cast_schema(pl.DataFrame(rows, infer_schema_length=None), MLB_ROSTER_REQUIRED, MLB_ROSTER_TYPES)
+    return validate_and_cast_schema(pl.DataFrame(rows, schema=MLB_ROSTER_TYPES), MLB_ROSTER_REQUIRED, MLB_ROSTER_TYPES)

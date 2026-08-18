@@ -1,3 +1,5 @@
+import polars as pl
+
 from polars_baseball.parsers.mlb import (
     parse_game,
     parse_person,
@@ -62,3 +64,31 @@ def test_parse_player_stats_preserves_dynamic_stat_columns() -> None:
     )
 
     assert rows == [{"personId": 545361, "season": 2024, "group": "hitting", "statType": "season", "gamesPlayed": 150}]
+
+
+def test_parse_mlb_player_stats_infer_schema_beyond_100_rows() -> None:
+    """Verify that infer_schema_length=None handles columns with nulls for the first 100 rows followed by floats."""
+    from polars_baseball.parsers.mlb.stats import parse_mlb_player_stats
+
+    splits = []
+    for i in range(120):
+        stat_dict: dict[str, object] = {"gamesPlayed": i}
+        if i >= 105:
+            stat_dict["lateMetric"] = 5.5
+        splits.append({"season": str(1900 + i), "stat": stat_dict})
+
+    payload = {
+        "stats": [
+            {
+                "type": {"displayName": "season"},
+                "group": {"displayName": "hitting"},
+                "splits": splits,
+            }
+        ]
+    }
+
+    df = parse_mlb_player_stats(payload, person_id=12345, group="hitting", stats_type="season")
+    assert df.height == 120
+    assert "lateMetric" in df.columns
+    assert df["lateMetric"].dtype == pl.Float64
+    assert df["lateMetric"][105] == 5.5

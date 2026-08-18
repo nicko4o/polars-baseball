@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from typing import cast
 
+from benchmarks.models import BaselineRecord
 from benchmarks.profiles import PROFILES
 from benchmarks.reporters.console import print_run
 from benchmarks.reporters.json_reporter import dump_json, run_to_dict
@@ -68,7 +70,14 @@ async def _run_profile(args: argparse.Namespace) -> int:
 
     if args.baseline or args.fail_if_regression:
         history = load_baseline()
-        result = check_regression(run.metrics.wall_time_seconds, history)
+        run_dict = run_to_dict(run)
+        run_dict["name"] = args.profile
+        result = check_regression(
+            run.metrics.wall_time_seconds,
+            history,
+            profile_name=args.profile,
+            dimensions=run_dict.get("dimensions"),
+        )
         if result.is_regression:
             print(
                 f"REGRESSION: wall_time {result.current_value:.3f}s vs "
@@ -82,7 +91,7 @@ async def _run_profile(args: argparse.Namespace) -> int:
                 f"OK: wall_time {result.current_value:.3f}s "
                 f"(baseline {result.baseline_mean:.3f}s, sigma={result.sigma:.1f})"
             )
-        history.append(run_to_dict(run))
+        history.append(cast(BaselineRecord, run_dict))
         save_baseline(history)
 
     return 0

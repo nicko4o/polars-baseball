@@ -57,4 +57,6 @@ def parse_mlb_transactions(data: dict[str, Any]) -> pl.DataFrame:
     rows = [parse_transaction(transaction) for transaction in transactions]
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_TRANSACTIONS_REQUIRED, MLB_TRANSACTIONS_TYPES)
+    return validate_and_cast_schema(
+        pl.DataFrame(rows, schema=MLB_TRANSACTIONS_TYPES), MLB_TRANSACTIONS_REQUIRED, MLB_TRANSACTIONS_TYPES
+    )

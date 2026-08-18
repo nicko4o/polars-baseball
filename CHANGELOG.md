@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix BRef HTML table parsing when table contains multi-tier `<thead>` headers or subheader rows.
+
 ## [0.20.0] - 2026-08-17
 
 ### Added

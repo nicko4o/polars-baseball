@@ -3,10 +3,21 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import TypedDict
 
 
 class BenchmarkError(Exception):
     """Base exception for benchmark framework."""
+
+
+class BaselineRecord(TypedDict, total=False):
+    name: str
+    dimensions: dict[str, object]
+    metrics: dict[str, float | int]
+    timestamp: str
+    version: str
+    python_version: str
+    platform: str
 
 
 VALID_CACHE_STATES: frozenset[str] = frozenset({"cold", "warm", "null"})

@@ -44,7 +44,11 @@ class BRefHTMLParser(BaseParser):
 
     @staticmethod
     def _parse_table_elements(table_el: _Element) -> tuple[list[str], list[_Element]]:
-        th_elements = cast(list[_Element], table_el.xpath(".//tr[1]//th"))
+        thead = table_el.find(".//thead")
+        if thead is not None:
+            th_elements = cast(list[_Element], thead.xpath(".//tr[last()]//th"))
+        else:
+            th_elements = cast(list[_Element], table_el.xpath("(.//tr)[1]//th"))
         headings = ["".join(str(x) for x in th.itertext()).strip() for th in th_elements]
         tr_elements = cast(list[_Element], table_el.xpath(".//tbody//tr"))
         if not tr_elements:

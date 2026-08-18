@@ -29,4 +29,4 @@ def parse_mlb_venues(data: dict[str, Any]) -> pl.DataFrame:
     rows = [parse_venue(venue) for venue in venues]
     if not rows:
         return pl.DataFrame()
-    return validate_and_cast_schema(pl.DataFrame(rows), MLB_VENUES_REQUIRED, MLB_VENUES_TYPES)
+    return validate_and_cast_schema(pl.DataFrame(rows, schema=MLB_VENUES_TYPES), MLB_VENUES_REQUIRED, MLB_VENUES_TYPES)

@@ -245,7 +245,7 @@ def read_archive_table_bytes(raw_archive: bytes, table: CompiledTable) -> pl.Dat
 
 def _read_csv_bytes(raw: bytes, table: CompiledTable) -> pl.DataFrame:
     return pl.read_csv(
-        io.BytesIO(raw),
+        raw,
         quote_char=table.quote_char,
         infer_schema_length=table.infer_schema_length,
         null_values=[""],

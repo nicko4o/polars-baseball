@@ -143,32 +143,12 @@ def _coerce_column_expr(col: str, target_type: pl.DataType | type[pl.DataType], 
     return pl.col(col).cast(target_type, strict=False)
 
 
-def _validate_cast(
-    col: str,
-    expr: pl.Expr,
-    series: pl.Series,
-    target_type: pl.DataType | type[pl.DataType],
-    df: pl.DataFrame,
-    orig_nulls: int,
-) -> None:
-    try:
-        if target_type in (pl.Float64, pl.Int64) and series.dtype == pl.String:
-            temp_val = df.select(expr).to_series()
-        else:
-            temp_val = series.cast(target_type, strict=False)
-    except (ValueError, TypeError, pl.exceptions.ComputeError) as e:
-        raise UpstreamParseError(f"failed strict cast: Column '{col}' conversion to {target_type} failed: {e}") from e
-
-    if temp_val.null_count() > orig_nulls:
-        raise UpstreamParseError(f"failed strict cast: Column '{col}' contains invalid values for {target_type}.")
-
-
 def coerce_bref_schema(df: pl.DataFrame) -> pl.DataFrame:
     """Coerce BRef column types based on static schema rules. Fail fast on error."""
     if df.is_empty():
         return df
 
-    cast_exprs = []
+    cols_to_cast = []
     for col in df.columns:
         if col == "Home":
             continue
@@ -179,10 +159,29 @@ def coerce_bref_schema(df: pl.DataFrame) -> pl.DataFrame:
 
         series = df[col]
         expr = _coerce_column_expr(col, target_type, series)
-        _validate_cast(col, expr, series, target_type, df, series.null_count())
-        cast_exprs.append(expr.alias(col))
+        cols_to_cast.append((col, target_type, series.null_count(), expr))
 
-    return df.with_columns(cast_exprs) if cast_exprs else df
+    if not cols_to_cast:
+        return df
+
+    eval_exprs = [expr.alias(col) for col, _, _, expr in cols_to_cast]
+    try:
+        temp_df = df.select(eval_exprs)
+    except (ValueError, TypeError, pl.exceptions.ComputeError) as e:
+        for col, target_type, _, expr in cols_to_cast:
+            try:
+                df.select(expr)
+            except Exception as col_err:
+                raise UpstreamParseError(
+                    f"failed strict cast: Column '{col}' conversion to {target_type} failed: {col_err}"
+                ) from col_err
+        raise UpstreamParseError(f"failed strict cast: column conversion failed: {e}") from e
+
+    for col, target_type, orig_nulls, _ in cols_to_cast:
+        if temp_df[col].null_count() > orig_nulls:
+            raise UpstreamParseError(f"failed strict cast: Column '{col}' contains invalid values for {target_type}.")
+
+    return df.with_columns(eval_exprs)
 
 
 def sanitize_and_coerce_bref(df: pl.DataFrame) -> pl.DataFrame:
