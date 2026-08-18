@@ -108,6 +108,11 @@ async def get_lookup_table(save: bool = True, context: BaseballContext | None = 
 _module_client = PlayerLookupService(lambda ctx: get_lookup_table(context=ctx))
 
 
+def reset_lookup_table() -> None:
+    """Discard the cached player lookup table so the next lookup reloads it from upstream."""
+    _module_client.reset()
+
+
 async def playerid_lookup(
     last: str,
     first: str | None = None,

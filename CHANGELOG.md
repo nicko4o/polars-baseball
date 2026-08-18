@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `reset_lookup_table()` to discard the in-memory player lookup table, forcing the next player lookup to reload it from upstream.
+
+### Fixed
+- Raise `UpstreamDataCorruptedError` instead of uncaught `zipfile.BadZipFile` when validating corrupted ZIP archives in compiled datasets (such as Lahman database and Chadwick register).
+
 ## [0.20.1] - 2026-08-18
 
 ### Fixed

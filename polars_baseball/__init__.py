@@ -11,6 +11,7 @@ from polars_baseball.apis.playerid import (
     player_search_list,
     playerid_lookup,
     playerid_reverse_lookup,
+    reset_lookup_table,
 )
 from polars_baseball.apis.standings import standings
 from polars_baseball.apis.statcast import statcast, statcast_batter, statcast_pitcher, statcast_single_game
@@ -65,6 +66,7 @@ __all__ = [
     "playerid_lookup",
     "playerid_reverse_lookup",
     "prospect_rankings",
+    "reset_lookup_table",
     "retrosheet",
     "savant",
     "scan_statcast",

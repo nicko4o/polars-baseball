@@ -188,8 +188,11 @@ def _validate_zip(path: Path) -> None:
 
     Raises UpstreamDataCorruptedError on bad or truncated ZIP files.
     """
-    with zipfile.ZipFile(path):
-        return None
+    try:
+        with zipfile.ZipFile(path):
+            return None
+    except (zipfile.BadZipFile, OSError) as err:
+        raise UpstreamDataCorruptedError(f"Bad zip file: {path}") from err
 
 
 def _write_atomic(path: Path, write_func: Callable[[Path], object]) -> None:

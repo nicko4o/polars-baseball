@@ -112,3 +112,22 @@ def test_write_bytes_atomic_cleanup_on_error(tmp_path: Path) -> None:
     assert not target_file.exists()
     tmp_files = list(tmp_path.glob("*.tmp"))
     assert len(tmp_files) == 0
+
+
+@pytest.mark.asyncio
+async def test_compiled_gateway_corrupted_archive_raises_upstream_data_corrupted_error(tmp_path: Path) -> None:
+    from polars_baseball.exceptions import UpstreamDataCorruptedError
+
+    mock_http = MagicMock()
+    mock_http.get_bytes = AsyncMock(return_value=b"not a valid zip file binary stream")
+    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    table = CompiledTable(
+        dataset="demo",
+        table_name="data/table",
+        archive_url=ARCHIVE_URL,
+        archive_member="source/data/table.csv",
+    )
+
+    gateway = CompiledDatasetGateway(ctx)
+    with pytest.raises(UpstreamDataCorruptedError, match="Bad zip file"):
+        await gateway.read_table(table)

@@ -72,6 +72,11 @@ class PlayerLookupService:
         self.table: pl.DataFrame | None = None
         self._load_lock: asyncio.Lock | None = None
 
+    def reset(self) -> None:
+        """Reset cached player lookup table in memory."""
+        self.table = None
+        self._load_lock = None
+
     async def _ensure_table(self, context: BaseballContext | None = None) -> pl.DataFrame:
         if self.table is not None:
             return self.table

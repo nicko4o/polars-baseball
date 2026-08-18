@@ -17,6 +17,10 @@ Finds player records and maps IDs across MLBAM, Retrosheet, FanGraphs, Baseball 
 - `player_name_suggestions(last: str, first: str | None = None, ignore_accents: bool = False) -> pl.DataFrame`
 - `player_search_list(player_list: list[tuple[str, str]]) -> pl.DataFrame`
 - `get_lookup_table(save: bool = True) -> pl.DataFrame`
+- `reset_lookup_table() -> None`
+
+> [!NOTE]
+> The first player lookup loads the lookup table into memory and keeps it for the process lifetime. Call `reset_lookup_table()` to discard it (freeing memory) so the next lookup reloads fresh data from upstream.
 
 ### Arguments
 

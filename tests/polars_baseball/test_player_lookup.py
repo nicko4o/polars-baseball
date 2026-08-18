@@ -158,3 +158,32 @@ async def test_playerid_reverse_lookup_accepts_context() -> None:
     ctx = BaseballContext()
     result = await service.reverse_lookup([545361], key_type=KeyType.MLBAM, context=ctx)
     assert result.height == 1
+
+
+@pytest.mark.asyncio
+async def test_player_lookup_service_reset() -> None:
+    loader = AsyncMock(side_effect=[_player_table(), _player_table()])
+    service = PlayerLookupService(loader)
+
+    res1 = await service.search("trout")
+    assert res1.height == 1
+    assert loader.await_count == 1
+
+    service.reset()
+    assert service.table is None
+
+    res2 = await service.search("trout")
+    assert res2.height == 1
+    assert loader.await_count == 2
+
+
+def test_reset_lookup_table_clears_module_singleton() -> None:
+    from polars_baseball.apis.playerid import _module_client, reset_lookup_table
+
+    original_table = _module_client.table
+    _module_client.table = _player_table()
+    try:
+        reset_lookup_table()
+        assert _module_client.table is None
+    finally:
+        _module_client.table = original_table
