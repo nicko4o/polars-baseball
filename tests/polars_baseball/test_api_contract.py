@@ -33,6 +33,7 @@ ROOT_PUBLIC_API = {
     "playerid_lookup",
     "playerid_reverse_lookup",
     "prospect_rankings",
+    "reset_lookup_table",
     "retrosheet",
     "savant",
     "scan_statcast",

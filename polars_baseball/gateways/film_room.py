@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 import polars as pl
 
-from polars_baseball._config import FILM_ROOM_GRAPHQL_URL
+from polars_baseball._config import FILM_ROOM_GRAPHQL_URL, FILM_ROOM_SEARCH_URL, MLB_ROOT
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamParseError
 
@@ -86,8 +86,8 @@ class FilmRoomGateway:
         }
         headers = {
             "Content-Type": "application/json",
-            "Origin": "https://www.mlb.com",
-            "Referer": "https://www.mlb.com/video/search",
+            "Origin": MLB_ROOT,
+            "Referer": FILM_ROOM_SEARCH_URL,
         }
 
         raw_text = await self._context.http.post_json(FILM_ROOM_GRAPHQL_URL, json_data=payload, headers=headers)

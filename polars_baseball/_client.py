@@ -143,12 +143,12 @@ class HttpClient:
         async with self._lock:
             if self._bref_delay is None:
                 return
-            now = time.time()
+            now = time.monotonic()
             elapsed = now - self._bref_last_request
             sleep_time = self._bref_delay - elapsed
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-            self._bref_last_request = time.time()
+            self._bref_last_request = time.monotonic()
 
     @staticmethod
     def _is_transient_status(status_code: int) -> bool:

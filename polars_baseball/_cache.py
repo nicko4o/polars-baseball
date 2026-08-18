@@ -153,7 +153,8 @@ def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> 
 class FileCacheAdapter(CacheAdapter):
     """File-based cache backend that stores DataFrames as Parquet files.
 
-    Thread-safe via per-key locks and a clear lock.
+    Thread-safe: per-key locks serialize access to individual entries, and
+    a clear lock additionally serializes writes and clear() against each other.
     """
 
     def __init__(self, cache_dir: Path | None = None) -> None:
@@ -183,9 +184,8 @@ class FileCacheAdapter(CacheAdapter):
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         if self._disabled:
             return None
-        with self._clear_lock:
-            with self._lock_for(key):
-                return _try_read_cached(self._get_path(key), key, max_age)
+        with self._lock_for(key):
+            return _try_read_cached(self._get_path(key), key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:

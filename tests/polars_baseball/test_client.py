@@ -553,3 +553,20 @@ async def test_http_client_ssl_error_no_retry() -> None:
         await client._with_retries(counting_op)
 
     assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_uses_monotonic_clock() -> None:
+    client = HttpClient(bref_requests_per_minute=60)
+    assert client._bref_delay == 1.0
+
+    with (
+        patch("polars_baseball._client.time.monotonic", side_effect=[100.2, 101.0]) as mock_monotonic,
+        patch("polars_baseball._client.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        client._bref_last_request = 100.0
+        await client._rate_limit()
+
+        assert mock_monotonic.call_count == 2
+        mock_sleep.assert_awaited_once_with(pytest.approx(0.8))
+        assert client._bref_last_request == 101.0

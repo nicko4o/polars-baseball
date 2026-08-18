@@ -5,6 +5,7 @@ from typing import Any
 
 import polars as pl
 
+from polars_baseball._config import FORGE_CDN_BASE_URL
 from polars_baseball.exceptions import UpstreamParseError
 
 PLAYBACK_SCHEMA = pl.Struct(
@@ -84,6 +85,39 @@ def _extract_raw_items(data: dict[str, Any]) -> list[Any]:
     return []
 
 
+def _apply_player_id(res: dict[str, Any], fval: str, fdisp: str) -> None:
+    raw_id = fval.split(",")[0].strip()
+    try:
+        res["player_id"] = int(raw_id)
+    except ValueError:
+        pass
+    if fdisp and "player_name" not in res:
+        res["player_name"] = fdisp.split(",")[0].strip()
+
+
+def _apply_field(res: dict[str, Any], fname: str, fval: str, fdisp: str) -> None:
+    if fname in ("playerid", "player_id"):
+        _apply_player_id(res, fval, fdisp)
+        return
+    if fname in ("playername", "player_name"):
+        res["player_name"] = fdisp or fval
+        return
+    if fname in ("eventtype", "event_type", "hitresult", "event"):
+        res["event_type"] = _clean_event_type(fdisp or fval)
+        return
+    if fname in ("exitvelocity", "exit_velocity", "launch_speed"):
+        try:
+            res["exit_velocity"] = float(fval)
+        except ValueError:
+            pass
+        return
+    if fname in ("hitdistance", "hit_distance", "launch_angle_distance"):
+        try:
+            res["hit_distance"] = int(float(fval))
+        except ValueError:
+            pass
+
+
 def _parse_fields(fields: list[Any]) -> dict[str, Any]:
     res: dict[str, Any] = {}
     for f in fields:
@@ -92,28 +126,7 @@ def _parse_fields(fields: list[Any]) -> dict[str, Any]:
         fname = str(f.get("name") or "").lower()
         fval = str(f.get("value") or "")
         fdisp = str(f.get("displayValue") or "")
-        if fname in ("playerid", "player_id"):
-            raw_id = fval.split(",")[0].strip()
-            try:
-                res["player_id"] = int(raw_id)
-            except ValueError:
-                pass
-            if fdisp and "player_name" not in res:
-                res["player_name"] = fdisp.split(",")[0].strip()
-        elif fname in ("playername", "player_name"):
-            res["player_name"] = fdisp or fval
-        elif fname in ("eventtype", "event_type", "hitresult", "event"):
-            res["event_type"] = _clean_event_type(fdisp or fval)
-        elif fname in ("exitvelocity", "exit_velocity", "launch_speed"):
-            try:
-                res["exit_velocity"] = float(fval)
-            except ValueError:
-                pass
-        elif fname in ("hitdistance", "hit_distance", "launch_angle_distance"):
-            try:
-                res["hit_distance"] = int(float(fval))
-            except ValueError:
-                pass
+        _apply_field(res, fname, fval, fdisp)
     return res
 
 
@@ -159,7 +172,6 @@ _FORGE_DEFAULT_BITRATE = _FOUR_K_CANONICAL_BITRATE
 _FORGE_DEFAULT_WIDTH = 1280
 _FORGE_DEFAULT_HEIGHT = 720
 _FORGE_DEFAULT_FPS = 59
-_FORGE_CDN_BASE_URL = "https://mlb-cuts-diamond.mlb.com/FORGE"
 
 
 def _build_forge_cdn_mp4_url(media_playback_id: str, dt: date | None) -> str | None:
@@ -172,7 +184,7 @@ def _build_forge_cdn_mp4_url(media_playback_id: str, dt: date | None) -> str | N
         f"{media_playback_id}_{_FORGE_DEFAULT_WIDTH}x{_FORGE_DEFAULT_HEIGHT}"
         f"_{_FORGE_DEFAULT_FPS}_{_FORGE_DEFAULT_BITRATE}K.mp4"
     )
-    return f"{_FORGE_CDN_BASE_URL}/{year}/{year_month}/{day}/{filename}"
+    return f"{FORGE_CDN_BASE_URL}/{year}/{year_month}/{day}/{filename}"
 
 
 def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:

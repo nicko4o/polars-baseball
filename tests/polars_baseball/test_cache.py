@@ -296,3 +296,28 @@ def test_read_cache_memory_error_propagates(tmp_path: Path) -> None:
     with patch("polars_baseball._cache.pl.read_parquet", side_effect=MemoryError("OOM")):
         with pytest.raises(MemoryError):
             adapter.get(key)
+
+
+def test_file_cache_concurrent_reads_different_keys(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    df1 = pl.DataFrame({"k": [1]})
+    df2 = pl.DataFrame({"k": [2]})
+    adapter.set("k1", df1)
+    adapter.set("k2", df2)
+
+    barrier = threading.Barrier(2)
+    results: dict[str, pl.DataFrame | None] = {}
+
+    def read_key(key: str) -> None:
+        barrier.wait()
+        results[key] = adapter.get(key)
+
+    t1 = threading.Thread(target=read_key, args=("k1",))
+    t2 = threading.Thread(target=read_key, args=("k2",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert results["k1"] is not None and results["k1"].equals(df1)
+    assert results["k2"] is not None and results["k2"].equals(df2)
