@@ -1,5 +1,3 @@
-import os
-
 import polars as pl
 import pytest
 
@@ -12,10 +10,6 @@ from polars_baseball import (
 from polars_baseball.apis.savant_leaderboards import statcast_exitvelo_barrels
 from polars_baseball.exceptions import PolarsBaseballHttpError
 from tests._async_utils import run_async
-
-
-def _is_ci() -> bool:
-    return os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
 
 
 @pytest.mark.live
@@ -76,13 +70,7 @@ def test_live_fangraphs_batting() -> None:
         df = run_async(run())
     except PolarsBaseballHttpError as e:
         if e.status_code == 403 or "Cloudflare" in str(e):
-            if _is_ci():
-                raise PolarsBaseballHttpError(
-                    f"FanGraphs live contract test failed on CI due to HTTP 403. "
-                    f"Verify CF_COOKIE / CF_CLEARANCE in GitHub Secrets is set and not expired: {e}",
-                    status_code=403,
-                ) from e
-            pytest.skip(f"FanGraphs live test skipped locally due to Cloudflare protection: {e}")
+            pytest.skip(f"FanGraphs live test skipped due to Cloudflare protection (HTTP 403): {e}")
         raise
 
     assert isinstance(df, pl.DataFrame)
