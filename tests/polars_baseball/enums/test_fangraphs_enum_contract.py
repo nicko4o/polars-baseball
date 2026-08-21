@@ -1,6 +1,5 @@
 """Live contract tests for FanGraphs enum column codes."""
 
-import os
 import typing
 
 import polars as pl
@@ -56,13 +55,7 @@ class TestLiveFetchAndValidate:
             df = run_async(run())
         except PolarsBaseballHttpError as e:
             if e.status_code == 403 or "Cloudflare" in str(e):
-                if os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true":
-                    raise PolarsBaseballHttpError(
-                        f"FanGraphs live enum contract test failed on CI due to HTTP 403. "
-                        f"Verify CF_COOKIE / CF_CLEARANCE in GitHub Secrets is set: {e}",
-                        status_code=403,
-                    ) from e
-                pytest.skip(f"FanGraphs live test skipped locally due to Cloudflare protection: {e}")
+                pytest.skip(f"FanGraphs live test skipped due to Cloudflare protection (HTTP 403): {e}")
             raise
 
         missing = critical - set(df.columns)
@@ -137,13 +130,7 @@ class TestLiveCodeToNameMapping:
             df = run_async(run())
         except PolarsBaseballHttpError as e:
             if e.status_code == 403 or "Cloudflare" in str(e):
-                if os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true":
-                    raise PolarsBaseballHttpError(
-                        f"FanGraphs live code mapping contract test failed on CI due to HTTP 403. "
-                        f"Verify CF_COOKIE / CF_CLEARANCE in GitHub Secrets is set: {e}",
-                        status_code=403,
-                    ) from e
-                pytest.skip(f"FanGraphs live test skipped locally due to Cloudflare protection: {e}")
+                pytest.skip(f"FanGraphs live test skipped due to Cloudflare protection (HTTP 403): {e}")
             raise
 
         for expected_name in codes.values():
