@@ -14,10 +14,17 @@ PitchRow: TypeAlias = tuple[int | None, JsonObject]
 
 EXIT_VELOCITY_SCHEMA: Mapping[str, pl.DataType | type[pl.DataType]] = {
     "game_pk": pl.Int64,
+    "play_id": pl.String,
+    "inning": pl.Int64,
+    "half_inning": pl.String,
+    "batter_id": pl.Int64,
     "batter_name": pl.String,
     "team_batting": pl.String,
+    "pitcher_id": pl.Int64,
     "pitcher_name": pl.String,
     "team_fielding": pl.String,
+    "description": pl.String,
+    "des": pl.String,
     "events": pl.String,
     "launch_speed": pl.Float64,
     "launch_angle": pl.Float64,
@@ -53,6 +60,10 @@ _BREAK_X_KEY = "breakXInches"
 _BREAK_Z_KEYS = ("breakZInducedInches", "inducedBreakZ")
 _PITCHER_ID_KEYS = ("pitcher_id", "pitcher", "player_id")
 _NESTED_PITCHER_KEYS = ("pitcher", "player")
+_BATTER_ID_KEYS = ("batter_id", "batter", "player_id", "batterId")
+_NESTED_BATTER_KEYS = ("batter", "player")
+_PLAY_ID_KEYS = ("play_id", "playId")
+_HALF_INNING_KEYS = ("half_inning", "halfInning")
 _NESTED_ID_KEY = "id"
 
 
@@ -79,12 +90,21 @@ class SavantGamefeedParser:
     @staticmethod
     def _exit_velocity_row(game_pk: int, item: JsonObject) -> dict[str, object]:
         context_metrics = _object_or_empty(item.get(_CONTEXT_METRICS_KEY))
+        raw_description = _string_or_none(item.get("description"))
+        raw_des = _string_or_none(item.get("des"))
         return {
             "game_pk": game_pk,
+            "play_id": _string_or_none(_first_present(item, _PLAY_ID_KEYS)),
+            "inning": _int_or_none(item.get("inning")),
+            "half_inning": _string_or_none(_first_present(item, _HALF_INNING_KEYS)),
+            "batter_id": _batter_id_from_row(item),
             "batter_name": _string_or_none(item.get("batter_name")),
             "team_batting": _string_or_none(item.get("team_batting")),
+            "pitcher_id": _pitcher_id_from_row(item),
             "pitcher_name": _string_or_none(item.get("pitcher_name")),
             "team_fielding": _string_or_none(item.get("team_fielding")),
+            "description": raw_description if raw_description is not None else raw_des,
+            "des": raw_des,
             "events": _string_or_none(item.get("events")),
             "launch_speed": _float_or_none(item.get("launch_speed")),
             "launch_angle": _float_or_none(item.get("launch_angle")),
@@ -179,6 +199,24 @@ def _pitcher_id_from_row(item: JsonObject) -> int | None:
         pitcher_id = _int_or_none(value.get(_NESTED_ID_KEY))
         if pitcher_id is not None:
             return pitcher_id
+    return None
+
+
+def _batter_id_from_row(item: JsonObject) -> int | None:
+    for key in _BATTER_ID_KEYS:
+        value = item.get(key)
+        if isinstance(value, dict):
+            continue
+        batter_id = _int_or_none(value)
+        if batter_id is not None:
+            return batter_id
+    for key in _NESTED_BATTER_KEYS:
+        value = item.get(key)
+        if not isinstance(value, dict):
+            continue
+        batter_id = _int_or_none(value.get(_NESTED_ID_KEY))
+        if batter_id is not None:
+            return batter_id
     return None
 
 

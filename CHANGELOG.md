@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `play_id`, `inning`, `half_inning`, `batter_id`, `pitcher_id`, `description`, and `des` columns to `pb.savant.gamefeed_exit_velocity()` (and `savant_gamefeed_exit_velocity()`) output DataFrame for play-level identification and context matching.
+- Add `description` column to `pb.mlb.game_highlights()` (and `mlb_game_highlights()`) output DataFrame for detailed highlight context and scenario descriptions.
+
 ## [0.20.2] - 2026-08-18
 
 ### Added

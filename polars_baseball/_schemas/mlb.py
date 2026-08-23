@@ -338,6 +338,7 @@ MLB_GAME_HIGHLIGHTS_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "playerId": pl.Int64,
     "title": pl.String,
     "blurb": pl.String,
+    "description": pl.String,
     "duration": pl.String,
     "date": pl.String,
     "url": pl.String,
