@@ -24,10 +24,17 @@ def _gamefeed_payload() -> str:
         {
             "exit_velocity": [
                 {
+                    "play_id": "play-uuid-ohtani",
+                    "inning": 1,
+                    "half_inning": "top",
+                    "batter": 660271,
                     "batter_name": "Ohtani Shohei",
                     "team_batting": "LAD",
+                    "pitcher": 675916,
                     "pitcher_name": "Strider Spencer",
                     "team_fielding": "ATL",
+                    "description": "In play, run(s)",
+                    "des": "Shohei Ohtani homers (1) on a fly ball to right center field.",
                     "events": "Home Run",
                     "launch_speed": 118.7,
                     "launch_angle": 28,
@@ -96,10 +103,17 @@ async def test_savant_gamefeed_exit_velocity_flattens_core_columns() -> None:
 
     assert df.columns == [
         "game_pk",
+        "play_id",
+        "inning",
+        "half_inning",
+        "batter_id",
         "batter_name",
         "team_batting",
+        "pitcher_id",
         "pitcher_name",
         "team_fielding",
+        "description",
+        "des",
         "events",
         "launch_speed",
         "launch_angle",
@@ -110,6 +124,13 @@ async def test_savant_gamefeed_exit_velocity_flattens_core_columns() -> None:
     ]
     assert df.height == 1
     assert df["game_pk"].dtype == pl.Int64
+    assert df["play_id"][0] == "play-uuid-ohtani"
+    assert df["inning"][0] == 1
+    assert df["half_inning"][0] == "top"
+    assert df["batter_id"][0] == 660271
+    assert df["pitcher_id"][0] == 675916
+    assert df["description"][0] == "In play, run(s)"
+    assert df["des"][0] == "Shohei Ohtani homers (1) on a fly ball to right center field."
     assert df["launch_speed"].dtype == pl.Float64
     assert df["home_run_ballparks"].dtype == pl.Int64
     assert df["home_run_ballparks"][0] == 30
@@ -179,6 +200,46 @@ async def test_savant_gamefeed_pitch_data_reads_row_level_pitcher_ids() -> None:
     df = await savant_gamefeed_pitch_data(_GAME_PK, context=_context(payload))
 
     assert df["pitcher_id"].to_list() == [111111, 444444, 666666, 777777, 888888]
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_exit_velocity_reads_row_level_batter_and_pitcher_ids() -> None:
+    payload = json.dumps(
+        {
+            "exit_velocity": [
+                {
+                    "batter_id": "111111",
+                    "pitcher_id": "222222",
+                    "batter_name": "Batter 1",
+                    "pitcher_name": "Pitcher 1",
+                    "description": "In play, no out",
+                    "des": "Batter 1 singles.",
+                },
+                {
+                    "batter": 333333,
+                    "pitcher": 444444,
+                    "batter_name": "Batter 2",
+                    "pitcher_name": "Pitcher 2",
+                    "description": None,
+                    "des": "Batter 2 homers.",
+                },
+                {
+                    "batter_id": 555555,
+                    "batter_name": "Batter 3",
+                    "pitcher_name": "Pitcher 3",
+                    "description": "Foul Tip",
+                    "des": None,
+                },
+            ]
+        }
+    )
+
+    df = await savant_gamefeed_exit_velocity(_GAME_PK, context=_context(payload))
+
+    assert df["batter_id"].to_list() == [111111, 333333, 555555]
+    assert df["pitcher_id"].to_list() == [222222, 444444, None]
+    assert df["description"].to_list() == ["In play, no out", "Batter 2 homers.", "Foul Tip"]
+    assert df["des"].to_list() == ["Batter 1 singles.", "Batter 2 homers.", None]
 
 
 @pytest.mark.asyncio
