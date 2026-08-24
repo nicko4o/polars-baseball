@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix `pb.mlb.game_highlights()` (and `mlb_game_highlights()`) producing `null` in `playId` column by reading `guid` from upstream highlight items (#125).
+- Fix `pb.mlb.game_feed_live()` (and `mlb_game_feed_live()`) producing `null` in `playId` column by reading `playId` from individual pitch events.
+
 ## [0.21.0] - 2026-08-23
 
 ### Added
