@@ -142,6 +142,57 @@ async def test_mlb_game_highlights_keyword_extraction() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mlb_game_highlights_guid_precedence_and_fallback() -> None:
+    payload = {
+        "highlights": {
+            "highlights": {
+                "items": [
+                    {
+                        "id": "item-1",
+                        "headline": "Guid Item",
+                        "guid": "guid-uuid-111",
+                        "playId": "legacy-play-111",
+                        "keywordsAll": [{"type": "play_id", "value": "kw-play-111"}],
+                        "playbacks": [{"name": "mp4Avc", "url": "https://cuts.mlb.com/1.mp4"}],
+                    },
+                    {
+                        "id": "item-2",
+                        "headline": "PlayId Item",
+                        "guid": None,
+                        "playId": "legacy-play-222",
+                        "keywordsAll": [{"type": "play_id", "value": "kw-play-222"}],
+                        "playbacks": [{"name": "mp4Avc", "url": "https://cuts.mlb.com/2.mp4"}],
+                    },
+                    {
+                        "id": "item-3",
+                        "headline": "Keyword Item",
+                        "guid": None,
+                        "playId": None,
+                        "keywordsAll": [{"type": "play_id", "value": "kw-play-333"}],
+                        "playbacks": [{"name": "mp4Avc", "url": "https://cuts.mlb.com/3.mp4"}],
+                    },
+                    {
+                        "id": "item-4",
+                        "headline": "No Play ID Item",
+                        "guid": None,
+                        "playId": None,
+                        "keywordsAll": [],
+                        "playbacks": [{"name": "mp4Avc", "url": "https://cuts.mlb.com/4.mp4"}],
+                    },
+                ]
+            }
+        }
+    }
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(payload))
+    context = BaseballContext(http=mock_http)
+
+    df = await mlb_game_highlights(715789, context=context)
+
+    assert df["playId"].to_list() == ["guid-uuid-111", "legacy-play-222", "kw-play-333", None]
+
+
+@pytest.mark.asyncio
 async def test_mlb_game_highlights_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_EMPTY_CONTENT_JSON))

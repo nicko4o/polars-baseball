@@ -1399,6 +1399,59 @@ async def test_mlb_game_feed_live_invalid_params() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mlb_game_feed_live_play_id_extraction_from_play_events() -> None:
+    payload = {
+        "liveData": {
+            "plays": {
+                "allPlays": [
+                    {
+                        "about": {"atBatIndex": 0, "playId": None},
+                        "matchup": {"batter": {"id": 1, "fullName": "B1"}, "pitcher": {"id": 2, "fullName": "P1"}},
+                        "playEvents": [
+                            {
+                                "isPitch": True,
+                                "index": 0,
+                                "pitchNumber": 1,
+                                "playId": "event-uuid-111",
+                                "details": {"description": "Strike"},
+                                "pitchData": {},
+                            },
+                            {
+                                "isPitch": True,
+                                "index": 1,
+                                "pitchNumber": 2,
+                                "guid": "event-guid-222",
+                                "details": {"description": "Ball"},
+                                "pitchData": {},
+                            },
+                        ],
+                    },
+                    {
+                        "about": {"atBatIndex": 1, "playId": "about-uuid-333"},
+                        "matchup": {"batter": {"id": 3, "fullName": "B2"}, "pitcher": {"id": 4, "fullName": "P2"}},
+                        "playEvents": [
+                            {
+                                "isPitch": True,
+                                "index": 0,
+                                "pitchNumber": 1,
+                                "details": {"description": "Foul"},
+                                "pitchData": {},
+                            },
+                        ],
+                    },
+                ]
+            }
+        }
+    }
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(payload))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_game_feed_live(game_pk=715789, context=ctx)
+    assert df["playId"].to_list() == ["event-uuid-111", "event-guid-222", "about-uuid-333"]
+
+
+@pytest.mark.asyncio
 async def test_mlb_draft_fail_fast() -> None:
     bad_json = {
         "drafts": {

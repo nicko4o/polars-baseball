@@ -121,12 +121,15 @@ def parse_live_feed_pitch(
     pitch_data = event_data.get("pitchData", {})
     breaks = pitch_data.get("breaks", {})
 
+    raw_play_id = event_data.get("playId") or event_data.get("guid") or about.get("playId")
+    play_id = str(raw_play_id).strip() if raw_play_id else None
+
     return {
         "gamePk": game_pk,
         "atBatIndex": about.get("atBatIndex"),
         "pitchIndex": event_data.get("index"),
         "pitchNumber": event_data.get("pitchNumber"),
-        "playId": about.get("playId"),
+        "playId": play_id,
         "batterId": batter.get("id"),
         "batterName": batter.get("fullName"),
         "pitcherId": pitcher.get("id"),
@@ -313,7 +316,8 @@ def _parse_highlight_item(item: dict[str, Any], game_pk: int) -> dict[str, Any] 
     except ValueError:
         player_id = None
 
-    play_id = item.get("playId") or _extract_keyword_value(keywords_all, "play_id")
+    raw_play_id = item.get("guid") or item.get("playId") or _extract_keyword_value(keywords_all, "play_id")
+    play_id = str(raw_play_id).strip() if raw_play_id else None
     raw_id = item.get("id") or item.get("mediaPlaybackId")
     highlight_id = str(raw_id) if raw_id is not None else None
 
