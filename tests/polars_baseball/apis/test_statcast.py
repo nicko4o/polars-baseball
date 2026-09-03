@@ -181,6 +181,13 @@ def test_align_schemas() -> None:
     assert aligned_ints[0]["unknown_int_col"].dtype == pl.Int64
     assert aligned_ints[1]["unknown_int_col"].dtype == pl.Int64
 
+    # 3. Test unknown mixed string and numeric conflict (should safely align to String, not Float64)
+    df_str = pl.DataFrame({"custom_code": pl.Series(["K", "BB"], dtype=pl.String)})
+    df_num = pl.DataFrame({"custom_code": pl.Series([1, 2], dtype=pl.Int64)})
+    aligned_mixed = _align_schemas([df_str, df_num])
+    assert aligned_mixed[0]["custom_code"].dtype == pl.String
+    assert aligned_mixed[1]["custom_code"].dtype == pl.String
+
 
 @pytest.mark.asyncio
 @patch("polars_baseball._cache.global_cache.get")

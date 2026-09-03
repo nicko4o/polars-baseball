@@ -92,3 +92,21 @@ def test_parse_mlb_player_stats_infer_schema_beyond_100_rows() -> None:
     assert "lateMetric" in df.columns
     assert df["lateMetric"].dtype == pl.Float64
     assert df["lateMetric"][105] == 5.5
+
+
+def test_parse_mlb_schedule_empty_preserves_schema() -> None:
+    from polars_baseball._schemas.mlb import MLB_SCHEDULE_TYPES
+    from polars_baseball.parsers.mlb import parse_mlb_schedule
+
+    df = parse_mlb_schedule({})
+    assert df.is_empty()
+    assert df.schema == MLB_SCHEDULE_TYPES
+
+
+def test_parse_mlb_boxscore_empty_preserves_schema() -> None:
+    from polars_baseball._schemas.mlb import MLB_BOXSCORE_TYPES
+    from polars_baseball.parsers.mlb import parse_mlb_boxscore
+
+    df = parse_mlb_boxscore({}, 12345)
+    assert df.is_empty()
+    assert df.schema == MLB_BOXSCORE_TYPES

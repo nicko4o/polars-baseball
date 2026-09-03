@@ -127,10 +127,7 @@ class SavantHTMLTableStrategy:
                 cells = cast(list[_Element], tr.xpath("./td"))
                 if not cells:
                     continue
-                row = {}
-                for i, cell in enumerate(cells):
-                    if i < len(headers):
-                        row[headers[i]] = self._cell_text(cell)
+                row = {headers[i]: self._cell_text(cell) for i, cell in enumerate(cells) if i < len(headers)}
                 if row:
                     rows.append(row)
 

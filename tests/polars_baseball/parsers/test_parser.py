@@ -125,6 +125,34 @@ def test_fangraphs_parser_extracts_data() -> None:
     assert df["WAR"].to_list() == [5.0, 3.2]
 
 
+def test_fangraphs_parser_empty_data_returns_empty_dataframe() -> None:
+    import json
+
+    from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
+
+    next_data = {
+        "props": {
+            "pageProps": {
+                "dehydratedState": {
+                    "queries": [
+                        {
+                            "queryKey": ["leaders/major-league/data", {}],
+                            "state": {"data": {"data": []}},
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    json_str = json.dumps(next_data)
+    html = f'<html><script id="__NEXT_DATA__" type="application/json">{json_str}</script></html>'
+
+    parser = FangraphsHTMLParser()
+    df = parser.parse(html)
+    assert isinstance(df, pl.DataFrame)
+    assert df.is_empty()
+
+
 def test_fangraphs_parser_strips_html_tags() -> None:
     import json
 

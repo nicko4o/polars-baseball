@@ -178,7 +178,7 @@ def parse_mlb_boxscore(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
     """
     rows = parse_boxscore(data, game_pk)
     if not rows:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_BOXSCORE_TYPES)
     return validate_and_cast_schema(
         pl.DataFrame(rows, infer_schema_length=None), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_TYPES
     )
@@ -193,7 +193,7 @@ def parse_mlb_boxscore_stats(data: dict[str, Any], game_pk: int) -> pl.DataFrame
     """
     rows = parse_boxscore(data, game_pk)
     if not rows:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_BOXSCORE_STATS_TYPES)
     return validate_and_cast_schema(
         pl.DataFrame(rows, infer_schema_length=None), MLB_BOXSCORE_REQUIRED, MLB_BOXSCORE_STATS_TYPES
     )
@@ -208,7 +208,7 @@ def parse_mlb_play_by_play(data: dict[str, Any], game_pk: int) -> pl.DataFrame:
     """
     plays = data.get("allPlays", [])
     if not plays:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_PBP_TYPES)
     rows = [parse_play(play, game_pk) for play in plays]
     return validate_and_cast_schema(pl.DataFrame(rows, schema=MLB_PBP_TYPES), MLB_PBP_REQUIRED, MLB_PBP_TYPES)
 
@@ -224,10 +224,10 @@ def parse_mlb_win_probability(data: object, game_pk: int) -> pl.DataFrame:
         empty DataFrame when data is not a list.
     """
     if not isinstance(data, list):
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_PBP_TYPES)
     rows = [parse_play(play, game_pk) for play in data if isinstance(play, dict)]
     if not rows:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_PBP_TYPES)
     return validate_and_cast_schema(pl.DataFrame(rows, schema=MLB_PBP_TYPES), MLB_PBP_REQUIRED, MLB_PBP_TYPES)
 
 
@@ -250,7 +250,7 @@ def parse_mlb_game_feed_live(data: dict[str, Any], game_pk: int) -> pl.DataFrame
             if event.get("isPitch"):
                 rows.append(parse_live_feed_pitch(event, play, game_pk))
     if not rows:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_LIVE_FEED_TYPES)
     return validate_and_cast_schema(
         pl.DataFrame(rows, schema=MLB_LIVE_FEED_TYPES), MLB_LIVE_FEED_REQUIRED, MLB_LIVE_FEED_TYPES
     )
@@ -267,7 +267,7 @@ def parse_mlb_game_linescore(data: dict[str, Any], game_pk: int) -> pl.DataFrame
     """
     rows = parse_linescore(data, game_pk)
     if not rows:
-        return pl.DataFrame()
+        return pl.DataFrame(schema=MLB_LINESCORE_TYPES)
     return validate_and_cast_schema(
         pl.DataFrame(rows, schema=MLB_LINESCORE_TYPES), MLB_LINESCORE_REQUIRED, MLB_LINESCORE_TYPES
     )

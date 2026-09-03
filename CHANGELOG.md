@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix FanGraphs leaderboards (`pb.fg_data()`, `pb.fangraphs.*`) raising `UpstreamStructureChangedError` when queries match zero players; now safely returns an empty DataFrame.
+- Fix `pb.mlb.schedule()` and `pb.mlb.game_boxscore()` returning schema-less DataFrames when no records are found; now consistently preserves typed empty schemas.
+- Fix Statcast multi-query schema alignment for unrecognized columns with mixed string and numeric values to safely fall back to `pl.String`, preventing silent data loss.
 - `pb.mlb.game_boxscore_stats()` now includes seven previously missing per-pitcher columns: `pitching_wins`, `pitching_losses`, `pitching_saves`, `pitching_holds`, `pitching_blownSaves`, `pitching_inheritedRunners`, and `pitching_inheritedRunnersScored`. These columns were returned by the MLB Stats API but were not propagated to the output DataFrame.
 
 

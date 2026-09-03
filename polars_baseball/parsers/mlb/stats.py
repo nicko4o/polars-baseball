@@ -51,24 +51,27 @@ def parse_player_stats(
     return rows
 
 
+def _parse_team_split(split: dict[str, Any], team_id: int, group: str, stat_type: str) -> dict[str, Any]:
+    stat = split.get("stat", {})
+    row: dict[str, Any] = {
+        "teamId": team_id,
+        "season": int(split["season"]) if split.get("season") else None,
+        "group": group,
+        "statType": stat_type,
+    }
+    for key, value in stat.items():
+        if not isinstance(value, dict):
+            row[key] = value
+    return row
+
+
 def parse_team_stats(data: dict[str, Any], team_id: int, target_group: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for stat_obj in data.get("stats", []):
         group = stat_obj.get("group", {}).get("displayName", target_group)
         stat_type = stat_obj.get("type", {}).get("displayName", "season")
         for split in stat_obj.get("splits", []):
-            stat = split.get("stat", {})
-            row: dict[str, Any] = {
-                "teamId": team_id,
-                "season": int(split["season"]) if split.get("season") else None,
-                "group": group,
-                "statType": stat_type,
-            }
-            for key, value in stat.items():
-                if isinstance(value, dict):
-                    continue
-                row[key] = value
-            rows.append(row)
+            rows.append(_parse_team_split(split, team_id, group, stat_type))
     return rows
 
 

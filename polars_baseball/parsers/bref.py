@@ -69,6 +69,25 @@ class BRefHTMLParser(BaseParser):
         return None
 
     @staticmethod
+    def _parse_row(tr: _Element, headings: list[str], drop_first: bool) -> dict[str, object] | None:
+        cell_elements = cast(list[_Element], tr.xpath("./th | ./td"))
+        if not cell_elements:
+            return None
+
+        cells = ["".join(str(x) for x in c.itertext()).strip() for c in cell_elements]
+        if drop_first and cells:
+            cells = cells[1:]
+
+        mlb_id = BRefHTMLParser._extract_mlb_id(tr)
+        cells.append(mlb_id or "")
+
+        return {
+            headings[i]: BRefHTMLParser._parse_val(val)
+            for i, val in enumerate(cells)
+            if i < len(headings) and headings[i] != ""
+        }
+
+    @staticmethod
     def _to_dataframe(html: str) -> pl.DataFrame:
         try:
             tree = lxml.etree.HTML(html)
@@ -88,25 +107,8 @@ class BRefHTMLParser(BaseParser):
             # Append the mlbID column using the named constant.
             headings.append(_MLBID_COLUMN)
 
-            rows = []
-            for tr in tr_elements:
-                cell_elements = cast(list[_Element], tr.xpath("./th | ./td"))
-                if not cell_elements:
-                    continue
-
-                cells = ["".join(str(x) for x in c.itertext()).strip() for c in cell_elements]
-
-                if drop_first and cells:
-                    cells = cells[1:]
-
-                mlb_id = BRefHTMLParser._extract_mlb_id(tr)
-                cells.append(mlb_id or "")
-
-                row_data = {}
-                for i, val in enumerate(cells):
-                    if i < len(headings) and headings[i] != "":
-                        row_data[headings[i]] = BRefHTMLParser._parse_val(val)
-                rows.append(row_data)
+            parsed_rows = (BRefHTMLParser._parse_row(tr, headings, drop_first) for tr in tr_elements)
+            rows = [r for r in parsed_rows if r is not None]
 
             df = pl.DataFrame(rows)
             return BRefHTMLParser._clean_dataframe(df)
@@ -259,14 +261,17 @@ class BRefSplitsParser:
             text = "".join(cast(list[str], p.xpath(".//text()"))).strip()
             if text.startswith("Position:"):
                 result["Position"] = text.replace("Position:", "").strip()
-            if "Bats:" in text and "Throws:" in text:
-                parts = text.split("\u2022")
-                for part in parts:
-                    if "Bats:" in part:
-                        result["Bats"] = part.replace("Bats:", "").strip()
-                    if "Throws:" in part:
-                        result["Throws"] = part.replace("Throws:", "").strip()
+            elif "Bats:" in text and "Throws:" in text:
+                self._parse_bats_throws(text, result)
         return result
+
+    @staticmethod
+    def _parse_bats_throws(text: str, result: dict[str, str]) -> None:
+        for part in text.split("\u2022"):
+            if "Bats:" in part:
+                result["Bats"] = part.replace("Bats:", "").strip()
+            elif "Throws:" in part:
+                result["Throws"] = part.replace("Throws:", "").strip()
 
     def _process_comment_container(
         self,

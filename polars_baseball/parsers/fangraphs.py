@@ -62,7 +62,7 @@ class FangraphsHTMLParser(BaseParser):
 
             player_data = FangraphsHTMLParser._extract_player_data(q)
             if not player_data:
-                raise UpstreamStructureChangedError(_PLAYER_DATA_MISSING)
+                return pl.DataFrame()
 
             df = pl.DataFrame(player_data, infer_schema_length=None)
             return FangraphsHTMLParser._clean_dataframe_html(df)

@@ -13,9 +13,9 @@ def validate_and_cast_schema(
     """Validate required columns exist and cast to target types.
 
     Note:
-        Returns the DataFrame unchanged when it is empty (no rows to
-        validate). Raises InvalidSchemaError when required columns are
-        missing or when casting fails.
+        Returns the DataFrame unchanged when casting fails on an empty DataFrame.
+        Raises InvalidSchemaError when required columns are missing or when
+        casting fails on non-empty data.
     """
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
