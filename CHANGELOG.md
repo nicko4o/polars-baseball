@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pb.standings()` now accepts a keyword-only `force_update: bool = False` parameter. Pass `True` to bypass the file cache and re-fetch fresh standings from the MLB Stats API — useful when calling across multiple seasons in long-running processes.
+
+### Fixed
+
+- `pb.mlb.game_boxscore_stats()` now includes seven previously missing per-pitcher columns: `pitching_wins`, `pitching_losses`, `pitching_saves`, `pitching_holds`, `pitching_blownSaves`, `pitching_inheritedRunners`, and `pitching_inheritedRunnersScored`. These columns were returned by the MLB Stats API but were not propagated to the output DataFrame.
+
+
 ## [0.21.1] - 2026-08-24
 
 ### Fixed

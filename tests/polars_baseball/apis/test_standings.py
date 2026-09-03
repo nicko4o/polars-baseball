@@ -92,3 +92,25 @@ async def test_standings_upstream_failure() -> None:
     ctx = BaseballContext(http=mock_http)
     with pytest.raises(PolarsBaseballTransportError, match="Timeout"):
         await standings(season=2023, context=ctx)
+
+
+@pytest.mark.asyncio
+async def test_standings_caching_and_force_update() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_STANDINGS_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    # 1. First fetch (cache miss) — positional calling ensures context is preserved
+    df1 = await standings(2023, ctx)
+    assert df1.height == 3
+    assert mock_http.get_text.call_count == 1
+
+    # 2. Second fetch (cache hit)
+    df2 = await standings(2023, ctx)
+    assert df2.height == 3
+    assert mock_http.get_text.call_count == 1
+
+    # 3. Third fetch with force_update=True (bypasses cache)
+    df3 = await standings(2023, ctx, force_update=True)
+    assert df3.height == 3
+    assert mock_http.get_text.call_count == 2

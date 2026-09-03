@@ -134,6 +134,13 @@ MLB_BOXSCORE_STATS_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "pitching_strikeOuts": pl.Int64,
     "pitching_homeRuns": pl.Int64,
     "pitching_outs": pl.Int64,
+    "pitching_wins": pl.Int64,
+    "pitching_losses": pl.Int64,
+    "pitching_saves": pl.Int64,
+    "pitching_holds": pl.Int64,
+    "pitching_blownSaves": pl.Int64,
+    "pitching_inheritedRunners": pl.Int64,
+    "pitching_inheritedRunnersScored": pl.Int64,
     "isInBattingOrder": pl.Boolean,
     "battingOrder": pl.Int64,
 }

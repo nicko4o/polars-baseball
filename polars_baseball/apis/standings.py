@@ -18,7 +18,12 @@ def _standings_cache_key(**kw: object) -> str:
 
 
 @cached(key=_standings_cache_key)
-async def _fetch_standings(season: int, context: BaseballContext | None = None) -> pl.DataFrame:
+async def _fetch_standings(
+    season: int,
+    context: BaseballContext | None = None,
+    *,
+    force_update: bool = False,
+) -> pl.DataFrame:
     ctx = context or BaseballContext.default()
     url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
     return await MlbStatsGateway(ctx).fetch(
@@ -29,7 +34,12 @@ async def _fetch_standings(season: int, context: BaseballContext | None = None) 
     )
 
 
-async def standings(season: int | None = None, context: BaseballContext | None = None) -> pl.DataFrame:
+async def standings(
+    season: int | None = None,
+    context: BaseballContext | None = None,
+    *,
+    force_update: bool = False,
+) -> pl.DataFrame:
     """Fetch division standings from the MLB Stats API for a given season.
 
     Returns one DataFrame with division metadata and team-level standings.
@@ -38,6 +48,7 @@ async def standings(season: int | None = None, context: BaseballContext | None =
         - Raises ``InvalidParameterError`` for seasons before 1901 (``MLB_FIRST_YEAR``).
         - Defaults to the most recent completed season when ``season`` is omitted.
         - Games Back (``GB``) is ``None`` for division leaders or tied values.
+        - Set ``force_update=True`` to bypass the file cache and re-fetch from the API.
     """
     if season is None:
         season = most_recent_season()
@@ -46,4 +57,4 @@ async def standings(season: int | None = None, context: BaseballContext | None =
             f"This query currently only returns standings until the {_PRE_DEAD_BALL_START} season. "
             f"Try looking at years from {_PRE_DEAD_BALL_START} to present."
         )
-    return await _fetch_standings(season, context=context)
+    return await _fetch_standings(season, context=context, force_update=force_update)
