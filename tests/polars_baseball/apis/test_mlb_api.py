@@ -209,10 +209,43 @@ _MOCK_BOXSCORE_JSON = {
                             "strikeOuts": 7,
                             "homeRuns": 0,
                             "outs": 17,
+                            "wins": 1,
+                            "losses": 0,
+                            "saves": 0,
+                            "holds": 0,
+                            "blownSaves": 0,
+                            "inheritedRunners": 0,
+                            "inheritedRunnersScored": 0,
                         },
                         "fielding": {},
                     },
-                }
+                },
+                "ID669016": {
+                    "person": {"id": 669016, "fullName": "Tanner Scott"},
+                    "jerseyNumber": "66",
+                    "position": {"code": "1", "name": "Pitcher", "abbreviation": "P"},
+                    "stats": {
+                        "batting": {},
+                        "pitching": {
+                            "inningsPitched": "1.1",
+                            "hits": 1,
+                            "runs": 1,
+                            "earnedRuns": 1,
+                            "baseOnBalls": 0,
+                            "strikeOuts": 2,
+                            "homeRuns": 0,
+                            "outs": 4,
+                            "wins": 0,
+                            "losses": 0,
+                            "saves": 1,
+                            "holds": 0,
+                            "blownSaves": 0,
+                            "inheritedRunners": 2,
+                            "inheritedRunnersScored": 1,
+                        },
+                        "fielding": {},
+                    },
+                },
             },
         },
     }
@@ -532,7 +565,7 @@ async def test_mlb_game_boxscore_basic() -> None:
 
     df = await mlb_game_boxscore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
-    assert df.height == 2
+    assert df.height == 3
     # Check away team player
     away_player = df.filter(pl.col("personId") == 545361)
     assert away_player.height == 1
@@ -564,6 +597,14 @@ async def test_mlb_game_boxscore_stats_schema() -> None:
     assert df.schema["fielding_errors"] == pl.Int64
     assert df.schema["isInBattingOrder"] == pl.Boolean
     assert df.schema["battingOrder"] == pl.Int64
+    # New pitching decision fields must be present in schema
+    assert df.schema["pitching_wins"] == pl.Int64
+    assert df.schema["pitching_losses"] == pl.Int64
+    assert df.schema["pitching_saves"] == pl.Int64
+    assert df.schema["pitching_holds"] == pl.Int64
+    assert df.schema["pitching_blownSaves"] == pl.Int64
+    assert df.schema["pitching_inheritedRunners"] == pl.Int64
+    assert df.schema["pitching_inheritedRunnersScored"] == pl.Int64
 
     away_player = df.filter(pl.col("personId") == 545361)
     assert away_player["batting_atBats"][0] == 4
@@ -572,10 +613,21 @@ async def test_mlb_game_boxscore_stats_schema() -> None:
     assert away_player["isInBattingOrder"][0] is True
     assert away_player["battingOrder"][0] == 100
 
-    home_player = df.filter(pl.col("personId") == 660271)
-    assert home_player["pitching_inningsPitched"][0] == "5.2"
-    assert home_player["pitching_strikeOuts"][0] == 7
-    assert home_player["isInBattingOrder"][0] is False
+    # Starting pitcher: verify decision fields
+    ohtani = df.filter(pl.col("personId") == 660271)
+    assert ohtani["pitching_inningsPitched"][0] == "5.2"
+    assert ohtani["pitching_strikeOuts"][0] == 7
+    assert ohtani["pitching_wins"][0] == 1
+    assert ohtani["pitching_losses"][0] == 0
+    assert ohtani["pitching_saves"][0] == 0
+    assert ohtani["pitching_inheritedRunners"][0] == 0
+    assert ohtani["isInBattingOrder"][0] is False
+
+    # Relief pitcher: verify inherited runner fields
+    scott = df.filter(pl.col("personId") == 669016)
+    assert scott["pitching_saves"][0] == 1
+    assert scott["pitching_inheritedRunners"][0] == 2
+    assert scott["pitching_inheritedRunnersScored"][0] == 1
 
 
 @pytest.mark.asyncio
