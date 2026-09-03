@@ -45,11 +45,17 @@ def test_fangraphs_parser_raises_for_missing_target_query() -> None:
         parser.parse(_next_data_html([{"queryKey": ["other"], "state": {"data": {"data": []}}}]))
 
 
-def test_fangraphs_parser_raises_for_empty_player_data() -> None:
+def test_fangraphs_parser_raises_for_missing_player_data() -> None:
     parser = FangraphsHTMLParser()
 
     with pytest.raises(UpstreamParseError, match="player data"):
-        parser.parse(_next_data_html([_fangraphs_query([])]))
+        parser.parse(_next_data_html([{"queryKey": ["leaders/major-league/data"], "state": {"data": {}}}]))
+
+
+def test_fangraphs_parser_returns_empty_df_for_empty_player_data() -> None:
+    parser = FangraphsHTMLParser()
+    df = parser.parse(_next_data_html([_fangraphs_query([])]))
+    assert df.is_empty()
 
 
 @pytest.mark.asyncio

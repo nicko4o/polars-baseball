@@ -511,3 +511,37 @@ class TestConvenienceFunctionsWithFilters:
 
         assert df.height == 1
         assert df["Name"][0] == "Aaron Judge"
+
+    @pytest.mark.asyncio
+    @patch.object(GlobalCache, "set")
+    @patch.object(GlobalCache, "get", return_value=None)
+    async def test_fg_data_empty_data_returns_empty_dataframe(
+        self,
+        mock_cache_get: MagicMock,
+        mock_cache_set: MagicMock,
+    ) -> None:
+        empty_next_data = {
+            "props": {
+                "pageProps": {
+                    "dehydratedState": {
+                        "queries": [
+                            {
+                                "queryKey": ["leaders/major-league/data", {}],
+                                "state": {"data": {"data": []}},
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        empty_html = (
+            f'<html><head><script id="__NEXT_DATA__" type="application/json">'
+            f"{json.dumps(empty_next_data)}</script></head><body></body></html>"
+        )
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=empty_html)
+        ctx = BaseballContext(http=mock_http)
+
+        df = await fg_data(FanGraphsRequest.batting(start_season=2019), context=ctx)
+        assert isinstance(df, pl.DataFrame)
+        assert df.is_empty()

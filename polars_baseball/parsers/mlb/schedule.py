@@ -148,14 +148,10 @@ def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
     pitchers, hits, errors, and venue/status metadata.
     """
     dates = data.get("dates", [])
-    if not dates:
-        return pl.DataFrame()
     rows: list[GameDict] = []
     for schedule_date in dates:
         for game in schedule_date.get("games", []):
             rows.append(parse_game(game))
-    if not rows:
-        return pl.DataFrame()
     return validate_and_cast_schema(
         pl.DataFrame(rows, schema=MLB_SCHEDULE_TYPES), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
     )

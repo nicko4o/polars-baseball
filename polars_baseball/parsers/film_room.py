@@ -187,6 +187,30 @@ def _build_forge_cdn_mp4_url(media_playback_id: str, dt: date | None) -> str | N
     return f"{FORGE_CDN_BASE_URL}/{year}/{year_month}/{day}/{filename}"
 
 
+def _ensure_forge_mp4(
+    playback_list: list[dict[str, Any]],
+    best_mp4_url: str | None,
+    media_playback_id: str,
+    dt_val: date | None,
+) -> str | None:
+    if best_mp4_url or not media_playback_id or dt_val is None:
+        return best_mp4_url
+    forge_url = _build_forge_cdn_mp4_url(media_playback_id, dt_val)
+    if not forge_url:
+        return best_mp4_url
+    if not any(p.get("url") == forge_url for p in playback_list):
+        playback_list.append(
+            {
+                "name": f"mp4 {_FORGE_DEFAULT_BITRATE}K",
+                "url": forge_url,
+                "bitrate": _FORGE_DEFAULT_BITRATE,
+                "width": _FORGE_DEFAULT_WIDTH,
+                "height": _FORGE_DEFAULT_HEIGHT,
+            }
+        )
+    return forge_url
+
+
 def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
     content_id = str(item.get("id") or item.get("content_id") or item.get("mediaPlaybackId") or "")
     mp_list = item.get("mediaPlayback")
@@ -209,20 +233,7 @@ def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
     raw_playbacks = item.get("playbacks") or mp.get("playbacks") or []
     playback_list, best_mp4_url, hls_url = _parse_playbacks(raw_playbacks)
 
-    if not best_mp4_url and media_playback_id and dt_val is not None:
-        forge_url = _build_forge_cdn_mp4_url(media_playback_id, dt_val)
-        if forge_url:
-            best_mp4_url = forge_url
-            if not any(p.get("url") == forge_url for p in playback_list):
-                playback_list.append(
-                    {
-                        "name": f"mp4 {_FORGE_DEFAULT_BITRATE}K",
-                        "url": forge_url,
-                        "bitrate": _FORGE_DEFAULT_BITRATE,
-                        "width": _FORGE_DEFAULT_WIDTH,
-                        "height": _FORGE_DEFAULT_HEIGHT,
-                    }
-                )
+    best_mp4_url = _ensure_forge_mp4(playback_list, best_mp4_url, media_playback_id, dt_val)
 
     return {
         "content_id": content_id,

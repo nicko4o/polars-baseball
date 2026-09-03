@@ -251,7 +251,7 @@ def _resolve_column_conflict(
     has_string = any(dt == pl.String for dt in dtypes)
     has_numeric = any(dt.is_numeric() for dt in dtypes)
     if has_string and has_numeric:
-        return pl.Float64
+        return pl.String
     if has_numeric:
         return pl.Float64 if any(dt.is_float() for dt in dtypes) else pl.Int64
     return pl.String
