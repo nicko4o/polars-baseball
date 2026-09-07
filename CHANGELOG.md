@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-09-07
+
+### Added
+
+- `pb.savant.gamefeed_exit_velocity_many()` and `pb.savant.gamefeed_pitch_data_many()` now accept a keyword-only `concurrency_limit: int = 5` parameter to configure maximum concurrent game fetches.
+
+### Fixed
+
+- Fix unbounded parallel request fan-out in `pb.savant.gamefeed_exit_velocity_many()` and `pb.savant.gamefeed_pitch_data_many()` by bounding concurrent requests to `concurrency_limit`, preventing socket exhaustion and remote rate-limiting (HTTP 429) when fetching large batches of games (#131).
+- Fix eager coroutine scheduling in `pb.statcast()` parallel mode by bounding admitted tasks and lazily dispatching date chunks up to `concurrency_limit`, reducing memory footprint and event loop contention across wide date ranges (#132).
+
 ## [0.21.2] - 2026-09-03
 
 ### Added
