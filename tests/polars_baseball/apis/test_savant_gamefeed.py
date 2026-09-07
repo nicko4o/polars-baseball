@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Sequence
 from unittest.mock import AsyncMock, MagicMock
@@ -385,3 +386,66 @@ def test_savant_gamefeed_nan_parsing() -> None:
     assert _int_or_none("N/A") is None
     assert _int_or_none("null") is None
     assert _int_or_none(float("nan")) is None
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_bounds_concurrency() -> None:
+    active = 0
+    peak = 0
+    lock = asyncio.Lock()
+
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _mock_gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        nonlocal active, peak
+        async with lock:
+            active += 1
+            if active > peak:
+                peak = active
+        await asyncio.sleep(0.01)
+        res = await fetcher()  # type: ignore[misc]
+        async with lock:
+            active -= 1
+        return res
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _gamefeed_payload()
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    pks = [777000 + i for i in range(10)]
+    df = await savant_gamefeed_exit_velocity_many(pks, context=ctx, concurrency_limit=2)
+
+    assert peak <= 2
+    assert df.height == 10
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_sequential_mode() -> None:
+    active = 0
+    peak = 0
+
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _mock_gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        nonlocal active, peak
+        active += 1
+        if active > peak:
+            peak = active
+        await asyncio.sleep(0.005)
+        res = await fetcher()  # type: ignore[misc]
+        active -= 1
+        return res
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _gamefeed_payload()
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    pks = [777000 + i for i in range(5)]
+    df = await savant_gamefeed_pitch_data_many(pks, context=ctx, parallel=False)
+
+    assert peak == 1
+    assert df.height == 10
