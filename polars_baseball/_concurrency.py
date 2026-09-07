@@ -12,7 +12,7 @@ T = TypeVar("T")
 async def bounded_gather(
     tasks: Sequence[Callable[[], Awaitable[T]]],
     concurrency_limit: int,
-    on_progress: Callable[[], None] | None = None,
+    on_progress: Callable[[], object] | None = None,
 ) -> list[T]:
     """Execute task factories concurrently up to concurrency_limit.
 
@@ -31,7 +31,7 @@ async def bounded_gather(
 
 async def _run_sequential(
     tasks: Sequence[Callable[[], Awaitable[T]]],
-    on_progress: Callable[[], None] | None,
+    on_progress: Callable[[], object] | None,
 ) -> list[T]:
     results: list[T] = []
     for task in tasks:
@@ -45,7 +45,7 @@ async def _run_sequential(
 async def _run_worker_pool(
     tasks: Sequence[Callable[[], Awaitable[T]]],
     concurrency_limit: int,
-    on_progress: Callable[[], None] | None,
+    on_progress: Callable[[], object] | None,
 ) -> list[T]:
     results: list[T | None] = [None] * len(tasks)
     queue: asyncio.Queue[tuple[int, Callable[[], Awaitable[T]]]] = asyncio.Queue()
