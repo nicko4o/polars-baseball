@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import warnings
 from collections.abc import Iterable, Mapping
@@ -7,6 +6,7 @@ from typing import Literal
 
 import polars as pl
 
+from polars_baseball._concurrency import bounded_gather
 from polars_baseball._config import (
     DEFAULT_STATCAST_CONCURRENCY_LIMIT,
     OVERSIZE_DAYS_THRESHOLD,
@@ -125,18 +125,17 @@ async def _run_statcast_parallel(
     context: BaseballContext | None,
     concurrency_limit: int,
 ) -> list[pl.DataFrame]:
-    sem = asyncio.Semaphore(concurrency_limit)
-
-    async def _sem_request(start: date, end: date) -> pl.DataFrame:
-        async with sem:
-            return await _small_request(start, end, team, context=context)
-
-    tasks = [_sem_request(start, end) for start, end in date_range]
+    tasks = [lambda s=start, e=end: _small_request(s, e, team, context=context) for start, end in date_range]
     if verbose and len(date_range) > 1:
-        from tqdm.asyncio import tqdm as async_tqdm
+        from tqdm import tqdm
 
-        return await async_tqdm.gather(*tasks)
-    return await asyncio.gather(*tasks)
+        with tqdm(total=len(date_range)) as pbar:
+            return await bounded_gather(
+                tasks,
+                concurrency_limit=concurrency_limit,
+                on_progress=lambda: pbar.update(1),
+            )
+    return await bounded_gather(tasks, concurrency_limit=concurrency_limit)
 
 
 async def _run_statcast_sequential(

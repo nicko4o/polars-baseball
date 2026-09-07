@@ -214,3 +214,69 @@ async def test_statcast_concat_path_with_schema_alignment(
     assert df["miss_distance"].dtype == pl.Float64
     assert df["bat_speed"][0] is None  # descending sort (June 8th has None bat_speed)
     assert df["bat_speed"][2] == 70.5  # June 1st has 70.5 bat_speed
+
+
+@pytest.mark.asyncio
+async def test_statcast_parallel_uses_bounded_gather() -> None:
+    from datetime import date
+
+    from polars_baseball.apis.statcast import _run_statcast_parallel
+
+    date_range = [(date(2026, 4, 1), date(2026, 4, 7)), (date(2026, 4, 8), date(2026, 4, 14))]
+    with patch("polars_baseball.apis.statcast.bounded_gather", new_callable=AsyncMock) as mock_bg:
+        mock_bg.return_value = [pl.DataFrame(), pl.DataFrame()]
+        await _run_statcast_parallel(date_range, team=None, verbose=False, context=None, concurrency_limit=2)
+        mock_bg.assert_called_once()
+        tasks = mock_bg.call_args[0][0]
+        assert len(tasks) == 2
+        assert mock_bg.call_args[1]["concurrency_limit"] == 2
+
+
+@pytest.mark.asyncio
+async def test_statcast_parallel_bounds_task_admission() -> None:
+    import asyncio
+    from datetime import date
+
+    from polars_baseball.apis.statcast import _run_statcast_parallel
+
+    active = 0
+    peak = 0
+    lock = asyncio.Lock()
+
+    async def mock_small_request(start: date, end: date, team: str | None, context: object) -> pl.DataFrame:
+        nonlocal active, peak
+        async with lock:
+            active += 1
+            if active > peak:
+                peak = active
+        await asyncio.sleep(0.01)
+        async with lock:
+            active -= 1
+        return pl.DataFrame({"game_date": [str(start)], "game_pk": [100], "at_bat_number": [1], "pitch_number": [1]})
+
+    date_range = [
+        (date(2026, 4, 1), date(2026, 4, 7)),
+        (date(2026, 4, 8), date(2026, 4, 14)),
+        (date(2026, 4, 15), date(2026, 4, 21)),
+        (date(2026, 4, 22), date(2026, 4, 28)),
+    ]
+
+    with patch("polars_baseball.apis.statcast._small_request", side_effect=mock_small_request):
+        dfs = await _run_statcast_parallel(date_range, team=None, verbose=False, context=None, concurrency_limit=2)
+
+    assert peak <= 2
+    assert len(dfs) == 4
+
+
+@pytest.mark.asyncio
+async def test_statcast_parallel_verbose_progress() -> None:
+    from datetime import date
+
+    from polars_baseball.apis.statcast import _run_statcast_parallel
+
+    date_range = [(date(2026, 4, 1), date(2026, 4, 7)), (date(2026, 4, 8), date(2026, 4, 14))]
+    with patch("polars_baseball.apis.statcast._small_request", new_callable=AsyncMock) as mock_req:
+        mock_req.return_value = pl.DataFrame()
+        dfs = await _run_statcast_parallel(date_range, team=None, verbose=True, context=None, concurrency_limit=2)
+
+    assert len(dfs) == 2
