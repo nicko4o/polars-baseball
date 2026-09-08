@@ -21,6 +21,8 @@ from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
 
+_WARNED_LEGACY_CACHE: bool = False
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -159,6 +161,7 @@ class FileCacheAdapter(CacheAdapter):
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
+        self._check_legacy_cache()
         self._disabled = False
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -168,6 +171,20 @@ class FileCacheAdapter(CacheAdapter):
         self._key_locks: dict[str, threading.Lock] = {}
         self._meta_lock = threading.Lock()
         self._clear_lock = threading.Lock()
+
+    def _check_legacy_cache(self) -> None:
+        global _WARNED_LEGACY_CACHE
+        if _WARNED_LEGACY_CACHE or self.cache_dir != DEFAULT_CACHE_DIR:
+            return
+        legacy_dir = Path.home() / ".polars_baseball"
+        if legacy_dir.exists():
+            logger.info(
+                "Legacy cache directory detected at %s. New cache location is %s. "
+                "You can safely delete the legacy directory.",
+                legacy_dir,
+                self.cache_dir,
+            )
+            _WARNED_LEGACY_CACHE = True
 
     def _get_path(self, key: str) -> Path:
         safe_key = "".join(c if c.isalnum() else "_" for c in key)

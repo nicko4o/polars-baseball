@@ -61,10 +61,69 @@ def test_import_does_not_create_default_cache_directory(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["HOME"] = str(tmp_path)
     env.pop("POLARS_BASEBALL_CACHE_DIR", None)
+    env.pop("XDG_CACHE_HOME", None)
 
     subprocess.run([sys.executable, "-c", "import polars_baseball"], check=True, env=env)
 
-    assert not (tmp_path / ".polars_baseball" / "cache").exists()
+    assert not (tmp_path / ".cache" / "polars_baseball").exists()
+    assert not (tmp_path / ".polars_baseball").exists()
+
+
+def test_resolve_default_cache_dir_with_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from polars_baseball._config import _resolve_default_cache_dir
+
+    custom_dir = tmp_path / "custom_cache"
+    monkeypatch.setenv("POLARS_BASEBALL_CACHE_DIR", str(custom_dir))
+    assert _resolve_default_cache_dir() == custom_dir
+
+
+def test_resolve_default_cache_dir_with_xdg_cache_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from polars_baseball._config import _resolve_default_cache_dir
+
+    xdg_dir = tmp_path / "xdg_cache"
+    monkeypatch.delenv("POLARS_BASEBALL_CACHE_DIR", raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("XDG_CACHE_HOME", str(xdg_dir))
+    assert _resolve_default_cache_dir() == xdg_dir / "polars_baseball"
+
+
+def test_resolve_default_cache_dir_fallback_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from polars_baseball._config import _resolve_default_cache_dir
+
+    monkeypatch.delenv("POLARS_BASEBALL_CACHE_DIR", raising=False)
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert _resolve_default_cache_dir() == tmp_path / ".cache" / "polars_baseball"
+
+
+def test_resolve_default_cache_dir_windows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from polars_baseball._config import _resolve_default_cache_dir
+
+    local_appdata = tmp_path / "AppData" / "Local"
+    monkeypatch.delenv("POLARS_BASEBALL_CACHE_DIR", raising=False)
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", str(local_appdata))
+    assert _resolve_default_cache_dir() == local_appdata / "polars_baseball"
+
+
+def test_legacy_cache_directory_logged(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    import polars_baseball._cache as cache_mod
+
+    legacy_dir = tmp_path / ".polars_baseball"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    new_cache_dir = tmp_path / ".cache" / "polars_baseball"
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(cache_mod, "DEFAULT_CACHE_DIR", new_cache_dir)
+    monkeypatch.setattr(cache_mod, "_WARNED_LEGACY_CACHE", False)
+
+    with caplog.at_level("INFO"):
+        adapter = FileCacheAdapter(cache_dir=new_cache_dir)
+        assert adapter.cache_dir == new_cache_dir
+        assert any("Legacy cache directory detected" in record.message for record in caplog.records)
 
 
 def test_cache_key_includes_schema_version() -> None:

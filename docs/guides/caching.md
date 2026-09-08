@@ -5,7 +5,7 @@
 ## Caching Strategy
 
 - **Default status**: Importing the package performs no cache I/O. The default file cache is initialized on the first cached request.
-- **Storage location**: File cache data is stored in the directory you configure.
+- **Storage location**: File cache data is stored in the directory you configure. By default, it adheres to the XDG Base Directory specification: `~/.cache/polars_baseball` (or `$XDG_CACHE_HOME/polars_baseball`) on Linux/macOS and `%LOCALAPPDATA%/polars_baseball` on Windows.
 - **Storage format**: Cached tables are written as Parquet for fast I/O and columnar compression.
 
 ## Configuring the Cache Location
