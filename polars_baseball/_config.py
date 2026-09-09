@@ -1,7 +1,21 @@
 import os
+import sys
 from pathlib import Path
 
-DEFAULT_CACHE_DIR = Path(os.getenv("POLARS_BASEBALL_CACHE_DIR", str(Path.home() / ".polars_baseball" / "cache")))
+
+def _resolve_default_cache_dir() -> Path:
+    if env_dir := os.getenv("POLARS_BASEBALL_CACHE_DIR"):
+        return Path(env_dir)
+    if sys.platform == "win32":
+        local_appdata = os.getenv("LOCALAPPDATA")
+        if local_appdata:
+            return Path(local_appdata) / "polars_baseball"
+    xdg_cache_home = os.getenv("XDG_CACHE_HOME")
+    base_dir = Path(xdg_cache_home) if xdg_cache_home else Path.home() / ".cache"
+    return base_dir / "polars_baseball"
+
+
+DEFAULT_CACHE_DIR = _resolve_default_cache_dir()
 COMPILED_DATASETS_ROOT_URL = os.getenv("POLARS_BASEBALL_DATASETS_URL", "").rstrip("/")
 
 if COMPILED_DATASETS_ROOT_URL and not COMPILED_DATASETS_ROOT_URL.startswith(("http://", "https://")):

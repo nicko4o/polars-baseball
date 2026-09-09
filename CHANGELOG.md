@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Default cache directory now adheres to the XDG Base Directory Specification (`$XDG_CACHE_HOME/polars_baseball` or `~/.cache/polars_baseball` on Linux/macOS, `%LOCALAPPDATA%/polars_baseball` on Windows) instead of writing to `~/.polars_baseball`. `POLARS_BASEBALL_CACHE_DIR` continues to take precedence.
+
 ## [0.21.3] - 2026-09-07
 
 ### Added
