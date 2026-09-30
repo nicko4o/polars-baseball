@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pb.fg_data()` and all `pb.fangraphs.*` convenience endpoints (`batting`, `pitching`, `fielding`, `team_batting`, `team_pitching`, `team_fielding`, `team_starters`, `team_relievers`) now accept keyword-only `force_update: bool = False` and `cache_max_age: timedelta | None = None` parameters (#139).
+
+### Fixed
+
+- Prevent FanGraphs leaderboard queries from caching indefinitely for ongoing seasons. Current and future season queries now default to a 24-hour cache TTL (`timedelta(days=1)`), while historical seasons remain permanently cached (#139).
+
 ## [0.21.4] - 2026-09-09
 
 ### Changed

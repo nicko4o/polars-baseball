@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import polars as pl
@@ -545,3 +546,90 @@ class TestConvenienceFunctionsWithFilters:
         df = await fg_data(FanGraphsRequest.batting(start_season=2019), context=ctx)
         assert isinstance(df, pl.DataFrame)
         assert df.is_empty()
+
+    @pytest.mark.asyncio
+    async def test_fangraphs_gateway_passes_cache_options(self) -> None:
+        mock_cache = MagicMock()
+        mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame({"a": [1]}))
+        ctx = BaseballContext(cache=mock_cache)
+        from polars_baseball.gateways.fangraphs import FanGraphsGateway
+
+        gateway = FanGraphsGateway(ctx)
+        df = await gateway.get_leaderboard(
+            "https://example.com",
+            {"pos": "all"},
+            max_age=timedelta(days=1),
+            force_update=True,
+        )
+
+        assert df.height == 1
+        mock_cache.get_or_fetch.assert_awaited_once()
+        _, kwargs = mock_cache.get_or_fetch.call_args
+        assert kwargs["max_age"] == timedelta(days=1)
+        assert kwargs["force_update"] is True
+
+    @pytest.mark.asyncio
+    async def test_fg_data_default_ttl_and_force_update(self) -> None:
+        from polars_baseball._season import most_recent_season
+
+        mock_cache = MagicMock()
+        mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame({"Name": ["Mike Trout"], "HR": [45]}))
+        ctx = BaseballContext(cache=mock_cache)
+
+        curr_season = most_recent_season()
+
+        # 1. Historical season -> default TTL is None
+        await fg_data(FanGraphsRequest.batting(start_season=2019, end_season=2019), context=ctx)
+        _, kwargs1 = mock_cache.get_or_fetch.call_args
+        assert kwargs1["max_age"] is None
+        assert kwargs1["force_update"] is False
+
+        # 2. Current season -> default TTL is 24 hours
+        await fg_data(FanGraphsRequest.batting(start_season=curr_season), context=ctx)
+        _, kwargs2 = mock_cache.get_or_fetch.call_args
+        assert kwargs2["max_age"] == timedelta(days=1)
+        assert kwargs2["force_update"] is False
+
+        # 3. Custom cache_max_age overrides default
+        await fg_data(
+            FanGraphsRequest.batting(start_season=curr_season),
+            context=ctx,
+            cache_max_age=timedelta(hours=2),
+        )
+        _, kwargs3 = mock_cache.get_or_fetch.call_args
+        assert kwargs3["max_age"] == timedelta(hours=2)
+
+        # 4. force_update=True is propagated
+        await fg_data(
+            FanGraphsRequest.batting(start_season=curr_season),
+            context=ctx,
+            force_update=True,
+        )
+        _, kwargs4 = mock_cache.get_or_fetch.call_args
+        assert kwargs4["force_update"] is True
+
+    @pytest.mark.asyncio
+    async def test_fangraphs_batting_and_pitching_convenience_cache_params(self) -> None:
+        mock_cache = MagicMock()
+        mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame({"Name": ["Shohei Ohtani"], "HR": [54]}))
+        ctx = BaseballContext(cache=mock_cache)
+
+        await fg.batting(
+            start_season=2024,
+            force_update=True,
+            cache_max_age=timedelta(minutes=30),
+            context=ctx,
+        )
+        _, kwargs_bat = mock_cache.get_or_fetch.call_args
+        assert kwargs_bat["force_update"] is True
+        assert kwargs_bat["max_age"] == timedelta(minutes=30)
+
+        await fg.pitching(
+            start_season=2024,
+            force_update=True,
+            cache_max_age=timedelta(minutes=45),
+            context=ctx,
+        )
+        _, kwargs_pitch = mock_cache.get_or_fetch.call_args
+        assert kwargs_pitch["force_update"] is True
+        assert kwargs_pitch["max_age"] == timedelta(minutes=45)

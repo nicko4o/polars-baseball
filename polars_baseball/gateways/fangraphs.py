@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from datetime import timedelta
 
 import polars as pl
 
@@ -14,11 +15,20 @@ class FanGraphsGateway:
         self._context = context
         self._parser = FangraphsHTMLParser()
 
-    async def get_leaderboard(self, url: str, params: Mapping[str, object]) -> pl.DataFrame:
+    async def get_leaderboard(
+        self,
+        url: str,
+        params: Mapping[str, object],
+        *,
+        max_age: timedelta | None = None,
+        force_update: bool = False,
+    ) -> pl.DataFrame:
         key = generate_cache_key(url, params)
         return await self._context.cache.get_or_fetch(
             key,
             lambda: self._fetch_and_parse(url, params),
+            max_age=max_age,
+            force_update=force_update,
         )
 
     async def _fetch_and_parse(self, url: str, params: Mapping[str, object]) -> pl.DataFrame:

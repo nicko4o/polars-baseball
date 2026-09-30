@@ -3,10 +3,12 @@ from __future__ import annotations
 import enum
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import timedelta
 
 import polars as pl
 
-from polars_baseball._config import FG_LEADERS_URL, FG_MAX_RESULTS
+from polars_baseball._config import FG_ACTIVE_SEASON_CACHE_TTL, FG_LEADERS_URL, FG_MAX_RESULTS
+from polars_baseball._season import most_recent_season
 from polars_baseball.context import BaseballContext
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
@@ -631,16 +633,44 @@ def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
     }
 
 
-async def fg_data(request: FanGraphsRequest, context: BaseballContext | None = None) -> pl.DataFrame:
+def _resolve_fg_cache_max_age(request: FanGraphsRequest, cache_max_age: timedelta | None) -> timedelta | None:
+    if cache_max_age is not None:
+        return cache_max_age
+    end_season = request.end_season if request.end_season is not None else request.start_season
+    if end_season >= most_recent_season():
+        return FG_ACTIVE_SEASON_CACHE_TTL
+    return None
+
+
+async def fg_data(
+    request: FanGraphsRequest,
+    context: BaseballContext | None = None,
+    *,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
+) -> pl.DataFrame:
     """Execute a pre-built FanGraphs request and return the parsed results.
 
     Uses ``curl_cffi`` (via :class:`BaseballContext`) to bypass Cloudflare protection.
-    Results are transparently cached behind the ``@cached`` decorator.
+    Results are cached in the context cache backend.
+
+    Args:
+        request: The configured FanGraphsRequest object.
+        context: Optional BaseballContext.
+        force_update: Bypass cache and fetch fresh data from FanGraphs.
+        cache_max_age: Cache expiration duration. Defaults to 24 hours for current
+            or future seasons, or None (permanent) for historical seasons.
 
     Note:
         - Returns empty DataFrame when the upstream HTML contains no data table.
         - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """
     ctx = context or BaseballContext.default()
-    df = await FanGraphsGateway(ctx).get_leaderboard(FG_LEADERS_URL, _build_fg_url_options(request))
+    effective_max_age = _resolve_fg_cache_max_age(request, cache_max_age)
+    df = await FanGraphsGateway(ctx).get_leaderboard(
+        FG_LEADERS_URL,
+        _build_fg_url_options(request),
+        max_age=effective_max_age,
+        force_update=force_update,
+    )
     return _apply_filters(df, request.filters)
