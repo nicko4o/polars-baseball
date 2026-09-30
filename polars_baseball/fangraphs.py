@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 
 import polars as pl
 
@@ -41,6 +42,8 @@ async def _run_fg(
     context: BaseballContext | None = None,
     category: FangraphsStatsCategory,
     is_team_data: bool = False,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     request = FanGraphsRequest.from_raw(
         start_season=start_season,
@@ -61,7 +64,12 @@ async def _run_fg(
         players=players,
         max_results=max_results,
     )
-    return await fg_data(request, context=context)
+    return await fg_data(
+        request,
+        context=context,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
+    )
 
 
 async def batting(
@@ -81,6 +89,8 @@ async def batting(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs batting leaderboard data for individual players."""
     return await _run_fg(
@@ -100,6 +110,8 @@ async def batting(
         max_results=max_results,
         context=context,
         category=FangraphsStatsCategory.BATTING,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -120,6 +132,8 @@ async def pitching(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs pitching leaderboard data for individual players."""
     return await _run_fg(
@@ -140,6 +154,8 @@ async def pitching(
         context=context,
         category=FangraphsStatsCategory.PITCHING,
         is_team_data=False,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -160,6 +176,8 @@ async def fielding(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs fielding leaderboard data for individual players."""
     return await _run_fg(
@@ -180,6 +198,8 @@ async def fielding(
         context=context,
         category=FangraphsStatsCategory.FIELDING,
         is_team_data=False,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -201,6 +221,8 @@ async def team_batting(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team batting leaderboard data."""
     return await _run_fg(
@@ -222,6 +244,8 @@ async def team_batting(
         context=context,
         category=FangraphsStatsCategory.BATTING,
         is_team_data=True,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -243,6 +267,8 @@ async def team_pitching(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team pitching leaderboard data."""
     return await _run_fg(
@@ -264,6 +290,8 @@ async def team_pitching(
         context=context,
         category=FangraphsStatsCategory.PITCHING,
         is_team_data=True,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -285,6 +313,8 @@ async def team_fielding(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team fielding leaderboard data."""
     return await _run_fg(
@@ -306,6 +336,8 @@ async def team_fielding(
         context=context,
         category=FangraphsStatsCategory.FIELDING,
         is_team_data=True,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -327,6 +359,8 @@ async def team_starters(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team starting pitcher leaderboard data."""
     return await _run_fg(
@@ -348,6 +382,8 @@ async def team_starters(
         context=context,
         category=FangraphsStatsCategory.STARTERS,
         is_team_data=True,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 
@@ -369,6 +405,8 @@ async def team_relievers(
     players: str = "",
     max_results: int = FG_MAX_RESULTS,
     context: BaseballContext | None = None,
+    force_update: bool = False,
+    cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
     """Fetch FanGraphs team relief pitcher leaderboard data."""
     return await _run_fg(
@@ -390,6 +428,8 @@ async def team_relievers(
         context=context,
         category=FangraphsStatsCategory.RELIEVERS,
         is_team_data=True,
+        force_update=force_update,
+        cache_max_age=cache_max_age,
     )
 
 

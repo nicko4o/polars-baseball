@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 
@@ -79,6 +80,7 @@ FUZZY_MATCH_LIMIT: int = 5
 FUZZY_MATCH_CUTOFF: float = 0.5
 
 FG_MAX_RESULTS: int = 1_000_000
+FG_ACTIVE_SEASON_CACHE_TTL: timedelta = timedelta(days=1)
 
 LAHMAN_ARCHIVE_URL = f"{GITHUB_ROOT}/cbwinslow/baseballdatabank/archive/refs/heads/master.zip"
 CHADWICK_REGISTER_ARCHIVE_URL = f"{GITHUB_ROOT}/{CHADWICK_ORG}/register/archive/refs/heads/master.zip"
