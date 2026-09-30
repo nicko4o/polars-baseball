@@ -1,8 +1,7 @@
-import asyncio
-
 import polars as pl
 
 from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._concurrency import bounded_gather
 from polars_baseball._config import (
     RETROSHEET_CONTENTS_URL_TEMPLATE,
     RETROSHEET_EVENT_URL,
@@ -74,17 +73,15 @@ async def events(
     if not season_events:
         raise ServerError(f"Event files not available for {season}")
 
-    sem = asyncio.Semaphore(concurrency_limit)
-
     async def _fetch_event(filename: str) -> dict[str, object]:
-        async with sem:
-            url = RETROSHEET_EVENT_URL.format(season, filename)
-            raw = await ctx.http.get_text(url)
-            if not raw:
-                raise UpstreamUnavailableError("Retrosheet event file is empty.")
-            return event_content_row(season, game_type, filename, raw)
+        url = RETROSHEET_EVENT_URL.format(season, filename)
+        raw = await ctx.http.get_text(url)
+        if not raw:
+            raise UpstreamUnavailableError("Retrosheet event file is empty.")
+        return event_content_row(season, game_type, filename, raw)
 
-    results = await asyncio.gather(*[_fetch_event(f) for f in season_events])
+    tasks = [lambda f=f: _fetch_event(f) for f in season_events]
+    results = await bounded_gather(tasks, concurrency_limit=concurrency_limit)
     rows = [row for row in results if row is not None]
     return events_frame(rows)
 
@@ -113,19 +110,16 @@ async def rosters(
     if not ros_files:
         raise ServerError(f"Rosters not available for {season}")
 
-    sem = asyncio.Semaphore(concurrency_limit)
-
     async def _fetch_one_roster(filename: str) -> pl.DataFrame:
-        async with sem:
-            team = filename[:3]
-            url = RETROSHEET_ROSTER_URL.format(season, team, season)
-            raw_bytes = await ctx.http.get_text(url)
-            if not raw_bytes:
-                raise UpstreamUnavailableError("Retrosheet roster file is empty.")
-            return parse_roster_csv(raw_bytes)
+        team = filename[:3]
+        url = RETROSHEET_ROSTER_URL.format(season, team, season)
+        raw_bytes = await ctx.http.get_text(url)
+        if not raw_bytes:
+            raise UpstreamUnavailableError("Retrosheet roster file is empty.")
+        return parse_roster_csv(raw_bytes)
 
-    tasks = [_fetch_one_roster(f) for f in ros_files]
-    dfs = await asyncio.gather(*tasks)
+    tasks = [lambda f=f: _fetch_one_roster(f) for f in ros_files]
+    dfs = await bounded_gather(tasks, concurrency_limit=concurrency_limit)
     valid_dfs = [df for df in dfs if df is not None and df.height > 0]
     if not valid_dfs:
         return empty_rosters_frame()

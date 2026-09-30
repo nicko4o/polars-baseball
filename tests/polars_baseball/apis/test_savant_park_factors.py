@@ -206,3 +206,67 @@ async def test_savant_park_factors_bat_side_r(tmp_path: Path) -> None:
     mock_http.get_text.assert_called_once()
     _, kwargs = mock_http.get_text.call_args
     assert kwargs.get("params", {}).get("batSide") == "R"
+
+
+@pytest.mark.asyncio
+async def test_savant_park_factors_fail_fast_cancellation(tmp_path: Path) -> None:
+    import asyncio
+
+    cancelled = False
+
+    async def mock_get_text(url: str, params: dict[str, str] | None = None) -> str:
+        nonlocal cancelled
+        year = params.get("year") if params else None
+        if year == "2023":
+            await asyncio.sleep(0.005)
+            raise RuntimeError("Upstream connection failure")
+        try:
+            await asyncio.sleep(1.0)
+            return MOCK_PARK_FACTORS_HTML_2024
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(side_effect=mock_get_text)
+    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+
+    with pytest.raises(RuntimeError, match="Upstream connection failure"):
+        await savant_park_factors(
+            year=[2023, 2024],
+            context=ctx,
+            concurrency_limit=2,
+        )
+
+    assert cancelled is True
+
+
+@pytest.mark.asyncio
+async def test_savant_park_factors_bounded_concurrency_admission(tmp_path: Path) -> None:
+    import asyncio
+
+    active = 0
+    peak = 0
+    lock = asyncio.Lock()
+
+    async def mock_get_text(url: str, params: dict[str, str] | None = None) -> str:
+        nonlocal active, peak
+        async with lock:
+            active += 1
+            if active > peak:
+                peak = active
+        await asyncio.sleep(0.01)
+        async with lock:
+            active -= 1
+        return MOCK_PARK_FACTORS_HTML_2024
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(side_effect=mock_get_text)
+    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+
+    limit = 2
+    years = [2021, 2022, 2023, 2024, 2025]
+    df = await savant_park_factors(year=years, context=ctx, concurrency_limit=limit)
+
+    assert isinstance(df, pl.DataFrame)
+    assert peak <= limit

@@ -1,9 +1,9 @@
-import asyncio
 import warnings
 from typing import Literal
 
 import polars as pl
 
+from polars_baseball._concurrency import bounded_gather
 from polars_baseball._config import (
     DEFAULT_STATCAST_CONCURRENCY_LIMIT,
     SAVANT_INVALID_PLAYER_ID,
@@ -420,6 +420,8 @@ async def savant_park_factors(
     venue_id: int | list[int] | None = None,
     bat_side: Literal["all", "L", "R"] = "all",
     context: BaseballContext | None = None,
+    *,
+    concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
 ) -> pl.DataFrame:
     """Fetch Statcast Park Factors from Baseball Savant.
 
@@ -430,6 +432,7 @@ async def savant_park_factors(
         venue_id: Single MLB venue ID or list of venue IDs to filter.
         bat_side: Batter side filter ('all', 'L', or 'R').
         context: Optional BaseballContext.
+        concurrency_limit: Maximum concurrent requests when fetching multiple years.
 
     Returns:
         DataFrame containing normalized Statcast Park Factors.
@@ -438,25 +441,16 @@ async def savant_park_factors(
     years = _resolve_year_range(year, start_year, end_year)
     venue_ids = _normalize_venue_ids(venue_id)
 
-    if len(years) == 1:
-        df = await _fetch_savant_park_factors(
-            year=years[0],
+    tasks = [
+        lambda yr=yr: _fetch_savant_park_factors(
+            year=yr,
             bat_side=savant_bat_side,
             context=context,
         )
-    else:
-        sem = asyncio.Semaphore(DEFAULT_STATCAST_CONCURRENCY_LIMIT)
-
-        async def _fetch_sem(yr: int) -> pl.DataFrame:
-            async with sem:
-                return await _fetch_savant_park_factors(
-                    year=yr,
-                    bat_side=savant_bat_side,
-                    context=context,
-                )
-
-        results = await asyncio.gather(*[_fetch_sem(yr) for yr in years])
-        df = pl.concat(results, how="vertical") if results else pl.DataFrame()
+        for yr in years
+    ]
+    results = await bounded_gather(tasks, concurrency_limit=concurrency_limit)
+    df = pl.concat(results, how="vertical") if results else pl.DataFrame()
 
     if venue_ids is not None and not df.is_empty():
         df = df.filter(pl.col("venue_id").is_in(venue_ids))
