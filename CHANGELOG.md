@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-09-30
+
 ### Added
 
 - `pb.fg_data()` and all `pb.fangraphs.*` convenience endpoints (`batting`, `pitching`, `fielding`, `team_batting`, `team_pitching`, `team_fielding`, `team_starters`, `team_relievers`) now accept keyword-only `force_update: bool = False` and `cache_max_age: timedelta | None = None` parameters (#139).

@@ -29,7 +29,7 @@ from polars_baseball.enums.fangraphs import (
 )
 from polars_baseball.enums.position import Position
 
-__version__ = "0.21.4"
+__version__ = "0.22.0"
 
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
