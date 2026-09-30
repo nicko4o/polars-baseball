@@ -183,3 +183,73 @@ async def test_retrosheet_explicit_github_token() -> None:
         await rosters(2026, context=ctx)
 
     assert mock_http.get_text.call_args[1]["headers"]["Authorization"] == "token my-test-token"
+
+
+@pytest.mark.asyncio
+async def test_rosters_fail_fast_cancellation() -> None:
+    import asyncio
+
+    mock_contents = json.dumps(
+        [
+            {"name": "BOS2026.ROS"},
+            {"name": "NYA2026.ROS"},
+        ]
+    ).encode("utf-8")
+    cancelled = False
+
+    async def mock_get_text(url: str, **kwargs: object) -> bytes:
+        nonlocal cancelled
+        if "contents" in url:
+            return mock_contents
+        if "BOS" in url:
+            raise RuntimeError("Upstream roster fetch failure")
+        try:
+            await asyncio.sleep(1.0)
+            return b"troutm01,Trout,Mike,R,R,LAA,CF\n"
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(side_effect=mock_get_text)
+    ctx = BaseballContext(http=mock_http)
+
+    with pytest.raises(RuntimeError, match="Upstream roster fetch failure"):
+        await rosters(2026, context=ctx, concurrency_limit=2)
+
+    assert cancelled is True
+
+
+@pytest.mark.asyncio
+async def test_rosters_bounded_concurrency_admission() -> None:
+    import asyncio
+
+    contents = [{"name": f"TM{i}2026.ROS"} for i in range(5)]
+    mock_contents = json.dumps(contents).encode("utf-8")
+
+    active = 0
+    peak = 0
+    lock = asyncio.Lock()
+
+    async def mock_get_text(url: str, **kwargs: object) -> bytes:
+        nonlocal active, peak
+        if "contents" in url:
+            return mock_contents
+        async with lock:
+            active += 1
+            if active > peak:
+                peak = active
+        await asyncio.sleep(0.01)
+        async with lock:
+            active -= 1
+        return b"troutm01,Trout,Mike,R,R,LAA,CF\n"
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(side_effect=mock_get_text)
+    ctx = BaseballContext(http=mock_http)
+
+    limit = 2
+    df = await rosters(2026, context=ctx, concurrency_limit=limit)
+
+    assert isinstance(df, pl.DataFrame)
+    assert peak <= limit
