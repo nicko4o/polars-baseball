@@ -94,6 +94,7 @@ async def test_events_fail_fast_cancellation() -> None:
         if "contents" in url:
             return mock_contents
         if "2026NYN" in url:
+            await asyncio.sleep(0.005)
             raise RuntimeError("Upstream event fetch failure")
         try:
             await asyncio.sleep(1.0)

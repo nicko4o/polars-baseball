@@ -202,6 +202,7 @@ async def test_rosters_fail_fast_cancellation() -> None:
         if "contents" in url:
             return mock_contents
         if "BOS" in url:
+            await asyncio.sleep(0.005)
             raise RuntimeError("Upstream roster fetch failure")
         try:
             await asyncio.sleep(1.0)

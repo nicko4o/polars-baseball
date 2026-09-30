@@ -218,6 +218,7 @@ async def test_savant_park_factors_fail_fast_cancellation(tmp_path: Path) -> Non
         nonlocal cancelled
         year = params.get("year") if params else None
         if year == "2023":
+            await asyncio.sleep(0.005)
             raise RuntimeError("Upstream connection failure")
         try:
             await asyncio.sleep(1.0)
