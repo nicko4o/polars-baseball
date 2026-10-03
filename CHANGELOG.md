@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-10-03
+
+### Changed
+
+- Enhanced cache adapter concurrency by scoping lock synchronization to active event loops, eliminating potential race conditions across distinct event loops (#144).
+- Hardened Retrosheet, Baseball Reference, and Savant data retrieval pipelines with unified error translation and direct schema-backed parsing (#144).
+
 ## [0.22.0] - 2026-09-30
 
 ### Added
