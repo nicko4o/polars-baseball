@@ -27,9 +27,14 @@ def parse_transaction(tx: dict[str, Any]) -> TransactionDict:
     from_team = tx.get("fromTeam", {})
     to_team = tx.get("toTeam", {})
 
+    effective_date = tx.get("effectiveDate")
+    resolution_date = tx.get("resolutionDate")
+
     return {
         "id": int(tx_id),
         "date": str(date),
+        "effectiveDate": str(effective_date) if effective_date is not None else None,
+        "resolutionDate": str(resolution_date) if resolution_date is not None else None,
         "description": str(description),
         "typeCode": str(type_code),
         "typeDesc": str(type_desc),

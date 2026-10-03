@@ -229,6 +229,8 @@ class PitchArsenalDict(TypedDict):
 class TransactionDict(TypedDict):
     id: int | None
     date: str | None
+    effectiveDate: str | None
+    resolutionDate: str | None
     description: str | None
     typeCode: str | None
     typeDesc: str | None

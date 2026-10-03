@@ -283,6 +283,8 @@ def transactions_cache_key(**kw: object) -> str:
     date = kw.get("date")
     start_date = kw.get("start_date")
     end_date = kw.get("end_date")
+    team_id = kw.get("team_id")
+    player_id = kw.get("player_id")
     sport_id = kw.get("sport_id", MLB_DEFAULT_SPORT_ID)
     params: dict[str, object] = {"sportId": sport_id}
     if date:
@@ -291,6 +293,10 @@ def transactions_cache_key(**kw: object) -> str:
         params["startDate"] = start_date
     if end_date:
         params["endDate"] = end_date
+    if team_id is not None:
+        params["teamId"] = team_id
+    if player_id is not None:
+        params["playerId"] = player_id
     return generate_cache_key(transactions_url(), params)
 
 

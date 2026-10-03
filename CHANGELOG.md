@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pb.mlb.transactions()` now supports filtering by `team_id` and `player_id`, allowing queries without requiring a date parameter (#146).
+- `pb.mlb.transactions()` DataFrame schema now includes `effectiveDate` and `resolutionDate` columns (#146).
+
 ## [0.22.1] - 2026-10-03
 
 ### Changed
