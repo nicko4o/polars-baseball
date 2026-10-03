@@ -287,6 +287,8 @@ MLB_TRANSACTIONS_REQUIRED: Final[tuple[str, ...]] = ("id", "date", "description"
 MLB_TRANSACTIONS_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "id": pl.Int64,
     "date": pl.String,
+    "effectiveDate": pl.String,
+    "resolutionDate": pl.String,
     "description": pl.String,
     "typeCode": pl.String,
     "typeDesc": pl.String,

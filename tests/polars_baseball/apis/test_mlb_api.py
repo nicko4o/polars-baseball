@@ -1289,6 +1289,8 @@ _MOCK_TRANSACTIONS_JSON = {
         {
             "id": 12345,
             "date": "2024-05-01",
+            "effectiveDate": "2024-05-01",
+            "resolutionDate": "2024-05-02",
             "description": "Team A optioned Player B to Team C.",
             "typeCode": "OPT",
             "typeDesc": "Optioned",
@@ -1311,6 +1313,8 @@ async def test_mlb_transactions_basic() -> None:
     assert df.height == 1
     assert df["id"][0] == 12345
     assert df["date"][0] == "2024-05-01"
+    assert df["effectiveDate"][0] == "2024-05-01"
+    assert df["resolutionDate"][0] == "2024-05-02"
     assert df["typeCode"][0] == "OPT"
     assert df["playerId"][0] == 656941
     assert df["fromTeamId"][0] == 110
@@ -1318,13 +1322,35 @@ async def test_mlb_transactions_basic() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mlb_transactions_team_and_player_filter() -> None:
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
+    ctx = BaseballContext(http=mock_http)
+
+    df = await mlb_transactions(team_id=110, player_id=656941, context=ctx)
+    assert isinstance(df, pl.DataFrame)
+    assert df.height == 1
+
+    params = mock_http.get_text.await_args.kwargs["params"]
+    assert params["teamId"] == 110
+    assert params["playerId"] == 656941
+    assert "date" not in params
+
+
+@pytest.mark.asyncio
 async def test_mlb_transactions_invalid_params() -> None:
+    with pytest.raises(InvalidParameterError, match="Must specify at least one filter"):
+        await mlb_transactions()
     with pytest.raises(InvalidParameterError, match="Invalid format for parameter date"):
         await mlb_transactions(date="2024/05/01")
     with pytest.raises(InvalidParameterError, match="Invalid format for parameter start_date"):
         await mlb_transactions(start_date="05-01-2024")
     with pytest.raises(InvalidParameterError, match="sport_id must be a positive integer."):
-        await mlb_transactions(sport_id=0)
+        await mlb_transactions(date="2024-05-01", sport_id=0)
+    with pytest.raises(InvalidParameterError, match="team_id must be a positive integer."):
+        await mlb_transactions(team_id=0)
+    with pytest.raises(InvalidParameterError, match="player_id must be a positive integer."):
+        await mlb_transactions(player_id=-5)
     with pytest.raises(InvalidParameterError, match="date or start_date/end_date"):
         await mlb_transactions(date="2024-05-01", start_date="2024-05-01")
     with pytest.raises(InvalidParameterError, match="date or start_date/end_date"):
