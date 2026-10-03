@@ -118,6 +118,106 @@ class BRefHTMLParser(BaseParser):
             raise UpstreamStructureChangedError(f"Failed to parse Baseball Reference HTML table: {e}") from e
 
 
+def _extract_bref_csv_table(table: _Element) -> pl.DataFrame:
+    import csv
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    has_rows = False
+    tr_elements = cast(list[_Element], table.xpath(".//tr"))
+    for tr in tr_elements:
+        cells = [
+            "".join(str(x) for x in cell.itertext()).strip() for cell in cast(list[_Element], tr.xpath("./td | ./th"))
+        ]
+        if not cells:
+            continue
+        if len(cells) == 1 and "," in cells[0]:
+            # BRef sometimes nests full comma-separated row text in a single cell
+            row_items = next(csv.reader([cells[0]]))
+            writer.writerow(row_items)
+        else:
+            writer.writerow(cells)
+        has_rows = True
+
+    if not has_rows:
+        return pl.DataFrame()
+
+    buf.seek(0)
+    return pl.read_csv(buf, null_values="NULL")
+
+
+def _extract_bref_csv_div(div: _Element) -> pl.DataFrame:
+    text = "".join(str(x) for x in div.itertext()).strip()
+    if not text:
+        return pl.DataFrame()
+    return pl.read_csv(io.StringIO(text), null_values="NULL")
+
+
+def _try_parse_bref_csv_export(html: str) -> pl.DataFrame:
+    if not ("csv_" in html or 'class="csv"' in html):
+        return pl.DataFrame()
+
+    try:
+        tree = lxml.etree.HTML(html)
+        if tree is None:
+            return pl.DataFrame()
+
+        csv_tables = cast(list[_Element], tree.xpath("//table[starts-with(@id, 'csv_')]"))
+        if csv_tables:
+            return _extract_bref_csv_table(csv_tables[0])
+
+        csv_divs = cast(list[_Element], tree.xpath("//div[@class='csv']"))
+        if csv_divs:
+            return _extract_bref_csv_div(csv_divs[0])
+
+        return pl.DataFrame()
+    except (lxml.etree.ParserError, pl.exceptions.PolarsError):
+        return pl.DataFrame()
+
+
+def parse_bref_dataset(raw: str | bytes) -> pl.DataFrame:
+    """Parse Baseball Reference dataset with graceful fallback.
+
+    Parsing priority:
+      1. Embedded CSV export table (<table id="csv_..."> or <div class="csv">).
+      2. Standard display HTML DOM table via BRefHTMLParser.
+      3. Plain raw CSV / text stream.
+    """
+    from polars_baseball._encoding import ensure_str
+
+    raw_text = ensure_str(raw)
+    stripped = raw_text.strip()
+    if not stripped:
+        return pl.DataFrame()
+
+    # If it is HTML/XML markup, do not parse directly as plain CSV
+    is_markup = stripped.startswith(("<",))
+
+    if not is_markup:
+        try:
+            return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
+        except Exception:
+            pass
+
+    # 1. Embedded CSV export
+    df_export = _try_parse_bref_csv_export(raw_text)
+    if not df_export.is_empty():
+        return df_export
+
+    # 2. Standard HTML DOM table
+    if "<table" in raw_text or "stats_table" in raw_text:
+        return BRefHTMLParser().parse(raw_text)
+
+    if is_markup:
+        raise UpstreamStructureChangedError("Baseball Reference response is HTML/XML but contains no valid tables.")
+
+    # 3. Fallback to reading as raw CSV if not already handled
+    try:
+        return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
+    except Exception as exc:
+        raise UpstreamStructureChangedError(f"Could not parse Baseball Reference response: {exc}") from exc
+
+
 class BRefGameLogParser(BaseParser):
     """Parse Baseball Reference game log HTML tables into DataFrames.
 

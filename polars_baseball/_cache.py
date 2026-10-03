@@ -4,7 +4,6 @@ import hashlib
 import inspect
 import json
 import logging
-import tempfile
 import threading
 import weakref
 from abc import ABC, abstractmethod
@@ -17,6 +16,7 @@ import polars as pl
 from polars.exceptions import ComputeError
 
 from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR
+from polars_baseball._storage_primitives import atomic_write_bytes, atomic_write_parquet
 from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,12 @@ def generate_cache_key(
 
 
 class CacheAdapter(ABC):
-    """Pluggable cache backend for storing and retrieving DataFrames."""
+    """Pluggable cache backend for storing and retrieving DataFrames and raw data."""
+
+    @property
+    def cache_dir(self) -> Path | None:
+        """Directory path where cache files are stored, or None if not file-backed."""
+        return None
 
     @abstractmethod
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
@@ -67,6 +72,14 @@ class CacheAdapter(ABC):
     @abstractmethod
     def set(self, key: str, value: pl.DataFrame) -> None:
         """Store a DataFrame under the given key."""
+
+    @abstractmethod
+    def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
+        """Retrieve cached raw bytes by key."""
+
+    @abstractmethod
+    def set_raw(self, key: str, value: bytes | str) -> None:
+        """Store raw bytes or string under the given key."""
 
     @abstractmethod
     def clear(self) -> None:
@@ -93,25 +106,35 @@ class CacheAdapter(ABC):
             await asyncio.to_thread(self.set, key, df)
             return df
 
+    async def get_or_fetch_raw(
+        self,
+        key: str,
+        fetcher: Callable[[], Awaitable[bytes | str]],
+        *,
+        max_age: timedelta | None = None,
+        force_update: bool = False,
+    ) -> bytes:
+        if not force_update:
+            cached = await asyncio.to_thread(self.get_raw, key, max_age)
+            if cached is not None:
+                return cached
+        async with _in_flight_lock_for(self, key):
+            if not force_update:
+                cached = await asyncio.to_thread(self.get_raw, key, max_age)
+                if cached is not None:
+                    return cached
+            raw = await fetcher()
+            await asyncio.to_thread(self.set_raw, key, raw)
+            return raw.encode("utf-8") if isinstance(raw, str) else raw
+
 
 def _write_cached_file(path: Path, value: pl.DataFrame) -> bool:
-    tmp_path: Path | None = None
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-        value.write_parquet(tmp_path)
-        tmp_path.replace(path)
+        atomic_write_parquet(path, value)
         return True
     except OSError:
         logger.exception("Failed to write cache entry to %s", path)
-        if tmp_path is not None and tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
         return False
-    except Exception:
-        if tmp_path is not None and tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)
-        raise
 
 
 def _clear_cache_dir(cache_dir: Path) -> None:
@@ -152,6 +175,36 @@ def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> 
         return None
 
 
+def _write_cached_raw_file(path: Path, value: bytes | str) -> bool:
+    raw_bytes = value.encode("utf-8") if isinstance(value, str) else value
+    try:
+        atomic_write_bytes(path, raw_bytes)
+        return True
+    except OSError:
+        logger.exception("Failed to write raw cache entry to %s", path)
+        return False
+
+
+def _try_read_cached_raw(path: Path, key: str, max_age: timedelta | None = None) -> bytes | None:
+    if not path.exists():
+        return None
+    if max_age is not None:
+        try:
+            mtime = datetime.fromtimestamp(path.stat().st_mtime)
+            if datetime.now() - mtime > max_age:
+                path.unlink(missing_ok=True)
+                return None
+        except OSError:
+            logger.warning("Failed to check raw cache age for %s, treating as miss", key)
+            return None
+    try:
+        return path.read_bytes()
+    except OSError as e:
+        logger.warning("Raw cache file corrupt for %s, deleting and treating as miss: %s", key, e)
+        path.unlink(missing_ok=True)
+        return None
+
+
 class FileCacheAdapter(CacheAdapter):
     """File-based cache backend that stores DataFrames as Parquet files.
 
@@ -160,21 +213,25 @@ class FileCacheAdapter(CacheAdapter):
     """
 
     def __init__(self, cache_dir: Path | None = None) -> None:
-        self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
+        self._cache_dir = cache_dir or DEFAULT_CACHE_DIR
         self._check_legacy_cache()
         self._disabled = False
         try:
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            logger.warning("Failed to create cache directory %s, cache disabled: %s", self.cache_dir, e)
+            logger.warning("Failed to create cache directory %s, cache disabled: %s", self._cache_dir, e)
             self._disabled = True
         self._key_locks: dict[str, threading.Lock] = {}
         self._meta_lock = threading.Lock()
         self._clear_lock = threading.Lock()
 
+    @property
+    def cache_dir(self) -> Path:
+        return self._cache_dir
+
     def _check_legacy_cache(self) -> None:
         global _WARNED_LEGACY_CACHE
-        if _WARNED_LEGACY_CACHE or self.cache_dir != DEFAULT_CACHE_DIR:
+        if _WARNED_LEGACY_CACHE or self._cache_dir != DEFAULT_CACHE_DIR:
             return
         legacy_dir = Path.home() / ".polars_baseball"
         if legacy_dir.exists():
@@ -182,13 +239,17 @@ class FileCacheAdapter(CacheAdapter):
                 "Legacy cache directory detected at %s. New cache location is %s. "
                 "You can safely delete the legacy directory.",
                 legacy_dir,
-                self.cache_dir,
+                self._cache_dir,
             )
             _WARNED_LEGACY_CACHE = True
 
     def _get_path(self, key: str) -> Path:
         safe_key = "".join(c if c.isalnum() else "_" for c in key)
-        return self.cache_dir / f"{safe_key}.parquet"
+        return self._cache_dir / f"{safe_key}.parquet"
+
+    def _get_raw_path(self, key: str) -> Path:
+        safe_key = "".join(c if c.isalnum() else "_" for c in key)
+        return self._cache_dir / f"{safe_key}.raw"
 
     def _lock_for(self, key: str) -> threading.Lock:
         with self._meta_lock:
@@ -207,17 +268,28 @@ class FileCacheAdapter(CacheAdapter):
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:
             return
-        with self._clear_lock:
-            with self._lock_for(key):
-                write_ok = _write_cached_file(self._get_path(key), value)
-                if not write_ok:
-                    self._disabled = True
+        with self._clear_lock, self._lock_for(key):
+            if not _write_cached_file(self._get_path(key), value):
+                self._disabled = True
+
+    def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
+        if self._disabled:
+            return None
+        with self._lock_for(key):
+            return _try_read_cached_raw(self._get_raw_path(key), key, max_age)
+
+    def set_raw(self, key: str, value: bytes | str) -> None:
+        if self._disabled:
+            return
+        with self._clear_lock, self._lock_for(key):
+            if not _write_cached_raw_file(self._get_raw_path(key), value):
+                self._disabled = True
 
     def clear(self) -> None:
         if self._disabled:
             return
         with self._clear_lock:
-            _clear_cache_dir(self.cache_dir)
+            _clear_cache_dir(self._cache_dir)
 
 
 class NullCacheAdapter(CacheAdapter):
@@ -227,6 +299,12 @@ class NullCacheAdapter(CacheAdapter):
         return None
 
     def set(self, key: str, value: pl.DataFrame) -> None:
+        return None
+
+    def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
+        return None
+
+    def set_raw(self, key: str, value: bytes | str) -> None:
         return None
 
     def clear(self) -> None:
@@ -269,6 +347,12 @@ class GlobalCache(CacheAdapter):
     def set(self, key: str, value: pl.DataFrame) -> None:
         self._get_adapter().set(key, value)
 
+    def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
+        return self._get_adapter().get_raw(key, max_age)
+
+    def set_raw(self, key: str, value: bytes | str) -> None:
+        self._get_adapter().set_raw(key, value)
+
     def clear(self) -> None:
         self._get_adapter().clear()
 
@@ -307,7 +391,6 @@ def cached(
                 import importlib
 
                 BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
-
                 cache = BaseballContext.default().cache
 
             if not force_update:

@@ -74,16 +74,16 @@ async def test_get_dataset_passes_params_to_cache() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_dataset_chain_failure_raises() -> None:
-    """4. Parser/chain failure must fail fast and not be swallowed into an empty table (chain failure)."""
-    mock_chain = MagicMock()
-    mock_chain.execute.side_effect = UpstreamStructureChangedError("chain execute failed")
+async def test_get_dataset_parse_failure_raises() -> None:
+    """4. Parser failure must fail fast and not be swallowed into an empty table."""
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = "<<<corrupted xml table"
 
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
-    with pytest.raises(UpstreamStructureChangedError, match="chain execute failed"):
-        gateway._parse_response("raw_text", chain=mock_chain)
+    with pytest.raises(UpstreamStructureChangedError):
+        await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_get_splits_no_cache_empty_html() -> None:
 async def test_get_splits_cached_empty_html() -> None:
     """5. Get_splits boundary behavior when use_cache=True and cached HTML is empty."""
     mock_cache = MagicMock(spec=FileCacheAdapter)
-    mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame())
+    mock_cache.get_or_fetch_raw = AsyncMock(return_value=b"")
 
     ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
@@ -116,7 +116,7 @@ async def test_get_splits_cached_empty_html() -> None:
 async def test_get_splits_passes_params_to_cache() -> None:
     """5. Get_splits parameters are correctly passed to the cache adapter."""
     mock_cache = MagicMock(spec=FileCacheAdapter)
-    mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame({"html": ["<html></html>"]}))
+    mock_cache.get_or_fetch_raw = AsyncMock(return_value=b"<html></html>")
 
     ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
@@ -130,26 +130,10 @@ async def test_get_splits_passes_params_to_cache() -> None:
         force_update=True,
     )
 
-    mock_cache.get_or_fetch.assert_called_once()
-    _, kwargs = mock_cache.get_or_fetch.call_args
+    mock_cache.get_or_fetch_raw.assert_called_once()
+    _, kwargs = mock_cache.get_or_fetch_raw.call_args
     assert kwargs["max_age"] == max_age
     assert kwargs["force_update"] is True
-
-
-@pytest.mark.asyncio
-async def test_get_dataset_no_cache_success() -> None:
-    """Test get_dataset with use_cache=False returning parsed data via chain."""
-    mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.return_value = "csv_data"
-
-    mock_chain = MagicMock()
-    mock_chain.execute.return_value.df = pl.DataFrame({"a": [1]})
-
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
-    gateway = BRefGateway(ctx)
-
-    df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False, chain=mock_chain)
-    assert df.equals(pl.DataFrame({"a": [1]}))
 
 
 @pytest.mark.asyncio
@@ -166,21 +150,42 @@ async def test_get_dataset_default_csv_parser() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_and_parse_success() -> None:
-    """Test _fetch_and_parse successfully fetches and parses data."""
+async def test_get_dataset_default_chain_html_table() -> None:
+    """Test get_dataset default chain parses HTML tables via BRefStandardStrategy."""
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.return_value = "col1,col2\n10,20\n"
+    mock_http.get_text.return_value = (
+        "<table id='stats'><thead><tr><th>col1</th><th>col2</th></tr></thead>"
+        "<tbody><tr><td>10</td><td>20</td></tr></tbody></table>"
+    )
 
     ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
-    df = await gateway._fetch_and_parse(
-        "https://www.baseball-reference.com/dummy",
-        params=None,
-        headers=None,
-        chain=None,
+    df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
+    assert "col1" in df.columns and "col2" in df.columns
+    assert df["col1"][0] == "10" and df["col2"][0] == "20"
+
+
+@pytest.mark.asyncio
+async def test_get_dataset_default_embedded_csv_export() -> None:
+    """Test get_dataset default parsing handles embedded CSV export table."""
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = (
+        "<html><body>"
+        "<table id='csv_players_standard_batting'>"
+        "<tr><td>Name,G,AB</td></tr>"
+        "<tr><td>Player X,100,400</td></tr>"
+        "</table>"
+        "</body></html>"
     )
-    assert df.equals(pl.DataFrame({"col1": [10], "col2": [20]}))
+
+    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    gateway = BRefGateway(ctx)
+
+    df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
+    assert "Name" in df.columns
+    assert df["Name"][0] == "Player X"
+    assert df.height == 1
 
 
 @pytest.mark.asyncio
@@ -191,14 +196,15 @@ async def test_get_splits_cache_fetcher_success() -> None:
 
     mock_cache = MagicMock(spec=FileCacheAdapter)
 
-    async def fake_get_or_fetch(
+    async def fake_get_or_fetch_raw(
         key: str,
-        fetcher: Callable[[], Coroutine[Any, Any, pl.DataFrame]],
+        fetcher: Callable[[], Coroutine[Any, Any, str]],
         **kwargs: object,
-    ) -> pl.DataFrame:
-        return await fetcher()
+    ) -> bytes:
+        val = await fetcher()
+        return val.encode("utf-8") if isinstance(val, str) else val
 
-    mock_cache.get_or_fetch = AsyncMock(side_effect=fake_get_or_fetch)
+    mock_cache.get_or_fetch_raw = AsyncMock(side_effect=fake_get_or_fetch_raw)
 
     ctx = BaseballContext(http=mock_http, cache=mock_cache)
     gateway = BRefGateway(ctx)
@@ -206,3 +212,52 @@ async def test_get_splits_cache_fetcher_success() -> None:
     _, info, _ = await gateway.get_splits("troutmi01", year=2026, use_cache=True)
     assert info["Position"] == "OF"
     mock_http.get_text.assert_called_once()
+
+
+def test_parse_bref_dataset_empty() -> None:
+    from polars_baseball.parsers.bref import parse_bref_dataset
+
+    assert parse_bref_dataset("").is_empty()
+    assert parse_bref_dataset(b"  ").is_empty()
+
+
+def test_parse_bref_dataset_html_error_handling(monkeypatch: pytest.MonkeyPatch) -> None:
+    from lxml.etree import ParserError
+
+    import polars_baseball.parsers.bref as bref_module
+    from polars_baseball.parsers.bref import parse_bref_dataset
+
+    def failing_html(*args: object, **kwargs: object) -> object:
+        raise ParserError("bad html")
+
+    monkeypatch.setattr(bref_module.lxml.etree, "HTML", failing_html)
+    # When HTML export parsing catches ParserError, it returns empty and falls through
+    # to standard parser or raw csv or error
+    html = "<html><body><table id='csv_1'><tr><td>col1</td></tr></table></body></html>"
+    with pytest.raises(UpstreamStructureChangedError):
+        parse_bref_dataset(html)
+
+
+def test_parse_bref_dataset_invalid_fails_fast() -> None:
+    from polars_baseball.parsers.bref import parse_bref_dataset
+
+    with pytest.raises(UpstreamStructureChangedError):
+        parse_bref_dataset("<<<invalid non-csv xml")
+
+
+def test_parse_bref_dataset_csv_table_with_th_and_commas() -> None:
+    from polars_baseball.parsers.bref import parse_bref_dataset
+
+    html = """
+    <html><body>
+    <table id="csv_players_standard_batting">
+        <tr><th>Name</th><th>Note</th><th>AB</th></tr>
+        <tr><td>Player A</td><td>Some, note</td><td>400</td></tr>
+    </table>
+    </body></html>
+    """
+    df = parse_bref_dataset(html)
+    assert df.height == 1
+    assert list(df.columns) == ["Name", "Note", "AB"]
+    assert df["Note"][0] == "Some, note"
+    assert df["AB"][0] == 400

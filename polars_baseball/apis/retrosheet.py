@@ -2,21 +2,12 @@ import polars as pl
 
 from polars_baseball._cache import cached, generate_cache_key
 from polars_baseball._concurrency import bounded_gather
-from polars_baseball._config import (
-    RETROSHEET_CONTENTS_URL_TEMPLATE,
-    RETROSHEET_EVENT_URL,
-    RETROSHEET_GAMELOG_URL,
-    RETROSHEET_PARKID_URL,
-    RETROSHEET_ROSTER_URL,
-    RETROSHEET_SCHEDULE_URL,
-    RETROSHEET_SEASON_GAMELOG_URL,
-)
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import (
     InvalidParameterError,
     ServerError,
-    UpstreamUnavailableError,
 )
+from polars_baseball.gateways.retrosheet import RetrosheetGateway
 from polars_baseball.parsers.retrosheet import (
     empty_rosters_frame,
     event_content_row,
@@ -25,20 +16,7 @@ from polars_baseball.parsers.retrosheet import (
     parse_park_codes_csv,
     parse_roster_csv,
     parse_schedule_csv,
-    parse_season_contents,
 )
-
-
-async def _get_season_contents(season: int, ctx: BaseballContext) -> list[str]:
-    url = RETROSHEET_CONTENTS_URL_TEMPLATE.format(season)
-    headers = {}
-    if ctx.github_token:
-        headers["Authorization"] = f"token {ctx.github_token}"
-
-    raw_bytes = await ctx.http.get_text(url, headers=headers)
-    if not raw_bytes:
-        raise UpstreamUnavailableError(f"Season {season} directory not found or empty.")
-    return parse_season_contents(raw_bytes, season)
 
 
 async def events(
@@ -56,7 +34,8 @@ async def events(
     for unknown types and ServerError if no event files are found.
     """
     ctx = context or BaseballContext.default()
-    files = await _get_season_contents(season, ctx)
+    gateway = RetrosheetGateway(ctx)
+    files = await gateway.get_season_contents(season)
     file_extension: tuple[str, ...]
     if game_type == "regular":
         file_extension = (".EVA", ".EVN")
@@ -74,10 +53,7 @@ async def events(
         raise ServerError(f"Event files not available for {season}")
 
     async def _fetch_event(filename: str) -> dict[str, object]:
-        url = RETROSHEET_EVENT_URL.format(season, filename)
-        raw = await ctx.http.get_text(url)
-        if not raw:
-            raise UpstreamUnavailableError("Retrosheet event file is empty.")
+        raw = await gateway.get_event_file(season, filename)
         return event_content_row(season, game_type, filename, raw)
 
     tasks = [lambda f=f: _fetch_event(f) for f in season_events]
@@ -105,18 +81,16 @@ async def rosters(
     files are available or all fetch attempts return no data.
     """
     ctx = context or BaseballContext.default()
-    files = await _get_season_contents(season, ctx)
+    gateway = RetrosheetGateway(ctx)
+    files = await gateway.get_season_contents(season)
     ros_files = [f for f in files if f.endswith(".ROS")]
     if not ros_files:
         raise ServerError(f"Rosters not available for {season}")
 
     async def _fetch_one_roster(filename: str) -> pl.DataFrame:
         team = filename[:3]
-        url = RETROSHEET_ROSTER_URL.format(season, team, season)
-        raw_bytes = await ctx.http.get_text(url)
-        if not raw_bytes:
-            raise UpstreamUnavailableError("Retrosheet roster file is empty.")
-        return parse_roster_csv(raw_bytes)
+        raw_text = await gateway.get_roster_file(season, team)
+        return parse_roster_csv(raw_text)
 
     tasks = [lambda f=f: _fetch_one_roster(f) for f in ros_files]
     dfs = await bounded_gather(tasks, concurrency_limit=concurrency_limit)
@@ -138,10 +112,8 @@ async def park_codes(context: BaseballContext | None = None) -> pl.DataFrame:
     Column names are mapped from the raw CSV header to canonical PARK_CODE_COLUMNS.
     """
     ctx = context or BaseballContext.default()
-    raw_bytes = await ctx.http.get_text(RETROSHEET_PARKID_URL)
-    if not raw_bytes:
-        raise UpstreamUnavailableError("Retrosheet park codes file is empty.")
-    return parse_park_codes_csv(raw_bytes)
+    raw_text = await RetrosheetGateway(ctx).get_park_codes_csv()
+    return parse_park_codes_csv(raw_text)
 
 
 def _schedules_cache_key(**kw: object) -> str:
@@ -157,16 +129,14 @@ async def schedules(season: int, context: BaseballContext | None = None) -> pl.D
     season directory.
     """
     ctx = context or BaseballContext.default()
-    files = await _get_season_contents(season, ctx)
+    gateway = RetrosheetGateway(ctx)
+    files = await gateway.get_season_contents(season)
     file_name = f"{season}schedule.csv"
     if file_name not in files:
         raise ServerError(f"Schedule not available for {season}")
 
-    url = RETROSHEET_SCHEDULE_URL.format(season, season)
-    raw_bytes = await ctx.http.get_text(url)
-    if not raw_bytes:
-        raise UpstreamUnavailableError("Retrosheet schedule file is empty.")
-    return parse_schedule_csv(raw_bytes)
+    raw_text = await gateway.get_schedule_csv(season)
+    return parse_schedule_csv(raw_text)
 
 
 def _season_game_logs_cache_key(**kw: object) -> str:
@@ -181,16 +151,14 @@ async def season_game_logs(season: int, context: BaseballContext | None = None) 
     Note: Raises ServerError if the game log file is not found.
     """
     ctx = context or BaseballContext.default()
-    files = await _get_season_contents(season, ctx)
+    gateway = RetrosheetGateway(ctx)
+    files = await gateway.get_season_contents(season)
     gamelog_file_name = f"GL{season}.TXT"
     if gamelog_file_name not in files:
         raise ServerError(f"Season game logs not available for {season}")
 
-    url = RETROSHEET_SEASON_GAMELOG_URL.format(season, season)
-    raw_bytes = await ctx.http.get_text(url)
-    if not raw_bytes:
-        raise UpstreamUnavailableError("Retrosheet season game log file is empty.")
-    return parse_gamelog_csv(raw_bytes)
+    raw_text = await gateway.get_season_gamelog_csv(season)
+    return parse_gamelog_csv(raw_text)
 
 
 def _gamelog_cache_key(**kw: object) -> str:
@@ -201,11 +169,8 @@ def _gamelog_cache_key(**kw: object) -> str:
 @cached(key=_gamelog_cache_key)
 async def _get_gamelog_generic(suffix: str, context: BaseballContext | None = None) -> pl.DataFrame:
     ctx = context or BaseballContext.default()
-    url = RETROSHEET_GAMELOG_URL.format(suffix)
-    raw_bytes = await ctx.http.get_text(url)
-    if not raw_bytes:
-        raise UpstreamUnavailableError("Retrosheet gamelog file is empty.")
-    return parse_gamelog_csv(raw_bytes)
+    raw_text = await RetrosheetGateway(ctx).get_gamelog_csv(suffix)
+    return parse_gamelog_csv(raw_text)
 
 
 async def world_series_logs(context: BaseballContext | None = None) -> pl.DataFrame:

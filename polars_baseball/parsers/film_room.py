@@ -1,11 +1,11 @@
 import re
 from collections.abc import Mapping
 from datetime import date, datetime
-from typing import Any
 
 import polars as pl
 
 from polars_baseball._config import FORGE_CDN_BASE_URL
+from polars_baseball._json_utils import JsonObject
 from polars_baseball.exceptions import UpstreamParseError
 
 PLAYBACK_SCHEMA = pl.Struct(
@@ -50,7 +50,7 @@ def _extract_bitrate(name: str, url: str) -> int:
     return 0
 
 
-def _parse_date(val: Any) -> date | None:
+def _parse_date(val: object) -> date | None:
     if not isinstance(val, str) or not val:
         return None
     cleaned = val.split("T")[0]
@@ -71,21 +71,24 @@ def _clean_event_type(raw_val: str) -> str:
     return parts[-1]
 
 
-def _extract_raw_items(data: dict[str, Any]) -> list[Any]:
-    if "data" in data and isinstance(data["data"], dict):
-        gdata = data["data"]
-        if "search" in gdata and isinstance(gdata["search"], dict):
-            plays = gdata["search"].get("plays", [])
+def _extract_raw_items(data: JsonObject) -> list[object]:
+    data_field = data.get("data")
+    if isinstance(data_field, dict):
+        search_field = data_field.get("search")
+        if isinstance(search_field, dict):
+            plays = search_field.get("plays", [])
             return list(plays) if isinstance(plays, list) else []
-        if "mediaPlayback" in gdata and isinstance(gdata["mediaPlayback"], list):
-            return list(gdata["mediaPlayback"])
+        media_playback = data_field.get("mediaPlayback")
+        if isinstance(media_playback, list):
+            return list(media_playback)
     for key in ("plays", "highlights", "items"):
-        if key in data and isinstance(data[key], list):
-            return list(data[key])
+        val = data.get(key)
+        if isinstance(val, list):
+            return list(val)
     return []
 
 
-def _apply_player_id(res: dict[str, Any], fval: str, fdisp: str) -> None:
+def _apply_player_id(res: JsonObject, fval: str, fdisp: str) -> None:
     raw_id = fval.split(",")[0].strip()
     try:
         res["player_id"] = int(raw_id)
@@ -95,7 +98,7 @@ def _apply_player_id(res: dict[str, Any], fval: str, fdisp: str) -> None:
         res["player_name"] = fdisp.split(",")[0].strip()
 
 
-def _apply_field(res: dict[str, Any], fname: str, fval: str, fdisp: str) -> None:
+def _apply_field(res: JsonObject, fname: str, fval: str, fdisp: str) -> None:
     if fname in ("playerid", "player_id"):
         _apply_player_id(res, fval, fdisp)
         return
@@ -116,10 +119,11 @@ def _apply_field(res: dict[str, Any], fname: str, fval: str, fdisp: str) -> None
             res["hit_distance"] = int(float(fval))
         except ValueError:
             pass
+        return
 
 
-def _parse_fields(fields: list[Any]) -> dict[str, Any]:
-    res: dict[str, Any] = {}
+def _parse_fields(fields: list[object]) -> JsonObject:
+    res: JsonObject = {}
     for f in fields:
         if not isinstance(f, dict):
             continue
@@ -130,13 +134,13 @@ def _parse_fields(fields: list[Any]) -> dict[str, Any]:
     return res
 
 
-def _parse_playbacks(raw_playbacks: Any) -> tuple[list[dict[str, Any]], str | None, str | None]:
+def _parse_playbacks(raw_playbacks: object) -> tuple[list[JsonObject], str | None, str | None]:
     if isinstance(raw_playbacks, dict) and "playbacks" in raw_playbacks:
         raw_playbacks = raw_playbacks["playbacks"]
     if not isinstance(raw_playbacks, list):
         return [], None, None
 
-    playback_list: list[dict[str, Any]] = []
+    playback_list: list[JsonObject] = []
     best_mp4_url: str | None = None
     best_bitrate = -1
     hls_url: str | None = None
@@ -149,7 +153,8 @@ def _parse_playbacks(raw_playbacks: Any) -> tuple[list[dict[str, Any]], str | No
         if not purl:
             continue
 
-        bitrate = int(p.get("bitrate") or _extract_bitrate(pname, purl))
+        bitrate_val = p.get("bitrate")
+        bitrate = int(bitrate_val) if isinstance(bitrate_val, int | float) else _extract_bitrate(pname, purl)
         playback_list.append(
             {
                 "name": pname,
@@ -188,7 +193,7 @@ def _build_forge_cdn_mp4_url(media_playback_id: str, dt: date | None) -> str | N
 
 
 def _ensure_forge_mp4(
-    playback_list: list[dict[str, Any]],
+    playback_list: list[JsonObject],
     best_mp4_url: str | None,
     media_playback_id: str,
     dt_val: date | None,
@@ -198,6 +203,7 @@ def _ensure_forge_mp4(
     forge_url = _build_forge_cdn_mp4_url(media_playback_id, dt_val)
     if not forge_url:
         return best_mp4_url
+
     if not any(p.get("url") == forge_url for p in playback_list):
         playback_list.append(
             {
@@ -211,10 +217,10 @@ def _ensure_forge_mp4(
     return forge_url
 
 
-def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
+def _parse_single_item(item: JsonObject) -> JsonObject:
     content_id = str(item.get("id") or item.get("content_id") or item.get("mediaPlaybackId") or "")
     mp_list = item.get("mediaPlayback")
-    mp = mp_list[0] if (isinstance(mp_list, list) and mp_list and isinstance(mp_list[0], dict)) else {}
+    mp: JsonObject = mp_list[0] if (isinstance(mp_list, list) and mp_list and isinstance(mp_list[0], dict)) else {}
 
     dt_val = _parse_date(item.get("gameDate") or mp.get("date") or item.get("date") or item.get("timestamp"))
     media_playback_id = str(mp.get("mediaPlaybackId") or item.get("mediaPlaybackId") or "")
@@ -222,7 +228,8 @@ def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
     title = str(mp.get("title") or item.get("title") or item.get("headline") or "")
     blurb = str(mp.get("blurb") or mp.get("description") or item.get("blurb") or item.get("description") or "")
 
-    parsed_fields = _parse_fields(item["fields"]) if isinstance(item.get("fields"), list) else {}
+    raw_fields = item.get("fields")
+    parsed_fields = _parse_fields(raw_fields) if isinstance(raw_fields, list) else {}
 
     player_id = parsed_fields.get("player_id") or item.get("player_id")
     player_name = parsed_fields.get("player_name") or item.get("player_name") or item.get("player")
@@ -235,12 +242,21 @@ def _parse_single_item(item: dict[str, Any]) -> dict[str, Any]:
 
     best_mp4_url = _ensure_forge_mp4(playback_list, best_mp4_url, media_playback_id, dt_val)
 
+    parsed_pid: int | None = None
+    if isinstance(player_id, int):
+        parsed_pid = player_id
+    elif isinstance(player_id, (str, bytes)):
+        try:
+            parsed_pid = int(player_id)
+        except ValueError:
+            parsed_pid = None
+
     return {
         "content_id": content_id,
         "date": dt_val,
         "title": title,
         "blurb": blurb,
-        "player_id": int(player_id) if player_id is not None else None,
+        "player_id": parsed_pid,
         "player_name": player_name,
         "event_type": event_type,
         "exit_velocity": exit_velocity,

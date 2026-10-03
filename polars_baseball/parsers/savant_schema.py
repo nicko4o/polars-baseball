@@ -1,53 +1,8 @@
-from collections.abc import Mapping
+"""Legacy Savant schema module.
 
-import polars as pl
+Re-exports from polars_baseball._schemas.savant for backward compatibility.
+"""
 
-SAVANT_SCHEMA_OVERRIDES: Mapping[str, pl.DataType | type[pl.DataType]] = {
-    "pitcher": pl.Int64,
-    "batter": pl.Int64,
-    "player_id": pl.Int64,
-    "year": pl.Int64,
-    "release_speed": pl.Float64,
-    "zone": pl.Int64,
-    "balls": pl.Int64,
-    "strikes": pl.Int64,
-    "game_year": pl.Int64,
-    "outs_when_up": pl.Int64,
-    "inning": pl.Int64,
-    "launch_speed": pl.Float64,
-    "launch_angle": pl.Float64,
-    "game_pk": pl.Int64,
-    "bat_speed": pl.Float64,
-    "swing_length": pl.Float64,
-    "miss_distance": pl.Float64,
-    "effective_speed": pl.Float64,
-    "release_spin_rate": pl.Float64,
-    "release_extension": pl.Float64,
-    "release_pos_x": pl.Float64,
-    "release_pos_y": pl.Float64,
-    "release_pos_z": pl.Float64,
-    "pfx_x": pl.Float64,
-    "pfx_z": pl.Float64,
-    "plate_x": pl.Float64,
-    "plate_z": pl.Float64,
-    "hc_x": pl.Float64,
-    "hc_y": pl.Float64,
-    "vx0": pl.Float64,
-    "vy0": pl.Float64,
-    "vz0": pl.Float64,
-    "ax": pl.Float64,
-    "ay": pl.Float64,
-    "az": pl.Float64,
-    "sz_top": pl.Float64,
-    "sz_bot": pl.Float64,
-    "hit_distance_sc": pl.Float64,
-    "estimated_ba_using_speedangle": pl.Float64,
-    "estimated_woba_using_speedangle": pl.Float64,
-    "woba_value": pl.Float64,
-    "woba_denom": pl.Float64,
-    "babip_value": pl.Float64,
-    "iso_value": pl.Float64,
-    "spin_axis": pl.Float64,
-    "pitch_number": pl.Int64,
-    "at_bat_number": pl.Int64,
-}
+from polars_baseball._schemas.savant import SAVANT_SCHEMA_OVERRIDES
+
+__all__ = ["SAVANT_SCHEMA_OVERRIDES"]

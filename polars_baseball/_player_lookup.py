@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import unicodedata
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
@@ -70,19 +71,28 @@ class PlayerLookupService:
     def __init__(self, load_table: LookupTableLoader) -> None:
         self._load_table = load_table
         self.table: pl.DataFrame | None = None
-        self._load_lock: asyncio.Lock | None = None
+        self._load_locks: dict[int, asyncio.Lock] = {}
+        self._meta_lock = threading.Lock()
 
     def reset(self) -> None:
         """Reset cached player lookup table in memory."""
-        self.table = None
-        self._load_lock = None
+        with self._meta_lock:
+            self.table = None
+            self._load_locks.clear()
+
+    def _get_lock(self) -> asyncio.Lock:
+        loop_id = id(asyncio.get_running_loop())
+        with self._meta_lock:
+            lock = self._load_locks.get(loop_id)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._load_locks[loop_id] = lock
+            return lock
 
     async def _ensure_table(self, context: BaseballContext | None = None) -> pl.DataFrame:
         if self.table is not None:
             return self.table
-        if self._load_lock is None:
-            self._load_lock = asyncio.Lock()
-        async with self._load_lock:
+        async with self._get_lock():
             if self.table is not None:
                 return self.table
             table = await self._load_table(context)

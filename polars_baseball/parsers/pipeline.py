@@ -1,11 +1,11 @@
 import html
 import json
 import re
-from typing import Any
 
 import lxml.etree
 import polars as pl
 
+from polars_baseball._json_utils import JsonObject
 from polars_baseball.exceptions import UpstreamStructureChangedError
 
 
@@ -41,29 +41,31 @@ def _parse_scouting_grades(bio_text: str) -> dict[str, int]:
     return grades
 
 
-def _payload_ref(payload: dict[str, Any], ref: str | None) -> dict[str, Any]:
+def _payload_ref(payload: JsonObject, ref: str | None) -> JsonObject:
     value = payload.get(ref, {}) if ref else {}
     return value if isinstance(value, dict) else {}
 
 
-def _birthplace(player_data: dict[str, Any]) -> str:
-    birth_city = player_data.get("birthCity", "")
-    birth_country = player_data.get("birthCountry", "")
+def _birthplace(player_data: JsonObject) -> str:
+    birth_city = str(player_data.get("birthCity", ""))
+    birth_country = str(player_data.get("birthCountry", ""))
     return f"{birth_city}, {birth_country}".strip(", ")
 
 
-def _latest_grades(player_entity: dict[str, Any]) -> dict[str, int]:
+def _latest_grades(player_entity: JsonObject) -> dict[str, int]:
     bio_list = player_entity.get("prospectBio", [])
-    if not bio_list:
+    if not isinstance(bio_list, list) or not bio_list:
         return {}
     latest_bio = bio_list[-1]
-    scouting_report = latest_bio.get("contentText", "")
+    if not isinstance(latest_bio, dict):
+        return {}
+    scouting_report = str(latest_bio.get("contentText", ""))
     return _parse_scouting_grades(scouting_report)
 
 
-def _player_identity_fields(player_data: dict[str, Any]) -> dict[str, Any]:
-    first_name = player_data.get("useName", "")
-    last_name = player_data.get("useLastName", "")
+def _player_identity_fields(player_data: JsonObject) -> JsonObject:
+    first_name = str(player_data.get("useName", ""))
+    last_name = str(player_data.get("useLastName", ""))
     return {
         "player_id": player_data.get("id"),
         "name": f"{first_name} {last_name}".strip(),
@@ -95,16 +97,20 @@ def _grade_fields(grades: dict[str, int]) -> dict[str, int | None]:
     }
 
 
-def _resolve_player_row(item: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
-    p_entity = item.get("playerEntity", {})
-    player_ref = p_entity.get("player", {}).get("__ref")
-    player_data = _payload_ref(payload, player_ref)
+def _resolve_player_row(item: JsonObject, payload: JsonObject) -> JsonObject:
+    p_entity_val = item.get("playerEntity", {})
+    p_entity = p_entity_val if isinstance(p_entity_val, dict) else {}
+    player_ref_val = p_entity.get("player", {})
+    player_ref = player_ref_val.get("__ref") if isinstance(player_ref_val, dict) else None
+    player_data = _payload_ref(payload, player_ref if isinstance(player_ref, str) else None)
 
-    team_ref = player_data.get("activeRoster", {}).get("__ref")
-    team_data = _payload_ref(payload, team_ref)
+    roster_ref_val = player_data.get("activeRoster", {})
+    team_ref = roster_ref_val.get("__ref") if isinstance(roster_ref_val, dict) else None
+    team_data = _payload_ref(payload, team_ref if isinstance(team_ref, str) else None)
 
-    sport_ref = team_data.get("sport", {}).get("__ref")
-    sport_data = _payload_ref(payload, sport_ref)
+    sport_ref_val = team_data.get("sport", {})
+    sport_ref = sport_ref_val.get("__ref") if isinstance(sport_ref_val, dict) else None
+    sport_data = _payload_ref(payload, sport_ref if isinstance(sport_ref, str) else None)
     grades = _latest_grades(p_entity)
 
     return {
@@ -143,12 +149,17 @@ class MLBPipelineParser:
             raise UpstreamStructureChangedError("data-init-state attribute is empty.")
 
         try:
-            state: dict[str, Any] = json.loads(html.unescape(raw_state))
+            state: object = json.loads(html.unescape(raw_state))
         except json.JSONDecodeError as err:
             raise UpstreamStructureChangedError(f"Failed to parse data-init-state as JSON: {err}") from err
 
-        payload = state.get("payload", {})
-        root_query = payload.get("ROOT_QUERY", {})
+        if not isinstance(state, dict):
+            raise UpstreamStructureChangedError("data-init-state JSON root must be an object.")
+
+        payload_val = state.get("payload", {})
+        payload: JsonObject = payload_val if isinstance(payload_val, dict) else {}
+        root_query_val = payload.get("ROOT_QUERY", {})
+        root_query: JsonObject = root_query_val if isinstance(root_query_val, dict) else {}
 
         ranking_key = next((k for k in root_query.keys() if "getPlayerRankingsFromSelection" in k), None)
         if not ranking_key:
@@ -158,5 +169,5 @@ class MLBPipelineParser:
         if not isinstance(rankings, list):
             raise UpstreamStructureChangedError("Player rankings data is not a list.")
 
-        rows = [_resolve_player_row(item, payload) for item in rankings]
+        rows = [_resolve_player_row(item, payload) for item in rankings if isinstance(item, dict)]
         return pl.DataFrame(rows)
