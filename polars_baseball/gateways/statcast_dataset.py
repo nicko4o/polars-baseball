@@ -6,14 +6,14 @@ from pathlib import Path
 import polars as pl
 
 from polars_baseball._schemas.statcast import normalize_statcast_partition
+from polars_baseball._storage_primitives import (
+    atomic_write_parquet,
+    get_file_lock,
+    resolve_cache_dir,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamUnavailableError
-from polars_baseball.gateways.compiled import (
-    COMPILED_DATASETS_DIR,
-    _cache_dir,
-    _lock_for,
-    _write_parquet_atomic,
-)
+from polars_baseball.gateways.compiled import COMPILED_DATASETS_DIR
 
 _DATASET_DIR = "statcast"
 _PARTITION_FILE = "statcast.parquet"
@@ -30,7 +30,7 @@ class StatcastDatasetGateway:
 
     def __init__(self, context: BaseballContext) -> None:
         self._context = context
-        self._cache_dir = _cache_dir(context)
+        self._cache_dir = resolve_cache_dir(context)
 
     def _root(self) -> Path:
         if self._cache_dir is None:
@@ -56,7 +56,7 @@ class StatcastDatasetGateway:
     async def write_partition(self, year: int, df: pl.DataFrame) -> Path:
         path = self.partition_path(year)
         normalized = normalize_statcast_partition(df)
-        async with _lock_for(str(path)):
+        async with get_file_lock(str(path)):
             await _write_partition_async(path, normalized)
         return path
 
@@ -78,4 +78,4 @@ class StatcastDatasetGateway:
 async def _write_partition_async(path: Path, df: pl.DataFrame) -> None:
     import asyncio
 
-    await asyncio.to_thread(_write_parquet_atomic, path, df)
+    await asyncio.to_thread(atomic_write_parquet, path, df)

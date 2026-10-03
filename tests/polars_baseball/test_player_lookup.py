@@ -187,3 +187,32 @@ def test_reset_lookup_table_clears_module_singleton() -> None:
         assert _module_client.table is None
     finally:
         _module_client.table = original_table
+
+
+def test_player_lookup_service_cross_event_loops() -> None:
+    """Verify PlayerLookupService operates across distinct event loops without lock errors."""
+    import asyncio
+    import concurrent.futures
+
+    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+        await asyncio.sleep(0.01)
+        return _player_table()
+
+    service = PlayerLookupService(load_table)
+
+    def run_in_new_loop() -> pl.DataFrame:
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(service.search("trout"))
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f1 = executor.submit(run_in_new_loop)
+        f2 = executor.submit(run_in_new_loop)
+        res1 = f1.result()
+        res2 = f2.result()
+
+    assert res1.height == 1
+    assert res2.height == 1

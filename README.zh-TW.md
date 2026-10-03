@@ -249,13 +249,13 @@ Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 packa
 - [行為準則](.github/CODE_OF_CONDUCT.zh-TW.md)
 - [資安漏洞通報政策](.github/SECURITY.zh-TW.md)
 
-## 數據源聲明與版權 (Data Attribution & Copyright Notices)
+## 資料來源聲明與版權 (Data Attribution & Copyright Notices)
 
-`polars-baseball` 為資料擷取 SDK，並不主張任何上游數據源之所有權：
+`polars-baseball` 為資料擷取 SDK，並不主張任何上游資料來源之所有權：
 
 - **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
-- **Statcast & MLB Stats API**: 資料由 Major League Baseball / Baseball Savant 提供。
-- **FanGraphs & Baseball Reference**: 資料由 FanGraphs 與 Baseball Reference 授權提供，請遵循上游服務條款與請求頻率限制。
+- **Statcast & MLB Stats API**：資料由 Major League Baseball / Baseball Savant 提供。
+- **FanGraphs & Baseball Reference**：資料由 FanGraphs 與 Baseball Reference 授權提供，請遵循上游服務條款與請求頻率限制。
 - **Lahman**: Lahman's Baseball Database by Sean Lahman.
 
 ## 學術與研究引用 (Citation)

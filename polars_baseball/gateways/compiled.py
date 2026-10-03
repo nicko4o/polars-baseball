@@ -1,11 +1,7 @@
 import asyncio
 import io
 import re
-import tempfile
-import threading
-import weakref
 import zipfile
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -13,6 +9,14 @@ from typing import Final
 import polars as pl
 
 from polars_baseball._config import COMPILED_DATASETS_ROOT_URL
+from polars_baseball._storage_primitives import (
+    atomic_write_bytes,
+    atomic_write_parquet,
+    get_file_lock,
+    resolve_cache_dir,
+    validate_safe_path_component,
+    validate_zip_archive,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import (
     UpstreamDataCorruptedError,
@@ -25,9 +29,6 @@ ARCHIVES_DIR: Final[str] = "_archives"
 PARQUET_SUFFIX: Final[str] = ".parquet"
 ZIP_SUFFIX: Final[str] = ".zip"
 DEFAULT_CSV_INFER_SCHEMA_LENGTH: Final[int] = 10000
-
-_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
-_LOCKS_GUARD = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -54,8 +55,8 @@ class CompiledTable:
     infer_schema_length: int = DEFAULT_CSV_INFER_SCHEMA_LENGTH
 
     def __post_init__(self) -> None:
-        _validate_relative_name(self.dataset)
-        _validate_relative_name(self.table_name)
+        validate_safe_path_component(self.dataset)
+        validate_safe_path_component(self.table_name)
         if self.archive_member is None and self.archive_member_pattern is None:
             raise ValueError("CompiledTable requires archive_member or archive_member_pattern.")
 
@@ -70,7 +71,7 @@ class CompiledDatasetGateway:
 
     def __init__(self, context: BaseballContext) -> None:
         self._context = context
-        self._cache_dir = _cache_dir(context)
+        self._cache_dir = resolve_cache_dir(context)
 
     async def ensure_archive(self, dataset: str, archive_url: str) -> Path:
         """Download and validate the ZIP archive for a dataset, or return cached path.
@@ -79,13 +80,13 @@ class CompiledDatasetGateway:
             Validates ZIP integrity after download. Raises UpstreamDataCorruptedError
             for invalid archives.
         """
-        _validate_relative_name(dataset)
+        validate_safe_path_component(dataset)
         archive_path = self._archive_path(dataset)
-        async with _lock_for(str(archive_path)):
+        async with get_file_lock(str(archive_path)):
             if not archive_path.exists():
                 raw = await self._context.http.get_bytes(archive_url)
-                await asyncio.to_thread(_write_bytes_atomic, archive_path, raw)
-            await asyncio.to_thread(_validate_zip, archive_path)
+                await asyncio.to_thread(atomic_write_bytes, archive_path, raw)
+            await asyncio.to_thread(validate_zip_archive, archive_path)
         return archive_path
 
     async def table_path(self, table: CompiledTable) -> Path:
@@ -98,10 +99,10 @@ class CompiledDatasetGateway:
         if self._cache_dir is None:
             raise UpstreamParseError("Compiled dataset table paths require a file-backed cache directory.")
         path = self._table_path(table)
-        async with _lock_for(str(path)):
+        async with get_file_lock(str(path)):
             if not path.exists():
                 df = await self._fetch_table(table)
-                await asyncio.to_thread(_write_parquet_atomic, path, df)
+                await asyncio.to_thread(atomic_write_parquet, path, df)
         return path
 
     async def scan_table(self, table: CompiledTable) -> pl.LazyFrame:
@@ -155,69 +156,6 @@ class CompiledDatasetGateway:
     async def _fetch_archive_csv(self, table: CompiledTable) -> pl.DataFrame:
         archive_path = await self.ensure_archive(table.dataset, table.archive_url)
         return await asyncio.to_thread(_read_archive_csv, archive_path, table)
-
-
-def _cache_dir(context: BaseballContext) -> Path | None:
-    cache_dir = getattr(context.cache, "cache_dir", None)
-    return cache_dir if isinstance(cache_dir, Path) else None
-
-
-def _lock_for(key: str) -> asyncio.Lock:
-    loop = asyncio.get_running_loop()
-    lock_key = f"{id(loop)}:{key}"
-    with _LOCKS_GUARD:
-        lock = _LOCKS.get(lock_key)
-        if lock is None:
-            lock = asyncio.Lock()
-            _LOCKS[lock_key] = lock
-        return lock
-
-
-def _validate_relative_name(value: str) -> None:
-    """Validate that a path component is relative and safe.
-
-    Raises ValueError for absolute paths or path-traversal patterns.
-    """
-    path = Path(value)
-    if not value or path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"Unsafe compiled dataset path: {value}")
-
-
-def _validate_zip(path: Path) -> None:
-    """Validate that a file is a readable ZIP archive.
-
-    Raises UpstreamDataCorruptedError on bad or truncated ZIP files.
-    """
-    try:
-        with zipfile.ZipFile(path):
-            return None
-    except (zipfile.BadZipFile, OSError) as err:
-        raise UpstreamDataCorruptedError(f"Bad zip file: {path}") from err
-
-
-def _write_atomic(path: Path, write_func: Callable[[Path], object]) -> None:
-    """Write data to a file atomically via temp-file-then-replace.
-
-    Note:
-        Cleans up the temp file on any write failure.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".tmp", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
-    try:
-        write_func(tmp_path)
-        tmp_path.replace(path)
-    except Exception:
-        tmp_path.unlink(missing_ok=True)
-        raise
-
-
-def _write_bytes_atomic(path: Path, raw: bytes) -> None:
-    _write_atomic(path, lambda p: p.write_bytes(raw))
-
-
-def _write_parquet_atomic(path: Path, df: pl.DataFrame) -> None:
-    _write_atomic(path, df.write_parquet)
 
 
 def _read_archive_zip_to_df(file_or_bytes: Path | bytes, table: CompiledTable, error_message: str) -> pl.DataFrame:

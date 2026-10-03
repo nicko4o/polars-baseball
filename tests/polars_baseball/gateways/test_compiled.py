@@ -101,13 +101,13 @@ async def test_compiled_gateway_can_match_archive_member_pattern(tmp_path: Path)
 def test_write_bytes_atomic_cleanup_on_error(tmp_path: Path) -> None:
     from unittest.mock import patch
 
-    from polars_baseball.gateways.compiled import _write_bytes_atomic
+    from polars_baseball._storage_primitives import atomic_write_bytes
 
     target_file = tmp_path / "target.txt"
 
     with patch.object(Path, "write_bytes", side_effect=OSError("Disk full")):
         with pytest.raises(OSError, match="Disk full"):
-            _write_bytes_atomic(target_file, b"some raw bytes")
+            atomic_write_bytes(target_file, b"some raw bytes")
 
     assert not target_file.exists()
     tmp_files = list(tmp_path.glob("*.tmp"))

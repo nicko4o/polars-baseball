@@ -380,3 +380,58 @@ def test_file_cache_concurrent_reads_different_keys(tmp_path: Path) -> None:
 
     assert results["k1"] is not None and results["k1"].equals(df1)
     assert results["k2"] is not None and results["k2"].equals(df2)
+
+
+def test_file_cache_adapter_raw_operations(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key_bytes = "raw_bytes_key"
+    key_str = "raw_str_key"
+
+    adapter.set_raw(key_bytes, b"binary payload")
+    adapter.set_raw(key_str, "string payload")
+
+    assert adapter.get_raw(key_bytes) == b"binary payload"
+    assert adapter.get_raw(key_str) == b"string payload"
+    assert adapter.get_raw("non_existent") is None
+
+
+def test_file_cache_adapter_raw_max_age_expiration(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key = "expiring_key"
+    adapter.set_raw(key, b"short lived")
+
+    assert adapter.get_raw(key, max_age=timedelta(days=1)) == b"short lived"
+    assert adapter.get_raw(key, max_age=timedelta(seconds=-1)) is None
+    assert adapter.get_raw(key) is None  # file should be deleted on expiry miss
+
+
+@pytest.mark.asyncio
+async def test_file_cache_adapter_get_or_fetch_raw(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key = "fetch_raw_key"
+    calls = 0
+
+    async def fetcher() -> str:
+        nonlocal calls
+        calls += 1
+        return "fetched content"
+
+    res1 = await adapter.get_or_fetch_raw(key, fetcher)
+    assert res1 == b"fetched content"
+    assert calls == 1
+
+    res2 = await adapter.get_or_fetch_raw(key, fetcher)
+    assert res2 == b"fetched content"
+    assert calls == 1  # Hit cache, fetcher not called
+
+
+def test_null_cache_adapter_raw_operations() -> None:
+    adapter = NullCacheAdapter()
+    adapter.set_raw("k", b"val")
+    assert adapter.get_raw("k") is None
+
+
+def test_global_cache_adapter_raw_operations(tmp_path: Path) -> None:
+    global_cache.configure(tmp_path)
+    global_cache.set_raw("gk", b"global raw")
+    assert global_cache.get_raw("gk") == b"global raw"

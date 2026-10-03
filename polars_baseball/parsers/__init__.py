@@ -2,24 +2,11 @@ from typing import Protocol, runtime_checkable
 
 import polars as pl
 
-from polars_baseball.parsers._strategy import (
-    ChainResult,
-    ExtractionStrategy,
-    ProbeResult,
-    ProviderChain,
-    StructureFingerprint,
-)
 from polars_baseball.parsers.base import BaseParser
-from polars_baseball.parsers.bref import BRefGameLogParser
-from polars_baseball.parsers.bref_standard_strategy import (
-    BRefCSVExportStrategy,
-    BRefGameLogStrategy,
-    BRefStandardStrategy,
-)
-from polars_baseball.parsers.fangraphs_next_data_strategy import (
-    FangraphsNextDataStrategy,
-)
+from polars_baseball.parsers.bref import BRefGameLogParser, BRefHTMLParser, parse_bref_dataset
+from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
 from polars_baseball.parsers.mlb import MLBApiParser
+from polars_baseball.parsers.savant import SavantCSVParser, parse_savant_leaderboard
 
 
 @runtime_checkable
@@ -28,19 +15,13 @@ class Parser(Protocol):
 
 
 __all__ = [
-    # Legacy (kept for backward compatibility)
-    "Parser",
     "BaseParser",
     "BRefGameLogParser",
+    "BRefHTMLParser",
+    "FangraphsHTMLParser",
     "MLBApiParser",
-    # New extraction strategy types
-    "BRefCSVExportStrategy",
-    "BRefGameLogStrategy",
-    "BRefStandardStrategy",
-    "ChainResult",
-    "ExtractionStrategy",
-    "FangraphsNextDataStrategy",
-    "ProbeResult",
-    "ProviderChain",
-    "StructureFingerprint",
+    "Parser",
+    "SavantCSVParser",
+    "parse_bref_dataset",
+    "parse_savant_leaderboard",
 ]

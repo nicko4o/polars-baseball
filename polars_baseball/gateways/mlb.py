@@ -7,13 +7,14 @@ import polars as pl
 from polars_baseball._json_utils import JsonObject
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import PolarsBaseballHttpError, UpstreamParseError
+from polars_baseball.gateways.base import BaseGateway
 
 
-class MlbStatsGateway:
+class MlbStatsGateway(BaseGateway):
     """Gateway for MLB Stats API JSON payloads."""
 
     def __init__(self, context: BaseballContext) -> None:
-        self._context = context
+        super().__init__(context)
 
     async def fetch(
         self,
