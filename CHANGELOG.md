@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pb.savant.composite_percentile_ranks()` combines full-league Statcast percentile rankings with raw underlying metric values across expected statistics, exit velocity / barrels, pitch arsenals, bat tracking, and sprint speed into a unified wide DataFrame (#149).
+- `pb.savant.player_percentile_profile()` generates a normalized long-form percentile card `[metric, label, percentile, raw_value, unit]` for a single player, supporting automatic fallback from batter to pitcher profile when `player_type=None` (#149).
+
 ## [0.23.0] - 2026-10-03
 
 ### Added
