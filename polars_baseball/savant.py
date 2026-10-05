@@ -67,6 +67,9 @@ from polars_baseball.apis.savant_leaderboards import (
     statcast_batter_percentile_ranks as batter_percentile_ranks,
 )
 from polars_baseball.apis.savant_leaderboards import (
+    statcast_composite_percentile_ranks as composite_percentile_ranks,
+)
+from polars_baseball.apis.savant_leaderboards import (
     statcast_exitvelo_barrels as exitvelo_barrels,
 )
 from polars_baseball.apis.savant_leaderboards import (
@@ -109,6 +112,9 @@ from polars_baseball.apis.savant_leaderboards import (
     statcast_pitcher_spin_dir_comp as pitcher_spin_dir_comp,
 )
 from polars_baseball.apis.savant_leaderboards import (
+    statcast_player_percentile_profile as player_percentile_profile,
+)
+from polars_baseball.apis.savant_leaderboards import (
     statcast_run_value as run_value,
 )
 from polars_baseball.apis.statcast import (
@@ -142,6 +148,7 @@ __all__ = [
     "catcher_poptime",
     "catcher_stance",
     "catcher_throwing",
+    "composite_percentile_ranks",
     "exitvelo_barrels",
     "expected_stats",
     "fielding_run_value",
@@ -167,6 +174,7 @@ __all__ = [
     "pitcher_pitch_movement",
     "pitcher_run_value",
     "pitcher_spin_dir_comp",
+    "player_percentile_profile",
     "run_value",
     "running_splits",
     "scan_statcast",

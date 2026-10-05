@@ -108,6 +108,8 @@ Retrieve aggregate batter performance statistics.
 ### Functions
 
 - `savant.batter_percentile_ranks(year: int) -> pl.DataFrame`
+- `savant.composite_percentile_ranks(year: int, player_type: str = "batter") -> pl.DataFrame`
+- `savant.player_percentile_profile(player_id: int, year: int, player_type: str | None = None) -> pl.DataFrame`
 - `savant.exitvelo_barrels(year: int, player_type: str = "batter", min_bbe: int | str = "q") -> pl.DataFrame`
 - `savant.expected_stats(year: int, player_type: str = "batter", min_pa: int | str = "q") -> pl.DataFrame`
 - `savant.run_value(year: int, player_type: str = "batter") -> pl.DataFrame`
