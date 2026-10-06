@@ -18,6 +18,8 @@ ROOT_PUBLIC_API = {
     "MlbStatsGroup",
     "Position",
     "bref",
+    "bref_game_logs",
+    "bref_splits",
     "chadwick_register",
     "cleanup",
     "configure_cache",
@@ -112,6 +114,8 @@ def test_provider_namespace_functions_are_async() -> None:
     assert inspect.iscoroutinefunction(pb.lahman.batting)
     assert inspect.iscoroutinefunction(pb.retrosheet.events)
     assert inspect.iscoroutinefunction(pb.bref.bwar_bat)
+    assert inspect.iscoroutinefunction(pb.bref.game_logs)
+    assert inspect.iscoroutinefunction(pb.bref.splits)
 
 
 def test_root_public_api_has_docstrings() -> None:

@@ -33,6 +33,7 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 | Query Lahman historical tables | `pb.lahman.batting`, `pb.lahman.pitching`, `pb.lahman.people`, `pb.lahman.teams_core`, and related helpers | Source table rows | Lahman | Historical offline analysis and stable table joins |
 | Query Retrosheet files | `pb.retrosheet.events`, `pb.retrosheet.schedules`, `pb.retrosheet.rosters`, `pb.retrosheet.park_codes`, and game-log helpers | Source file rows | Retrosheet | Historical play-by-play, rosters, schedules, and park metadata |
 | Query Baseball Reference WAR tables | `pb.bref.bwar_bat`, `pb.bref.bwar_pitch` | WAR table rows | Baseball Reference | bWAR leaderboards and historical WAR analysis |
+| Query Baseball Reference game logs and splits | `pb.bref.game_logs`, `pb.bref.splits` (also `bref_game_logs`, `bref_splits`) | Game log or split rows | Baseball Reference | Single-season game logs and platoon/situational splits |
 | Resolve player IDs | `playerid_lookup`, `playerid_reverse_lookup`, `chadwick_register` | Lookup rows | Chadwick register | Joining MLBAM, FanGraphs, Retrosheet, and other player identifiers |
 | Query prospect rankings | `top_prospects`, `prospect_rankings` | Prospect rows | Baseball Savant | Prospect lists and rankings by year or player type |
 

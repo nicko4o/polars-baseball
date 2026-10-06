@@ -30,4 +30,8 @@ def test_retrosheet_namespace_exports() -> None:
 def test_bref_namespace_exports() -> None:
     assert hasattr(pb.bref, "bwar_bat")
     assert hasattr(pb.bref, "bwar_pitch")
+    assert hasattr(pb.bref, "game_logs")
+    assert hasattr(pb.bref, "splits")
     assert inspect.iscoroutinefunction(pb.bref.bwar_bat)
+    assert inspect.iscoroutinefunction(pb.bref.game_logs)
+    assert inspect.iscoroutinefunction(pb.bref.splits)

@@ -43,6 +43,38 @@ Retrieves Baseball Reference daily pitching WAR data from the `war_daily_pitch` 
 
 ---
 
+## Game Logs
+
+Retrieves Baseball Reference single-season game logs for a player.
+
+### Functions
+
+- `bref_game_logs(player_id: str, year: int, log_type: Literal["batting", "pitching"] = "batting") -> pl.DataFrame`
+
+### Arguments
+
+- `player_id`: BRef player identifier (e.g. `'troutmi01'`).
+- `year`: Season year (e.g. `2024`).
+- `log_type`: Type of game log, either `'batting'` or `'pitching'`.
+
+---
+
+## Splits
+
+Retrieves Baseball Reference platoon and situational splits for a player.
+
+### Functions
+
+- `bref_splits(player_id: str, year: int | None = None, pitching: bool = False) -> list[pl.DataFrame]`
+
+### Arguments
+
+- `player_id`: BRef player identifier (e.g. `'troutmi01'`).
+- `year`: Season year, or `None` for career splits.
+- `pitching`: `True` for pitching splits, `False` for batting splits.
+
+---
+
 ## Output DataFrame Schema
 
 ### BRef Daily WAR Schema (`bwar_bat`, `bwar_pitch`)
