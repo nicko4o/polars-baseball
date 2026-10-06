@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import hashlib
@@ -41,7 +43,7 @@ def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
 
 
 class CacheContext(Protocol):
-    cache: "CacheAdapter"
+    cache: CacheAdapter
 
 
 def generate_cache_key(
@@ -221,7 +223,7 @@ class FileCacheAdapter(CacheAdapter):
         except OSError as e:
             logger.warning("Failed to create cache directory %s, cache disabled: %s", self._cache_dir, e)
             self._disabled = True
-        self._key_locks: dict[str, threading.Lock] = {}
+        self._key_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
         self._meta_lock = threading.Lock()
         self._clear_lock = threading.Lock()
 
@@ -262,8 +264,7 @@ class FileCacheAdapter(CacheAdapter):
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         if self._disabled:
             return None
-        with self._lock_for(key):
-            return _try_read_cached(self._get_path(key), key, max_age)
+        return _try_read_cached(self._get_path(key), key, max_age)
 
     def set(self, key: str, value: pl.DataFrame) -> None:
         if self._disabled:
@@ -275,8 +276,7 @@ class FileCacheAdapter(CacheAdapter):
     def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
         if self._disabled:
             return None
-        with self._lock_for(key):
-            return _try_read_cached_raw(self._get_raw_path(key), key, max_age)
+        return _try_read_cached_raw(self._get_raw_path(key), key, max_age)
 
     def set_raw(self, key: str, value: bytes | str) -> None:
         if self._disabled:
@@ -290,6 +290,8 @@ class FileCacheAdapter(CacheAdapter):
             return
         with self._clear_lock:
             _clear_cache_dir(self._cache_dir)
+            with self._meta_lock:
+                self._key_locks.clear()
 
 
 class NullCacheAdapter(CacheAdapter):
@@ -365,6 +367,28 @@ def configure_cache(cache_dir: Path) -> None:
     global_cache.configure(cache_dir)
 
 
+class _CacheHolder(Protocol):
+    cache: CacheAdapter
+
+
+class _BaseballContextProtocol(Protocol):
+    @classmethod
+    def default(cls) -> _CacheHolder: ...
+
+
+_BaseballContext_cls: type[_BaseballContextProtocol] | None = None
+
+
+def _get_default_cache() -> CacheAdapter:
+    global _BaseballContext_cls
+    if _BaseballContext_cls is None:
+        import importlib
+
+        _BaseballContext_cls = importlib.import_module("polars_baseball.context").BaseballContext
+    assert _BaseballContext_cls is not None
+    return cast(CacheAdapter, _BaseballContext_cls.default().cache)
+
+
 def cached(
     key: str | Callable[..., str],
     max_age: timedelta | None = None,
@@ -388,10 +412,7 @@ def cached(
             if ctx_arg is not None and hasattr(ctx_arg, "cache"):
                 cache = cast(CacheAdapter, ctx_arg.cache)
             else:
-                import importlib
-
-                BaseballContext = importlib.import_module("polars_baseball.context").BaseballContext
-                cache = BaseballContext.default().cache
+                cache = _get_default_cache()
 
             if not force_update:
                 cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
