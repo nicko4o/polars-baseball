@@ -12,7 +12,6 @@ from polars_baseball._config import (
     RETROSHEET_SEASON_GAMELOG_URL,
 )
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamUnavailableError
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.retrosheet import parse_season_contents
 
@@ -23,18 +22,21 @@ class RetrosheetGateway(BaseGateway):
     def __init__(self, context: BaseballContext) -> None:
         super().__init__(context)
 
-    async def get_season_contents(self, season: int) -> list[str]:
+    async def get_season_contents(self, season: int, *, use_cache: bool = True) -> list[str]:
         url = RETROSHEET_CONTENTS_URL_TEMPLATE.format(season)
         headers = {}
         if self._context.github_token:
             headers["Authorization"] = f"token {self._context.github_token}"
 
-        raw_bytes = await self._context.http.get_text(url, headers=headers)
-        if not raw_bytes:
-            raise UpstreamUnavailableError(f"Season {season} directory not found or empty.")
-        return parse_season_contents(raw_bytes, season)
+        raw_text = await self._fetch_cached_raw(
+            url,
+            headers=headers if headers else None,
+            use_cache=use_cache,
+            error_msg=f"Season {season} directory not found or empty.",
+        )
+        return parse_season_contents(raw_text, season)
 
-    async def get_event_file(self, season: int, filename: str, *, use_cache: bool = False) -> str:
+    async def get_event_file(self, season: int, filename: str, *, use_cache: bool = True) -> str:
         url = RETROSHEET_EVENT_URL.format(season, filename)
         return await self._fetch_cached_raw(
             url,
@@ -42,7 +44,7 @@ class RetrosheetGateway(BaseGateway):
             error_msg="Retrosheet event file is empty.",
         )
 
-    async def get_roster_file(self, season: int, team: str, *, use_cache: bool = False) -> str:
+    async def get_roster_file(self, season: int, team: str, *, use_cache: bool = True) -> str:
         url = RETROSHEET_ROSTER_URL.format(season, team, season)
         return await self._fetch_cached_raw(
             url,

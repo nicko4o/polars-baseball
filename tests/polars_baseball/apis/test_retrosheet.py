@@ -254,3 +254,19 @@ async def test_rosters_bounded_concurrency_admission() -> None:
 
     assert isinstance(df, pl.DataFrame)
     assert peak <= limit
+
+
+@pytest.mark.asyncio
+async def test_retrosheet_season_contents_caches_response(mock_seasons_contents: bytes) -> None:
+    from polars_baseball.gateways.retrosheet import RetrosheetGateway
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text = AsyncMock(return_value=mock_seasons_contents.decode("utf-8"))
+    ctx = BaseballContext(http=mock_http)
+    gateway = RetrosheetGateway(ctx)
+
+    files1 = await gateway.get_season_contents(2026)
+    files2 = await gateway.get_season_contents(2026)
+
+    assert files1 == files2
+    assert mock_http.get_text.await_count == 1
