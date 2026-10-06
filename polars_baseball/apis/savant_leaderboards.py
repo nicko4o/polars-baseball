@@ -496,12 +496,14 @@ def _build_composite_ranks(
     for raw_df in _collect_raw_metric_dfs(sources, is_batter):
         result = result.join(raw_df, on="player_id", how="left")
 
-    for metric_name, _, _ in profile_defs:
-        raw_col = f"{metric_name}_raw"
-        if raw_col not in result.columns:
-            result = result.with_columns(pl.lit(None, dtype=pl.Float64).alias(raw_col))
-        else:
-            result = result.with_columns(pl.col(raw_col).cast(pl.Float64, strict=False))
+    raw_exprs: list[pl.Expr] = [
+        pl.lit(None, dtype=pl.Float64).alias(f"{metric_name}_raw")
+        if f"{metric_name}_raw" not in result.columns
+        else pl.col(f"{metric_name}_raw").cast(pl.Float64, strict=False)
+        for metric_name, _, _ in profile_defs
+    ]
+    if raw_exprs:
+        result = result.with_columns(raw_exprs)
 
     return result
 

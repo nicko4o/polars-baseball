@@ -156,9 +156,9 @@ class PlayerLookupService:
         players: list[tuple[str, str]],
         context: BaseballContext | None = None,
     ) -> pl.DataFrame:
-        if not players:
-            return pl.DataFrame()
         table = await self._ensure_table(context)
+        if not players:
+            return _without_normalized_names(table.clear())
         keys = [f"{last.lower()}|{first.lower()}" for last, first in players]
         results = table.filter((pl.col("name_last") + "|" + pl.col("name_first")).is_in(keys))
         return _without_normalized_names(results)

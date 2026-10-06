@@ -112,14 +112,17 @@ def normalize_statcast_partition(df: pl.DataFrame) -> pl.DataFrame:
     """
     if df.is_empty() and not df.columns:
         return df
-    missing = [col for col in STATCAST_CANONICAL_TYPES if col not in df.columns]
-    if missing:
-        df = df.with_columns(pl.lit(None, dtype=STATCAST_CANONICAL_TYPES[col]).alias(col) for col in missing)
-    casts = [
+    existing_cols = set(df.columns)
+    exprs: list[pl.Expr] = [
         pl.col(col).cast(STATCAST_CANONICAL_TYPES[col], strict=False)
         for col in df.columns
         if col in STATCAST_CANONICAL_TYPES
     ]
-    if not casts:
+    exprs.extend(
+        pl.lit(None, dtype=STATCAST_CANONICAL_TYPES[col]).alias(col)
+        for col in STATCAST_CANONICAL_TYPES
+        if col not in existing_cols
+    )
+    if not exprs:
         return df
-    return df.with_columns(casts)
+    return df.with_columns(exprs)
