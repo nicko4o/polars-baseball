@@ -6,6 +6,7 @@ from difflib import get_close_matches
 
 import polars as pl
 
+from polars_baseball._concurrency import LoopBoundLockRegistry
 from polars_baseball._config import (
     FUZZY_FALLBACK_MIN_RESULTS,
     FUZZY_MATCH_CUTOFF,
@@ -71,23 +72,17 @@ class PlayerLookupService:
     def __init__(self, load_table: LookupTableLoader) -> None:
         self._load_table = load_table
         self.table: pl.DataFrame | None = None
-        self._load_locks: dict[int, asyncio.Lock] = {}
+        self._lock_registry = LoopBoundLockRegistry()
         self._meta_lock = threading.Lock()
 
     def reset(self) -> None:
         """Reset cached player lookup table in memory."""
         with self._meta_lock:
             self.table = None
-            self._load_locks.clear()
+            self._lock_registry = LoopBoundLockRegistry()
 
     def _get_lock(self) -> asyncio.Lock:
-        loop_id = id(asyncio.get_running_loop())
-        with self._meta_lock:
-            lock = self._load_locks.get(loop_id)
-            if lock is None:
-                lock = asyncio.Lock()
-                self._load_locks[loop_id] = lock
-            return lock
+        return self._lock_registry.get_lock("player_lookup_table")
 
     async def _ensure_table(self, context: BaseballContext | None = None) -> pl.DataFrame:
         if self.table is not None:

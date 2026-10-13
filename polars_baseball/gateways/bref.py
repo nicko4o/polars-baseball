@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import timedelta
+from typing import Literal
 
 import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import (
     BREF_GAME_LOGS_URL_TEMPLATE,
+    BREF_ROOT,
     BREF_SPLITS_URL_TEMPLATE,
 )
+from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball.context import BaseballContext
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.bref import BRefGameLogParser, BRefSplitsParser, parse_bref_dataset
@@ -48,6 +51,21 @@ class BRefGateway(BaseGateway):
             force_update=force_update,
             error_msg="Baseball Reference returned empty response.",
         )
+
+    async def get_bwar(
+        self,
+        stat_type: Literal["bat", "pitch"],
+        required_cols: list[str],
+        col_types: dict[str, pl.DataType | type[pl.DataType]],
+        all_columns: bool = False,
+    ) -> pl.DataFrame:
+        url = f"{BREF_ROOT}/data/war_daily_{stat_type}.txt"
+        df = await self.get_dataset(url, params={"return_all": all_columns})
+        df = validate_and_cast_schema(df, required_cols, col_types)
+        if not all_columns:
+            existing = [c for c in col_types if c in df.columns]
+            df = df.select(existing)
+        return df
 
     async def get_splits(
         self,

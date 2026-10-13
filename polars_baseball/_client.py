@@ -11,7 +11,12 @@ from curl_cffi.requests.exceptions import RequestException as CurlRequestExcepti
 
 from polars_baseball._config import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT
 from polars_baseball._http_policy import TransportKind, resolve_request_policy
-from polars_baseball.exceptions import PolarsBaseballHttpError, PolarsBaseballTransportError
+from polars_baseball.exceptions import (
+    PolarsBaseballHttpClientError,
+    PolarsBaseballHttpError,
+    PolarsBaseballHttpServerError,
+    PolarsBaseballTransportError,
+)
 
 _BROWSER_HEADERS: Mapping[str, str] = {
     "User-Agent": (
@@ -206,7 +211,7 @@ class HttpClient:
                 msg = f"HTTP status error: {e}"
                 if e.response.status_code == 403:
                     msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
-                raise PolarsBaseballHttpError(
+                raise self._create_http_error(
                     msg,
                     status_code=e.response.status_code,
                 ) from e
@@ -250,8 +255,14 @@ class HttpClient:
         return await self._with_retries(request_once)
 
     @staticmethod
+    def _create_http_error(msg: str, status_code: int) -> PolarsBaseballHttpError:
+        if 400 <= status_code < 500:
+            return PolarsBaseballHttpClientError(msg, status_code=status_code)
+        return PolarsBaseballHttpServerError(msg, status_code=status_code)
+
+    @classmethod
     def _wrap_cffi_error(
-        url: str, error: CurlRequestException
+        cls, url: str, error: CurlRequestException
     ) -> PolarsBaseballHttpError | PolarsBaseballTransportError:
         response = getattr(error, "response", None)
         label = resolve_request_policy(url).provider_label
@@ -260,7 +271,7 @@ class HttpClient:
         msg = f"{label} HTTP request failed: {error}"
         if response.status_code == 403 and label in ("BRef", "FanGraphs"):
             msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers or use cached data)"
-        return PolarsBaseballHttpError(
+        return cls._create_http_error(
             msg,
             status_code=response.status_code,
         )
@@ -307,7 +318,7 @@ class HttpClient:
                 msg = f"HTTP status error: {e}"
                 if e.response.status_code == 403:
                     msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
-                raise PolarsBaseballHttpError(
+                raise self._create_http_error(
                     msg,
                     status_code=e.response.status_code,
                 ) from e

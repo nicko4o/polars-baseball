@@ -13,7 +13,9 @@ from polars_baseball.exceptions import (
     InvalidParameterError,
     InvalidSchemaError,
     PolarsBaseballError,
+    PolarsBaseballHttpClientError,
     PolarsBaseballHttpError,
+    PolarsBaseballHttpServerError,
     PolarsBaseballTransportError,
     ServerError,
     UpstreamDataCorruptedError,
@@ -93,6 +95,16 @@ def test_invalid_schema_error_is_server_error() -> None:
 
 def test_http_error_is_server_error() -> None:
     assert issubclass(PolarsBaseballHttpError, ServerError)
+
+
+def test_http_client_error_is_client_error_and_http_error() -> None:
+    assert issubclass(PolarsBaseballHttpClientError, ClientError)
+    assert issubclass(PolarsBaseballHttpClientError, PolarsBaseballHttpError)
+
+
+def test_http_server_error_is_server_error_and_http_error() -> None:
+    assert issubclass(PolarsBaseballHttpServerError, ServerError)
+    assert issubclass(PolarsBaseballHttpServerError, PolarsBaseballHttpError)
 
 
 def test_invalid_parameter_error_is_value_error() -> None:

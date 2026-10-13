@@ -18,6 +18,14 @@ class PolarsBaseballHttpError(ServerError):
         self.status_code = status_code
 
 
+class PolarsBaseballHttpClientError(ClientError, PolarsBaseballHttpError):
+    """HTTP 4xx-equivalent: client request fault (e.g. 403 Forbidden, 404 Not Found)."""
+
+
+class PolarsBaseballHttpServerError(PolarsBaseballHttpError):
+    """HTTP 5xx-equivalent: upstream server fault (e.g. 500, 502, 503)."""
+
+
 class PolarsBaseballTransportError(ServerError):
     """Exception raised when no HTTP response was received."""
 

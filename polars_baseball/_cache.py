@@ -28,12 +28,12 @@ _WARNED_LEGACY_CACHE: bool = False
 P = ParamSpec("P")
 R = TypeVar("R")
 
-_IN_FLIGHT_LOCKS: weakref.WeakValueDictionary[tuple[int, int, str], asyncio.Lock] = weakref.WeakValueDictionary()
+_IN_FLIGHT_LOCKS: weakref.WeakValueDictionary[tuple[object, int, str], asyncio.Lock] = weakref.WeakValueDictionary()
 _IN_FLIGHT_LOCKS_GUARD = threading.Lock()
 
 
 def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
-    composite_key = (id(asyncio.get_running_loop()), id(cache), key)
+    composite_key = (asyncio.get_running_loop(), id(cache), key)
     with _IN_FLIGHT_LOCKS_GUARD:
         lock = _IN_FLIGHT_LOCKS.get(composite_key)
         if lock is None:
@@ -367,28 +367,6 @@ def configure_cache(cache_dir: Path) -> None:
     global_cache.configure(cache_dir)
 
 
-class _CacheHolder(Protocol):
-    cache: CacheAdapter
-
-
-class _BaseballContextProtocol(Protocol):
-    @classmethod
-    def default(cls) -> _CacheHolder: ...
-
-
-_BaseballContext_cls: type[_BaseballContextProtocol] | None = None
-
-
-def _get_default_cache() -> CacheAdapter:
-    global _BaseballContext_cls
-    if _BaseballContext_cls is None:
-        import importlib
-
-        _BaseballContext_cls = importlib.import_module("polars_baseball.context").BaseballContext
-    assert _BaseballContext_cls is not None
-    return cast(CacheAdapter, _BaseballContext_cls.default().cache)
-
-
 def cached(
     key: str | Callable[..., str],
     max_age: timedelta | None = None,
@@ -412,7 +390,7 @@ def cached(
             if ctx_arg is not None and hasattr(ctx_arg, "cache"):
                 cache = cast(CacheAdapter, ctx_arg.cache)
             else:
-                cache = _get_default_cache()
+                cache = global_cache
 
             if not force_update:
                 cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)

@@ -1,9 +1,11 @@
 import json
 from collections.abc import Callable, Mapping
+from datetime import timedelta
 from typing import cast
 
 import polars as pl
 
+from polars_baseball._cache import generate_cache_key
 from polars_baseball._json_utils import JsonObject
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import PolarsBaseballHttpError, UpstreamParseError
@@ -22,15 +24,32 @@ class MlbStatsGateway(BaseGateway):
         params: Mapping[str, object] | None,
         error_msg: str,
         parser: Callable[[JsonObject], pl.DataFrame],
+        *,
+        use_cache: bool = False,
+        max_age: timedelta | None = None,
+        force_update: bool = False,
+        cache_key: str | None = None,
     ) -> pl.DataFrame:
-        result = await self._fetch_json(url, params, error_msg)
-        if not isinstance(result, dict):
-            raise UpstreamParseError(f"Expected dict from API response, got {type(result)}")
+        key = cache_key or generate_cache_key(url, params)
 
-        try:
-            return parser(cast(JsonObject, result))
-        except (KeyError, TypeError, ValueError, pl.exceptions.PolarsError) as exc:
-            raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+        async def _fetch_and_parse() -> pl.DataFrame:
+            result = await self._fetch_json(url, params, error_msg)
+            if not isinstance(result, dict):
+                raise UpstreamParseError(f"Expected dict from API response, got {type(result)}")
+            try:
+                return parser(cast(JsonObject, result))
+            except (KeyError, TypeError, ValueError, pl.exceptions.PolarsError) as exc:
+                raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+
+        if not use_cache:
+            return await _fetch_and_parse()
+
+        return await self._context.cache.get_or_fetch(
+            key,
+            _fetch_and_parse,
+            max_age=max_age,
+            force_update=force_update,
+        )
 
     async def fetch_payload(
         self,

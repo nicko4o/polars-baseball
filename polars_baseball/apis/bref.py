@@ -2,8 +2,6 @@ from typing import Literal
 
 import polars as pl
 
-from polars_baseball._config import BREF_ROOT
-from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball._schemas.bref import (
     BWAR_BAT_REQUIRED,
     BWAR_BAT_TYPES,
@@ -22,14 +20,7 @@ async def _bwar_generic(
     context: BaseballContext | None = None,
 ) -> pl.DataFrame:
     ctx = context or BaseballContext.default()
-    url = f"{BREF_ROOT}/data/war_daily_{stat_type}.txt"
-    gateway = BRefGateway(ctx)
-    df = await gateway.get_dataset(url, params={"return_all": all_columns})
-    df = validate_and_cast_schema(df, required_cols, col_types)
-    if not all_columns:
-        existing = [c for c in col_types if c in df.columns]
-        df = df.select(existing)
-    return df
+    return await BRefGateway(ctx).get_bwar(stat_type, required_cols, col_types, all_columns=all_columns)
 
 
 async def bwar_bat(
