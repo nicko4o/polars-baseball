@@ -228,23 +228,6 @@ async def statcast_pitcher_pitch_movement(
 _ACTIVE_SPIN_TYPE_ORDER: tuple[str, ...] = ("spin-based", "observed")
 
 
-async def _try_fetch_active_spin(
-    year: int,
-    minP: int,
-    spin_type: str,
-    context: BaseballContext | None = None,
-) -> pl.DataFrame | None:
-    ctx = context or BaseballContext.default()
-    url = f"{SAVANT_ROOT}{PATH_ACTIVE_SPIN}"
-    params = {
-        "year": f"{year}_{spin_type}",
-        "min": str(minP),
-        "hand": "",
-        "csv": SAVANT_CSV_PARAM,
-    }
-    return await SavantGateway(ctx).get_optional_dataset(url, params)
-
-
 async def statcast_pitcher_active_spin(
     year: int,
     min_pitches: int = 250,
@@ -255,8 +238,13 @@ async def statcast_pitcher_active_spin(
     Note: Tries "spin-based" results first, falls back to "observed";
     raises UpstreamParseError if neither variant returns data.
     """
+    ctx = context or BaseballContext.default()
+    gw = SavantGateway(ctx)
+    url = f"{SAVANT_ROOT}{PATH_ACTIVE_SPIN}"
+
     for idx, spin_type in enumerate(_ACTIVE_SPIN_TYPE_ORDER):
-        df = await _try_fetch_active_spin(year, min_pitches, spin_type, context=context)
+        params = {"year": f"{year}_{spin_type}", "min": str(min_pitches), "hand": "", "csv": SAVANT_CSV_PARAM}
+        df = await gw.get_optional_dataset(url, params)
         if df is not None:
             return df
         if idx == 0:
@@ -331,96 +319,73 @@ def _normalize_name_col(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-async def _fetch_batter_raw_sources(year: int, context: BaseballContext | None) -> dict[str, pl.DataFrame]:
-    """Fetch raw metric sources for batters concurrently."""
-    sources: dict[str, pl.DataFrame] = {}
+async def _fetch_profile_raw_sources(
+    year: int,
+    is_batter: bool,
+    context: BaseballContext | None,
+) -> dict[str, pl.DataFrame]:
+    """Fetch raw metric sources for batters or pitchers concurrently."""
+    ctx = context or BaseballContext.default()
 
-    async def _safe_call(fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
+    async def _safe(fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
         try:
             return await fetcher()
         except UpstreamUnavailableError:
             return pl.DataFrame()
 
-    async def _fetch_exp() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: statcast_expected_stats(year, "batter", context=context))
-        return "exp", _normalize_name_col(df)
+    tasks: list[tuple[str, Callable[[], Awaitable[pl.DataFrame]]]] = []
+    p_type: Literal["batter", "pitcher"] = "batter" if is_batter else "pitcher"
 
-    async def _fetch_ev() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: statcast_exitvelo_barrels(year, "batter", context=context))
-        return "ev", _normalize_name_col(df)
+    tasks.append(("exp", lambda: _safe(lambda: statcast_expected_stats(year, p_type, context=ctx))))
+    tasks.append(("ev", lambda: _safe(lambda: statcast_exitvelo_barrels(year, p_type, context=ctx))))
 
-    async def _fetch_sprint() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: get_leaderboard("sprint_speed", context=context, year=str(year), min="1"))
-        return "sprint", _normalize_name_col(df)
-
-    tasks: list[Callable[[], Awaitable[tuple[str, pl.DataFrame]]]] = [_fetch_exp, _fetch_ev]
-    if year >= 2015:
-        tasks.append(_fetch_sprint)
-
-    if year >= 2024:
-
-        async def _fetch_bat() -> tuple[str, pl.DataFrame]:
-            df = await _safe_call(lambda: statcast_bat_tracking(year, "batter", context=context))
-            if "id" in df.columns and "player_id" not in df.columns:
-                df = df.rename({"id": "player_id"})
-            return "bat", _normalize_name_col(df)
-
-        tasks.append(_fetch_bat)
-
-    results = await bounded_gather(tasks, concurrency_limit=DEFAULT_STATCAST_CONCURRENCY_LIMIT)
-    for key, data in results:
-        sources[key] = data
-    return sources
-
-
-async def _fetch_pitcher_raw_sources(year: int, context: BaseballContext | None) -> dict[str, pl.DataFrame]:
-    """Fetch raw metric sources for pitchers concurrently."""
-    sources: dict[str, pl.DataFrame] = {}
-
-    async def _safe_call(fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
-        try:
-            return await fetcher()
-        except UpstreamUnavailableError:
-            return pl.DataFrame()
-
-    async def _fetch_exp() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: statcast_pitcher_expected_stats(year, context=context))
-        return "exp", _normalize_name_col(df)
-
-    async def _fetch_ev() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: statcast_pitcher_exitvelo_barrels(year, context=context))
-        return "ev", _normalize_name_col(df)
-
-    async def _fetch_arsenal_speed() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(
-            lambda: statcast_pitcher_pitch_arsenal(
-                year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPEED, context=context
+    if is_batter:
+        if year >= 2015:
+            tasks.append(
+                ("sprint", lambda: _safe(lambda: get_leaderboard("sprint_speed", context=ctx, year=str(year), min="1")))
+            )
+        if year >= 2024:
+            tasks.append(("bat", lambda: _safe(lambda: statcast_bat_tracking(year, "batter", context=ctx))))
+    else:
+        tasks.append(
+            (
+                "arsenal_speed",
+                lambda: _safe(
+                    lambda: statcast_pitcher_pitch_arsenal(
+                        year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPEED, context=ctx
+                    )
+                ),
             )
         )
-        if "pitcher" in df.columns and "player_id" not in df.columns:
-            df = df.rename({"pitcher": "player_id"})
-        return "arsenal_speed", _normalize_name_col(df)
-
-    async def _fetch_arsenal_spin() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(
-            lambda: statcast_pitcher_pitch_arsenal(
-                year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPIN, context=context
+        tasks.append(
+            (
+                "arsenal_spin",
+                lambda: _safe(
+                    lambda: statcast_pitcher_pitch_arsenal(
+                        year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPIN, context=ctx
+                    )
+                ),
             )
         )
-        if "pitcher" in df.columns and "player_id" not in df.columns:
-            df = df.rename({"pitcher": "player_id"})
-        return "arsenal_spin", _normalize_name_col(df)
 
-    tasks: list[Callable[[], Awaitable[tuple[str, pl.DataFrame]]]] = [
-        _fetch_exp,
-        _fetch_ev,
-        _fetch_arsenal_speed,
-        _fetch_arsenal_spin,
-    ]
-    results = await bounded_gather(tasks, concurrency_limit=DEFAULT_STATCAST_CONCURRENCY_LIMIT)
-    for key, data in results:
-        sources[key] = data
-    return sources
+    async def _runner(key: str, fn: Callable[[], Awaitable[pl.DataFrame]]) -> tuple[str, pl.DataFrame]:
+        df = await fn()
+        if key == "bat" and "id" in df.columns and "player_id" not in df.columns:
+            df = df.rename({"id": "player_id"})
+        elif key.startswith("arsenal_") and "pitcher" in df.columns and "player_id" not in df.columns:
+            df = df.rename({"pitcher": "player_id"})
+        return key, _normalize_name_col(df)
+
+    def _make_task(
+        k: str, fn: Callable[[], Awaitable[pl.DataFrame]]
+    ) -> Callable[[], Awaitable[tuple[str, pl.DataFrame]]]:
+        return lambda: _runner(k, fn)
+
+    results = await bounded_gather(
+        [_make_task(k, f) for k, f in tasks],
+        concurrency_limit=DEFAULT_STATCAST_CONCURRENCY_LIMIT,
+    )
+    return dict(results)
 
 
 def _extract_metric_series(df: pl.DataFrame, candidates: tuple[str, ...], target_name: str) -> pl.DataFrame:
@@ -434,42 +399,34 @@ def _extract_metric_series(df: pl.DataFrame, candidates: tuple[str, ...], target
     return pl.DataFrame(schema={"player_id": pl.Int64, target_name: pl.Float64})
 
 
+_RAW_METRIC_CONFIGS: tuple[tuple[str, tuple[str, ...], str, bool | None], ...] = (
+    ("exp", ("est_woba", "xwoba"), "xwoba_raw", None),
+    ("exp", ("est_ba", "xba"), "xba_raw", None),
+    ("exp", ("est_slg", "xslg"), "xslg_raw", None),
+    ("ev", ("avg_hit_speed", "exit_velocity"), "exit_velocity_raw", None),
+    ("ev", ("max_hit_speed", "max_ev"), "max_ev_raw", None),
+    ("ev", ("ev95percent", "hard_hit_percent"), "hard_hit_percent_raw", None),
+    ("ev", ("barrels", "brl"), "brl_raw", None),
+    ("ev", ("brl_percent",), "brl_percent_raw", None),
+    ("bat", ("avg_bat_speed", "bat_speed"), "bat_speed_raw", True),
+    ("bat", ("ideal_attack_angle_rate", "squared_up_rate"), "squared_up_rate_raw", True),
+    ("sprint", ("sprint_speed",), "sprint_speed_raw", True),
+    ("arsenal_speed", ("ff_avg_speed",), "fb_velocity_raw", False),
+    ("arsenal_spin", ("ff_avg_spin",), "fb_spin_raw", False),
+    ("arsenal_spin", ("cu_avg_spin",), "curve_spin_raw", False),
+)
+
+
 def _collect_raw_metric_dfs(
     sources: dict[str, pl.DataFrame],
     is_batter: bool,
 ) -> list[pl.DataFrame]:
     """Collect metric Series DataFrames from raw data sources."""
-    raw_dfs: list[pl.DataFrame] = []
-    if "exp" in sources:
-        exp_df = sources["exp"]
-        raw_dfs.append(_extract_metric_series(exp_df, ("est_woba", "xwoba"), "xwoba_raw"))
-        raw_dfs.append(_extract_metric_series(exp_df, ("est_ba", "xba"), "xba_raw"))
-        raw_dfs.append(_extract_metric_series(exp_df, ("est_slg", "xslg"), "xslg_raw"))
-
-    if "ev" in sources:
-        ev_df = sources["ev"]
-        raw_dfs.append(_extract_metric_series(ev_df, ("avg_hit_speed", "exit_velocity"), "exit_velocity_raw"))
-        raw_dfs.append(_extract_metric_series(ev_df, ("max_hit_speed", "max_ev"), "max_ev_raw"))
-        raw_dfs.append(_extract_metric_series(ev_df, ("ev95percent", "hard_hit_percent"), "hard_hit_percent_raw"))
-        raw_dfs.append(_extract_metric_series(ev_df, ("barrels", "brl"), "brl_raw"))
-        raw_dfs.append(_extract_metric_series(ev_df, ("brl_percent",), "brl_percent_raw"))
-
-    if is_batter:
-        if "bat" in sources:
-            bat_df = sources["bat"]
-            raw_dfs.append(_extract_metric_series(bat_df, ("avg_bat_speed", "bat_speed"), "bat_speed_raw"))
-            raw_dfs.append(
-                _extract_metric_series(bat_df, ("ideal_attack_angle_rate", "squared_up_rate"), "squared_up_rate_raw")
-            )
-        if "sprint" in sources:
-            raw_dfs.append(_extract_metric_series(sources["sprint"], ("sprint_speed",), "sprint_speed_raw"))
-    else:
-        if "arsenal_speed" in sources:
-            raw_dfs.append(_extract_metric_series(sources["arsenal_speed"], ("ff_avg_speed",), "fb_velocity_raw"))
-        if "arsenal_spin" in sources:
-            raw_dfs.append(_extract_metric_series(sources["arsenal_spin"], ("ff_avg_spin",), "fb_spin_raw"))
-            raw_dfs.append(_extract_metric_series(sources["arsenal_spin"], ("cu_avg_spin",), "curve_spin_raw"))
-
+    raw_dfs = [
+        _extract_metric_series(sources[src], cands, target)
+        for src, cands, target, flag in _RAW_METRIC_CONFIGS
+        if src in sources and (flag is None or flag == is_batter)
+    ]
     return [df for df in raw_dfs if df.height > 0]
 
 
@@ -530,11 +487,9 @@ async def statcast_composite_percentile_ranks(
     if pct_df.is_empty():
         return pct_df
 
-    if player_type == "batter":
-        sources = await _fetch_batter_raw_sources(year, context)
-        return _build_composite_ranks(pct_df, sources, is_batter=True)
-    sources = await _fetch_pitcher_raw_sources(year, context)
-    return _build_composite_ranks(pct_df, sources, is_batter=False)
+    is_batter = player_type == "batter"
+    sources = await _fetch_profile_raw_sources(year, is_batter, context)
+    return _build_composite_ranks(pct_df, sources, is_batter=is_batter)
 
 
 _EMPTY_PROFILE_SCHEMA: dict[str, pl.DataType | type[pl.DataType]] = {
@@ -569,18 +524,18 @@ async def statcast_player_percentile_profile(
     """
     empty_df = pl.DataFrame(schema=_EMPTY_PROFILE_SCHEMA)
 
-    if player_type is not None:
-        target_type = player_type
-        comp_df = await statcast_composite_percentile_ranks(year, player_type=target_type, context=context)
-        player_row = comp_df.filter(pl.col("player_id") == player_id) if not comp_df.is_empty() else pl.DataFrame()
-    else:
-        target_type = "batter"
-        comp_df = await statcast_composite_percentile_ranks(year, player_type="batter", context=context)
-        player_row = comp_df.filter(pl.col("player_id") == player_id) if not comp_df.is_empty() else pl.DataFrame()
-        if player_row.is_empty():
-            target_type = "pitcher"
-            comp_df = await statcast_composite_percentile_ranks(year, player_type="pitcher", context=context)
-            player_row = comp_df.filter(pl.col("player_id") == player_id) if not comp_df.is_empty() else pl.DataFrame()
+    candidates: list[Literal["batter", "pitcher"]] = [player_type] if player_type is not None else ["batter", "pitcher"]
+    target_type: Literal["batter", "pitcher"] = candidates[0]
+    player_row = pl.DataFrame()
+
+    for p_type in candidates:
+        comp_df = await statcast_composite_percentile_ranks(year, player_type=p_type, context=context)
+        if not comp_df.is_empty():
+            matched = comp_df.filter(pl.col("player_id") == player_id)
+            if not matched.is_empty():
+                target_type = p_type
+                player_row = matched
+                break
 
     if player_row.is_empty():
         return empty_df
@@ -685,7 +640,7 @@ def _normalize_bat_side(bat_side: str) -> str:
     raise InvalidParameterError("bat_side must be one of 'all', 'L', or 'R'.")
 
 
-def _extract_years_list(
+def _resolve_year_range(
     year: int | list[int] | tuple[int, int] | None,
     start_year: int | None,
     end_year: int | None,
@@ -695,35 +650,24 @@ def _extract_years_list(
             raise InvalidParameterError("Both start_year and end_year must be integers provided together.")
         if start_year > end_year:
             raise InvalidParameterError("start_year cannot be greater than end_year.")
-        return list(range(start_year, end_year + 1))
-
-    if isinstance(year, tuple):
+        years = list(range(start_year, end_year + 1))
+    elif isinstance(year, tuple):
         if len(year) != 2 or not isinstance(year[0], int) or not isinstance(year[1], int) or year[0] > year[1]:
             raise InvalidParameterError(
                 "year tuple must be (start_year, end_year) with integer start_year <= end_year."
             )
-        return list(range(year[0], year[1] + 1))
-
-    if isinstance(year, list):
+        years = list(range(year[0], year[1] + 1))
+    elif isinstance(year, list):
         if not year:
             raise InvalidParameterError("year list cannot be empty.")
-        return list(year)
+        years = list(year)
+    elif isinstance(year, int):
+        years = [year]
+    elif year is None:
+        years = [most_recent_season()]
+    else:
+        raise InvalidParameterError(f"Invalid year specification: {year}")
 
-    if isinstance(year, int):
-        return [year]
-
-    if year is None:
-        return [most_recent_season()]
-
-    raise InvalidParameterError(f"Invalid year specification: {year}")
-
-
-def _resolve_year_range(
-    year: int | list[int] | tuple[int, int] | None,
-    start_year: int | None,
-    end_year: int | None,
-) -> list[int]:
-    years = _extract_years_list(year, start_year, end_year)
     for yr in years:
         if not isinstance(yr, int) or yr < STATCAST_PARK_FACTORS_START_YEAR:
             raise InvalidParameterError(f"Year must be an integer >= {STATCAST_PARK_FACTORS_START_YEAR}.")
