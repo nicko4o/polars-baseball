@@ -9,7 +9,7 @@ from polars_baseball._encoding import ensure_str
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.base import BaseGateway
-from polars_baseball.parsers.savant import SavantCSVParser, parse_savant_leaderboard
+from polars_baseball.parsers.savant import SavantCSVParser, check_savant_error_row, parse_savant_leaderboard
 from polars_baseball.parsers.savant_gamefeed import JsonObject
 
 _GAMEFEED_DATASET_PARAM = "__dataset__"
@@ -128,17 +128,4 @@ class SavantGateway(BaseGateway):
 
     def _verify_error_response(self, raw_data: str | bytes) -> None:
         """Inspect response for upstream errors reported as CSV error rows."""
-        from polars_baseball._encoding import ensure_bytes
-
-        raw_bin = ensure_bytes(raw_data)
-        if b"error" not in raw_bin[:_ERROR_SCAN_LIMIT]:
-            return
-
-        try:
-            df_err = pl.read_csv(raw_bin)
-        except pl.exceptions.PolarsError:
-            raise UpstreamParseError("Savant request failed with an error row.") from None
-
-        if "error" in df_err.columns and df_err.height > 0:
-            raise UpstreamParseError(str(df_err["error"][0]))
-        raise UpstreamParseError("Savant request failed with an error row.")
+        check_savant_error_row(raw_data)

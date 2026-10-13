@@ -18,7 +18,20 @@ from polars_baseball.parsers.retrosheet import (
     parse_schedule_csv,
 )
 
+_RETROSHEET_GAME_TYPE_EXTENSIONS: dict[str, tuple[str, ...]] = {
+    "regular": (".EVA", ".EVN"),
+    "post": ("CS.EVE", "D1.EVE", "D2.EVE", "W1.EVE", "W2.EVE", "WS.EVE"),
+    "asg": ("AS.EVE",),
+}
 
+
+def _events_cache_key(**kw: object) -> str:
+    season = kw.get("season")
+    game_type = kw.get("game_type")
+    return generate_cache_key("retrosheet/events", {"season": season, "game_type": game_type})
+
+
+@cached(key=_events_cache_key)
 async def events(
     season: int,
     game_type: str = "regular",
@@ -33,22 +46,16 @@ async def events(
     post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
     for unknown types and ServerError if no event files are found.
     """
-    ctx = context or BaseballContext.default()
-    gateway = RetrosheetGateway(ctx)
-    files = await gateway.get_season_contents(season)
-    file_extension: tuple[str, ...]
-    if game_type == "regular":
-        file_extension = (".EVA", ".EVN")
-    elif game_type == "post":
-        file_extension = ("CS.EVE", "D1.EVE", "D2.EVE", "W1.EVE", "W2.EVE", "WS.EVE")
-    elif game_type == "asg":
-        file_extension = ("AS.EVE",)
-    else:
+    if game_type not in _RETROSHEET_GAME_TYPE_EXTENSIONS:
         raise InvalidParameterError(
             f"Illegal type argument {game_type}, the valid types are: 'regular', 'post', and 'asg'."
         )
+    ctx = context or BaseballContext.default()
+    gateway = RetrosheetGateway(ctx)
+    files = await gateway.get_season_contents(season)
+    file_extensions = _RETROSHEET_GAME_TYPE_EXTENSIONS[game_type]
 
-    season_events = [t for t in files if t.endswith(file_extension)]
+    season_events = [t for t in files if t.endswith(file_extensions)]
     if not season_events:
         raise ServerError(f"Event files not available for {season}")
 

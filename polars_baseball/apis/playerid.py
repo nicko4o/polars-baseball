@@ -50,11 +50,12 @@ def _chadwick_people_table() -> CompiledTable:
 
 
 def _add_missing_lookup_columns(table: pl.DataFrame) -> pl.DataFrame:
-    result = table
-    for column, dtype in PLAYER_LOOKUP_SCHEMA.items():
-        if column not in result.columns:
-            result = result.with_columns(pl.lit(None).cast(dtype).alias(column))
-    return result
+    missing = [
+        pl.lit(None, dtype=dtype).alias(column)
+        for column, dtype in PLAYER_LOOKUP_SCHEMA.items()
+        if column not in table.columns
+    ]
+    return table.with_columns(missing) if missing else table
 
 
 def _normalize_chadwick_register(table: pl.DataFrame) -> pl.DataFrame:

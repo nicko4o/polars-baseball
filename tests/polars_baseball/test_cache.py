@@ -435,3 +435,21 @@ def test_global_cache_adapter_raw_operations(tmp_path: Path) -> None:
     global_cache.configure(tmp_path)
     global_cache.set_raw("gk", b"global raw")
     assert global_cache.get_raw("gk") == b"global raw"
+
+
+def test_file_cache_adapter_key_locks_weakref_cleanup(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key = "temporary_key"
+    lock = adapter._lock_for(key)
+    assert key in adapter._key_locks
+    del lock
+    gc.collect()
+    assert key not in adapter._key_locks
+
+
+def test_file_cache_adapter_clear_empties_locks(tmp_path: Path) -> None:
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
+    key = "cleared_key"
+    _ = adapter._lock_for(key)
+    adapter.clear()
+    assert len(adapter._key_locks) == 0

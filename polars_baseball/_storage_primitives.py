@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
-import threading
-import weakref
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -18,8 +16,9 @@ from polars_baseball.exceptions import UpstreamDataCorruptedError
 if TYPE_CHECKING:
     from polars_baseball.context import BaseballContext
 
-_LOCKS: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
-_LOCKS_GUARD = threading.Lock()
+from polars_baseball._concurrency import LoopBoundLockRegistry
+
+_FILE_LOCKS = LoopBoundLockRegistry()
 
 
 def resolve_cache_dir(context: BaseballContext) -> Path | None:
@@ -29,14 +28,7 @@ def resolve_cache_dir(context: BaseballContext) -> Path | None:
 
 def get_file_lock(key: str) -> asyncio.Lock:
     """Return an asyncio.Lock tied to the current event loop and key."""
-    loop = asyncio.get_running_loop()
-    lock_key = f"{id(loop)}:{key}"
-    with _LOCKS_GUARD:
-        lock = _LOCKS.get(lock_key)
-        if lock is None:
-            lock = asyncio.Lock()
-            _LOCKS[lock_key] = lock
-        return lock
+    return _FILE_LOCKS.get_lock(key)
 
 
 def validate_safe_path_component(value: str) -> None:

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pb.bref_game_logs()` (and `pb.bref.game_logs()`) retrieves single-season game-by-game statistics from Baseball Reference.
+- `pb.bref_splits()` (and `pb.bref.splits()`) retrieves platoon and situational splits from Baseball Reference.
+
 ## [0.24.0] - 2026-10-05
 
 ### Added

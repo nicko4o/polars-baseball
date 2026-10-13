@@ -99,6 +99,19 @@ def test_statcast_date_range_skips_offseason() -> None:
         assert high.month not in (12, 1)
 
 
+def test_statcast_date_range_never_exceeds_season_end() -> None:
+    from datetime import timedelta
+
+    from polars_baseball._season import STATCAST_VALID_DATES
+
+    season_end = STATCAST_VALID_DATES[2023][1]
+    # Start 2 days before the end of the 2023 season with a 7-day step
+    results = list(statcast_date_range(season_end - timedelta(days=2), date(2024, 4, 1), step=7, verbose=False))
+    assert len(results) >= 1
+    first_low, first_high = results[0]
+    assert first_high <= season_end
+
+
 def test_load_valid_dates_failure_raises() -> None:
     from unittest.mock import patch
 

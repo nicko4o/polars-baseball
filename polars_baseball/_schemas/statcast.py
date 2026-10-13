@@ -5,9 +5,12 @@ stable dtype so that ``pl.scan_parquet(..., hive_partitioning=True)`` across
 multiple year partitions never hits cross-year dtype conflicts.
 """
 
+from collections.abc import Mapping
 from typing import Final
 
 import polars as pl
+
+from polars_baseball._schemas.savant import SAVANT_SCHEMA_OVERRIDES
 
 STATCAST_CANONICAL_TYPES: Final[dict[str, pl.DataType | type[pl.DataType]]] = {
     "pitch_type": pl.String,
@@ -112,14 +115,81 @@ def normalize_statcast_partition(df: pl.DataFrame) -> pl.DataFrame:
     """
     if df.is_empty() and not df.columns:
         return df
-    missing = [col for col in STATCAST_CANONICAL_TYPES if col not in df.columns]
-    if missing:
-        df = df.with_columns(pl.lit(None, dtype=STATCAST_CANONICAL_TYPES[col]).alias(col) for col in missing)
-    casts = [
+    existing_cols = set(df.columns)
+    exprs: list[pl.Expr] = [
         pl.col(col).cast(STATCAST_CANONICAL_TYPES[col], strict=False)
         for col in df.columns
         if col in STATCAST_CANONICAL_TYPES
     ]
-    if not casts:
+    exprs.extend(
+        pl.lit(None, dtype=STATCAST_CANONICAL_TYPES[col]).alias(col)
+        for col in STATCAST_CANONICAL_TYPES
+        if col not in existing_cols
+    )
+    if not exprs:
         return df
-    return df.with_columns(casts)
+    return df.with_columns(exprs)
+
+
+def _collect_dtypes(dfs: list[pl.DataFrame]) -> dict[str, set[pl.DataType]]:
+    col_dtypes: dict[str, set[pl.DataType]] = {}
+    for df in dfs:
+        for col, dtype in df.schema.items():
+            col_dtypes.setdefault(col, set()).add(dtype)
+    return col_dtypes
+
+
+def _resolve_column_conflict(
+    dtypes: set[pl.DataType],
+    overrides: Mapping[str, pl.DataType | type[pl.DataType]],
+    col: str,
+) -> pl.DataType | type[pl.DataType] | None:
+    if len(dtypes) <= 1:
+        return None
+    if col in overrides:
+        return overrides[col]
+    has_string = any(dt == pl.String for dt in dtypes)
+    has_numeric = any(dt.is_numeric() for dt in dtypes)
+    if has_string and has_numeric:
+        return pl.String
+    if has_numeric:
+        return pl.Float64 if any(dt.is_float() for dt in dtypes) else pl.Int64
+    return pl.String
+
+
+def _resolve_conflicts(col_dtypes: dict[str, set[pl.DataType]]) -> dict[str, pl.DataType | type[pl.DataType]]:
+    conflicts: dict[str, pl.DataType | type[pl.DataType]] = {}
+    for col, dtypes in col_dtypes.items():
+        resolved = _resolve_column_conflict(dtypes, SAVANT_SCHEMA_OVERRIDES, col)
+        if resolved is not None:
+            conflicts[col] = resolved
+    return conflicts
+
+
+def _apply_casts(dfs: list[pl.DataFrame], conflicts: dict[str, pl.DataType | type[pl.DataType]]) -> list[pl.DataFrame]:
+    aligned_dfs = []
+    for df in dfs:
+        casts = [
+            pl.col(col).cast(target_dtype, strict=False).alias(col)
+            for col, target_dtype in conflicts.items()
+            if col in df.columns and df.schema[col] != target_dtype
+        ]
+        if casts:
+            aligned_dfs.append(df.with_columns(casts))
+        else:
+            aligned_dfs.append(df)
+    return aligned_dfs
+
+
+def align_statcast_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
+    """Align schema types across multiple Statcast DataFrames before concatenation."""
+    if not dfs or len(dfs) == 1:
+        return dfs
+
+    col_dtypes = _collect_dtypes(dfs)
+    conflicts = _resolve_conflicts(col_dtypes)
+
+    if not conflicts:
+        return dfs
+
+    return _apply_casts(dfs, conflicts)

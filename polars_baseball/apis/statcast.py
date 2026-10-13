@@ -1,6 +1,6 @@
 import logging
 import warnings
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from datetime import date
 from typing import Literal
 
@@ -13,6 +13,7 @@ from polars_baseball._config import (
     SAVANT_STATCAST_SEARCH_URL,
     STATCAST_DATE_STEP,
 )
+from polars_baseball._schemas.statcast import align_statcast_schemas
 from polars_baseball._season import sanitize_date_range, statcast_date_range
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
@@ -230,69 +231,7 @@ def _sort_statcast(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def _collect_dtypes(dfs: list[pl.DataFrame]) -> dict[str, set[pl.DataType]]:
-    col_dtypes: dict[str, set[pl.DataType]] = {}
-    for df in dfs:
-        for col, dtype in df.schema.items():
-            col_dtypes.setdefault(col, set()).add(dtype)
-    return col_dtypes
-
-
-def _resolve_column_conflict(
-    dtypes: set[pl.DataType],
-    overrides: Mapping[str, pl.DataType | type[pl.DataType]],
-    col: str,
-) -> pl.DataType | type[pl.DataType] | None:
-    if len(dtypes) <= 1:
-        return None
-    if col in overrides:
-        return overrides[col]
-    has_string = any(dt == pl.String for dt in dtypes)
-    has_numeric = any(dt.is_numeric() for dt in dtypes)
-    if has_string and has_numeric:
-        return pl.String
-    if has_numeric:
-        return pl.Float64 if any(dt.is_float() for dt in dtypes) else pl.Int64
-    return pl.String
-
-
-def _resolve_conflicts(col_dtypes: dict[str, set[pl.DataType]]) -> dict[str, pl.DataType | type[pl.DataType]]:
-    from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
-
-    conflicts: dict[str, pl.DataType | type[pl.DataType]] = {}
-    for col, dtypes in col_dtypes.items():
-        resolved = _resolve_column_conflict(dtypes, SAVANT_SCHEMA_OVERRIDES, col)
-        if resolved is not None:
-            conflicts[col] = resolved
-    return conflicts
-
-
-def _apply_casts(dfs: list[pl.DataFrame], conflicts: dict[str, pl.DataType | type[pl.DataType]]) -> list[pl.DataFrame]:
-    aligned_dfs = []
-    for df in dfs:
-        casts = [
-            pl.col(col).cast(target_dtype, strict=False).alias(col)
-            for col, target_dtype in conflicts.items()
-            if col in df.columns and df.schema[col] != target_dtype
-        ]
-        if casts:
-            aligned_dfs.append(df.with_columns(casts))
-        else:
-            aligned_dfs.append(df)
-    return aligned_dfs
-
-
-def _align_schemas(dfs: list[pl.DataFrame]) -> list[pl.DataFrame]:
-    if not dfs or len(dfs) == 1:
-        return dfs
-
-    col_dtypes = _collect_dtypes(dfs)
-    conflicts = _resolve_conflicts(col_dtypes)
-
-    if not conflicts:
-        return dfs
-
-    return _apply_casts(dfs, conflicts)
+_align_schemas = align_statcast_schemas
 
 
 async def _statcast_player(

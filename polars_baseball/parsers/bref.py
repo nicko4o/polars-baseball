@@ -460,8 +460,8 @@ class BRefSplitsParser:
             df = df.drop("Player ID")
 
         numeric_cols = [c for c in df.columns if c not in ("Split Type", "Split")]
-        for col in numeric_cols:
-            df = df.with_columns(pl.col(col).cast(pl.Float64, strict=False).alias(col))
+        if numeric_cols:
+            df = df.with_columns([pl.col(col).cast(pl.Float64, strict=False) for col in numeric_cols])
 
         df = df.drop([c for c in df.columns if df[c].is_null().all()])
 

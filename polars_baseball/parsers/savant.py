@@ -39,22 +39,25 @@ class SavantCSVParser(BaseParser):
         return df
 
 
-def _check_savant_error_row(raw_text: str) -> None:
-    stripped = raw_text.strip()
-    if not (stripped.startswith("error\n") or stripped.startswith("error,") or "error" in stripped[:200].lower()):
-        return
-
+def check_savant_error_row(raw_data: str | bytes) -> None:
+    from polars_baseball._encoding import ensure_bytes
     from polars_baseball.exceptions import UpstreamParseError
 
+    raw_bin = ensure_bytes(raw_data)
+    if b"error" not in raw_bin[:200]:
+        return
+
     try:
-        df_err = pl.read_csv(raw_text.encode("utf-8"))
-        if "error" in df_err.columns and df_err.height > 0:
-            raise UpstreamParseError(str(df_err["error"][0]))
-        if "error" in df_err.columns:
-            raise UpstreamParseError("Savant request failed with an error row.")
+        df_err = pl.read_csv(raw_bin)
     except pl.exceptions.PolarsError:
-        if "error" in stripped[:200]:
-            raise UpstreamParseError("Savant request failed with an error row.") from None
+        raise UpstreamParseError("Savant request failed with an error row.") from None
+
+    if "error" in df_err.columns and df_err.height > 0:
+        raise UpstreamParseError(str(df_err["error"][0]))
+    raise UpstreamParseError("Savant request failed with an error row.")
+
+
+_check_savant_error_row = check_savant_error_row
 
 
 def _parse_savant_embedded_json(raw_text: str) -> pl.DataFrame:

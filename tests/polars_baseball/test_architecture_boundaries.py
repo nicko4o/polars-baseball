@@ -55,7 +55,8 @@ def test_mlb_endpoint_constants_have_single_contract_module() -> None:
 
 def test_cache_module_does_not_depend_on_context_module() -> None:
     path = PACKAGE_ROOT / "_cache.py"
-    tree = ast.parse(path.read_text())
+    source = path.read_text()
+    tree = ast.parse(source)
     forbidden_imports: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball.context":
@@ -64,6 +65,10 @@ def test_cache_module_does_not_depend_on_context_module() -> None:
             for alias in node.names:
                 if alias.name == "polars_baseball.context":
                     forbidden_imports.append(f"line {node.lineno}: import {alias.name}")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "import_module":
+            for arg in node.args:
+                if isinstance(arg, ast.Constant) and "context" in str(arg.value):
+                    forbidden_imports.append(f"line {node.lineno}: dynamic import of {arg.value}")
 
     assert forbidden_imports == []
 

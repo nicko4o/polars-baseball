@@ -19,7 +19,15 @@ async def test_events_uses_supplied_context() -> None:
     mock_eva = "team,player,event\nNYM,100,HR\n"
     mock_evn = "team,player,event\nNYM,100,SO\n"
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.side_effect = [mock_contents, mock_eva, mock_evn]
+
+    def mock_get(url: str, **_kwargs: object) -> str:
+        if "contents" in url:
+            return mock_contents
+        if "EVA" in url:
+            return mock_eva
+        return mock_evn
+
+    mock_http.get_text.side_effect = mock_get
     ctx = BaseballContext(http=mock_http)
 
     result = await events(2026, game_type="regular", context=ctx)
@@ -36,7 +44,15 @@ async def test_events_returns_dataframe_with_raw_content() -> None:
     mock_evn = "team,player,event\nNYM,100,SO\n"
 
     mock_http = AsyncMock(spec=HttpClient)
-    mock_http.get_text.side_effect = [mock_contents, mock_eva, mock_evn]
+
+    def mock_get(url: str, **_kwargs: object) -> str:
+        if "contents" in url:
+            return mock_contents
+        if "EVA" in url:
+            return mock_eva
+        return mock_evn
+
+    mock_http.get_text.side_effect = mock_get
     ctx = BaseballContext(http=mock_http)
     result = await events(2026, game_type="regular", context=ctx)
 
@@ -62,11 +78,13 @@ async def test_events_does_not_write_to_disk(tmp_path: Path) -> None:
     mock_http.get_text.side_effect = [mock_contents, mock_data]
     ctx = BaseballContext(http=mock_http)
 
-    cwd_before = set(tmp_path.rglob("*"))
+    cache_dir = ctx.cache.cache_dir
     await events(2026, game_type="regular", context=ctx)
-    cwd_after = set(tmp_path.rglob("*"))
+    non_cache_files = [
+        p for p in tmp_path.rglob("*") if cache_dir is not None and cache_dir not in p.parents and p != cache_dir
+    ]
 
-    assert cwd_before == cwd_after, "events() wrote files to disk"
+    assert len(non_cache_files) == 0, f"events() wrote files to disk outside cache: {non_cache_files}"
 
 
 @pytest.mark.asyncio

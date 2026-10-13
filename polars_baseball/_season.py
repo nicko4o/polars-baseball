@@ -130,6 +130,11 @@ def statcast_date_range(start: date, stop: date, step: int, verbose: bool = True
         low = _advance_to_season(low, verbose)
         if low > stop:
             return
-        high = min(low + timedelta(step - 1), stop)
+        fallback = (
+            low.replace(month=_OFFSEASON_START_MONTH, day=SEASON_MID_MARCH_DAY),
+            low.replace(month=_OFFSEASON_END_MONTH, day=SEASON_MID_MARCH_DAY),
+        )
+        _, season_end = STATCAST_VALID_DATES.get(low.year, fallback)
+        high = min(low + timedelta(step - 1), stop, season_end)
         yield low, high
-        low += timedelta(days=step)
+        low = high + timedelta(days=1)

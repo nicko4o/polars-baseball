@@ -216,3 +216,11 @@ def test_player_lookup_service_cross_event_loops() -> None:
 
     assert res1.height == 1
     assert res2.height == 1
+
+
+@pytest.mark.asyncio
+async def test_player_search_list_empty_preserves_schema() -> None:
+    service = PlayerLookupService(AsyncMock(return_value=_player_table()))
+    res = await service.search_list([])
+    assert res.is_empty()
+    assert res.columns == _player_table().columns

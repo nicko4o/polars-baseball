@@ -7,8 +7,9 @@ from pathlib import Path
 import polars as pl
 
 from polars_baseball._config import DEFAULT_STATCAST_CONCURRENCY_LIMIT, STATCAST_DATE_STEP, STATCAST_FIRST_YEAR
+from polars_baseball._schemas.statcast import align_statcast_schemas
 from polars_baseball._season import most_recent_season, statcast_date_range
-from polars_baseball.apis.statcast import _align_schemas, _run_statcast_parallel
+from polars_baseball.apis.statcast import _run_statcast_parallel
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError, UpstreamUnavailableError
 from polars_baseball.gateways.statcast_dataset import StatcastDatasetGateway
@@ -118,4 +119,4 @@ async def _fetch_season(
     dfs = [df for df in frames if df is not None and not df.is_empty()]
     if not dfs:
         return pl.DataFrame()
-    return pl.concat(_align_schemas(dfs), how="diagonal")
+    return pl.concat(align_statcast_schemas(dfs), how="diagonal")
