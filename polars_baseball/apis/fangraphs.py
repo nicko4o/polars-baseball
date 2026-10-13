@@ -274,6 +274,16 @@ class FanGraphsRequest:
         )
 
     @classmethod
+    def _create_variant(
+        cls,
+        category: FangraphsStatsCategory,
+        is_team_data: bool,
+        raw_args: dict[str, object],
+    ) -> FanGraphsRequest:
+        kwargs = {k: v for k, v in raw_args.items() if k not in ("cls", "self")}
+        return cls.from_raw(stats_category=category, is_team_data=is_team_data, **kwargs)  # type: ignore[arg-type]
+
+    @classmethod
     def batting(
         cls,
         start_season: int,
@@ -294,25 +304,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.BATTING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-        )
+        return cls._create_variant(FangraphsStatsCategory.BATTING, False, locals())
 
     @classmethod
     def pitching(
@@ -335,25 +327,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.PITCHING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-        )
+        return cls._create_variant(FangraphsStatsCategory.PITCHING, False, locals())
 
     @classmethod
     def fielding(
@@ -376,25 +350,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.FIELDING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-        )
+        return cls._create_variant(FangraphsStatsCategory.FIELDING, False, locals())
 
     @classmethod
     def team_batting(
@@ -417,26 +373,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.BATTING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-            is_team_data=True,
-        )
+        return cls._create_variant(FangraphsStatsCategory.BATTING, True, locals())
 
     @classmethod
     def team_pitching(
@@ -459,26 +396,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.PITCHING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-            is_team_data=True,
-        )
+        return cls._create_variant(FangraphsStatsCategory.PITCHING, True, locals())
 
     @classmethod
     def team_fielding(
@@ -501,26 +419,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.FIELDING,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-            is_team_data=True,
-        )
+        return cls._create_variant(FangraphsStatsCategory.FIELDING, True, locals())
 
     @classmethod
     def team_starters(
@@ -543,26 +442,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.STARTERS,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-            is_team_data=True,
-        )
+        return cls._create_variant(FangraphsStatsCategory.STARTERS, True, locals())
 
     @classmethod
     def team_relievers(
@@ -585,26 +465,7 @@ class FanGraphsRequest:
         players: str = "",
         max_results: int = FG_MAX_RESULTS,
     ) -> FanGraphsRequest:
-        return cls.from_raw(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=FangraphsStatsCategory.RELIEVERS,
-            league=league,
-            month=month,
-            position=position,
-            stat_columns=stat_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=filters,
-            players=players,
-            max_results=max_results,
-            is_team_data=True,
-        )
+        return cls._create_variant(FangraphsStatsCategory.RELIEVERS, True, locals())
 
 
 def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
