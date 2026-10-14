@@ -11,17 +11,10 @@ from polars_baseball._client import HttpClient
 from polars_baseball.apis.fangraphs import (
     FanGraphsFilter,
     FanGraphsFilterOp,
-    FanGraphsRequest,
     _serialize_filters,
     fg_data,
 )
 from polars_baseball.context import BaseballContext
-from polars_baseball.enums.fangraphs import (
-    FangraphsLeague,
-    FangraphsMonth,
-    FangraphsPositions,
-    FangraphsStatsCategory,
-)
 from polars_baseball.exceptions import InvalidParameterError
 
 
@@ -85,8 +78,7 @@ async def test_fg_data_with_batting_request(
     mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
     ctx = BaseballContext(http=mock_http)
 
-    request = FanGraphsRequest.batting(start_season=2019)
-    df = await fg_data(request, context=ctx)
+    df = await fg_data(2019, context=ctx)
 
     assert isinstance(df, pl.DataFrame)
     assert df.height == 2
@@ -227,109 +219,16 @@ async def test_fangraphs_team_wrapper_accepts_stat_columns(
     mock_cache_set.assert_called_once()
 
 
-class TestFanGraphsRequest:
-    def test_batting_factory_sets_correct_category(self) -> None:
-        request = FanGraphsRequest.batting(start_season=2019)
-        assert request.start_season == 2019
-        assert request.end_season == 2019
-        assert request.stats_category == FangraphsStatsCategory.BATTING
-        assert not request.is_team_data
-
-    def test_pitching_factory(self) -> None:
-        request = FanGraphsRequest.pitching(start_season=2020, league=FangraphsLeague.NL)
-        assert request.stats_category == FangraphsStatsCategory.PITCHING
-        assert request.league == FangraphsLeague.NL
-
-    def test_fielding_factory(self) -> None:
-        request = FanGraphsRequest.fielding(start_season=2021, position=FangraphsPositions.SHORT_STOP)
-        assert request.stats_category == FangraphsStatsCategory.FIELDING
-        assert request.position == FangraphsPositions.SHORT_STOP
-
-    def test_team_batting_factory(self) -> None:
-        request = FanGraphsRequest.team_batting(start_season=2019)
-        assert request.stats_category == FangraphsStatsCategory.BATTING
-        assert request.is_team_data
-
-    def test_team_pitching_factory(self) -> None:
-        request = FanGraphsRequest.team_pitching(start_season=2019)
-        assert request.stats_category == FangraphsStatsCategory.PITCHING
-        assert request.is_team_data
-
-    def test_team_fielding_factory(self) -> None:
-        request = FanGraphsRequest.team_fielding(start_season=2019)
-        assert request.stats_category == FangraphsStatsCategory.FIELDING
-        assert request.is_team_data
-
-    def test_team_starters_factory(self) -> None:
-        request = FanGraphsRequest.team_starters(start_season=2019)
-        assert request.stats_category == FangraphsStatsCategory.STARTERS
-        assert request.is_team_data
-
-    def test_team_relievers_factory(self) -> None:
-        request = FanGraphsRequest.team_relievers(start_season=2019)
-        assert request.stats_category == FangraphsStatsCategory.RELIEVERS
-        assert request.is_team_data
-
-    def test_end_season_defaults_to_start_season(self) -> None:
-        request = FanGraphsRequest.batting(start_season=2022)
-        assert request.end_season == 2022
-
-    def test_custom_end_season(self) -> None:
-        request = FanGraphsRequest(start_season=2018, end_season=2022)
-        assert request.end_season == 2022
-
-    def test_from_raw_string_parsing(self) -> None:
-        request = FanGraphsRequest.from_raw(start_season=2019, league="AL", position="1B", month="MAY")
-        assert request.league == FangraphsLeague.AL
-        assert request.position == FangraphsPositions.FIRST_BASE
-        assert request.month == FangraphsMonth.MAY
-
-    def test_enum_values_passed_through(self) -> None:
-        request = FanGraphsRequest(
-            start_season=2019,
-            league=FangraphsLeague.NL,
-            position=FangraphsPositions.PITCHER,
-            month=FangraphsMonth.JUNE,
-        )
-        assert request.league == FangraphsLeague.NL
-        assert request.position == FangraphsPositions.PITCHER
-        assert request.month == FangraphsMonth.JUNE
-
-    def test_direct_invalid_type_raises_type_error(self) -> None:
+class TestFgDataValidation:
+    @pytest.mark.asyncio
+    async def test_direct_invalid_type_raises_type_error(self) -> None:
         with pytest.raises(TypeError, match="league must be a FangraphsLeague"):
-            FanGraphsRequest(start_season=2019, league=123)  # type: ignore[arg-type]
+            await fg_data(start_season=2019, league=123)  # type: ignore[arg-type]
 
-    def test_from_raw_invalid_string_raises_value_error(self) -> None:
+    @pytest.mark.asyncio
+    async def test_invalid_string_raises_value_error(self) -> None:
         with pytest.raises(InvalidParameterError, match="Invalid value"):
-            FanGraphsRequest.from_raw(start_season=2019, league="INVALID")
-
-    def test_from_raw_unknown_kwargs_raises_type_error(self) -> None:
-        with pytest.raises(TypeError):
-            FanGraphsRequest.from_raw(start_season=2019, invalid_param="hello")  # type: ignore[call-arg]
-
-    def test_batting_with_filters(self) -> None:
-        request = FanGraphsRequest.batting(
-            start_season=2024,
-            filters=[FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)],
-        )
-        assert len(request.filters) == 1
-        assert request.filters[0].column == "HR"
-        assert request.filters[0].operator == FanGraphsFilterOp.GT
-        assert request.filters[0].value == 40
-
-    def test_from_raw_with_filters(self) -> None:
-        request = FanGraphsRequest.from_raw(
-            start_season=2024,
-            filters=[
-                FanGraphsFilter(column="AVG", operator="gt", value=0.300),
-                FanGraphsFilter(column="HR", operator="gte", value=20),
-            ],
-        )
-        assert len(request.filters) == 2
-
-    def test_filters_defaults_to_empty_list(self) -> None:
-        request = FanGraphsRequest.batting(start_season=2024)
-        assert request.filters == []
+            await fg_data(start_season=2019, league="INVALID")
 
 
 class TestFanGraphsFilter:
@@ -372,22 +271,6 @@ class TestFanGraphsFilter:
         with pytest.raises(InvalidParameterError, match="Invalid operator 'invalid'"):
             FanGraphsFilter(column="HR", operator="invalid", value=40)
 
-    def test_direct_request_instantiation_coerces_strings(self) -> None:
-        req = FanGraphsRequest(
-            start_season=2024,
-            stats_category="BATTING",
-            league="AL",
-            month="MAY",
-            position="1B",
-            filters=[("HR", ">", 40)],
-        )
-        assert req.stats_category == FangraphsStatsCategory.BATTING
-        assert req.league == FangraphsLeague.AL
-        assert req.month == FangraphsMonth.MAY
-        assert req.position == FangraphsPositions.FIRST_BASE
-        assert len(req.filters) == 1
-        assert req.filters[0] == FanGraphsFilter("HR", "gt", 40)
-
 
 class TestSerializeFilters:
     def test_single_filter(self) -> None:
@@ -427,8 +310,7 @@ class TestFanGraphsUrlWithFilters:
         ctx = BaseballContext(http=mock_http)
 
         filters = [FanGraphsFilter(column="HR", operator=FanGraphsFilterOp.GT, value=40)]
-        request = FanGraphsRequest.batting(start_season=2024, filters=filters)
-        await fg_data(request, context=ctx)
+        await fg_data(start_season=2024, filters=filters, context=ctx)
 
         mock_http.get_text.assert_called_once()
         _, kwargs = mock_http.get_text.call_args
@@ -446,8 +328,7 @@ class TestFanGraphsUrlWithFilters:
         mock_http.get_text = AsyncMock(return_value=_make_mock_fg_html())
         ctx = BaseballContext(http=mock_http)
 
-        request = FanGraphsRequest.batting(start_season=2024)
-        await fg_data(request, context=ctx)
+        await fg_data(start_season=2024, context=ctx)
 
         mock_http.get_text.assert_called_once()
         _, kwargs = mock_http.get_text.call_args
@@ -543,7 +424,7 @@ class TestConvenienceFunctionsWithFilters:
         mock_http.get_text = AsyncMock(return_value=empty_html)
         ctx = BaseballContext(http=mock_http)
 
-        df = await fg_data(FanGraphsRequest.batting(start_season=2019), context=ctx)
+        df = await fg_data(start_season=2019, context=ctx)
         assert isinstance(df, pl.DataFrame)
         assert df.is_empty()
 
@@ -579,20 +460,20 @@ class TestConvenienceFunctionsWithFilters:
         curr_season = most_recent_season()
 
         # 1. Historical season -> default TTL is None
-        await fg_data(FanGraphsRequest.batting(start_season=2019, end_season=2019), context=ctx)
+        await fg_data(start_season=2019, end_season=2019, context=ctx)
         _, kwargs1 = mock_cache.get_or_fetch.call_args
         assert kwargs1["max_age"] is None
         assert kwargs1["force_update"] is False
 
         # 2. Current season -> default TTL is 24 hours
-        await fg_data(FanGraphsRequest.batting(start_season=curr_season), context=ctx)
+        await fg_data(start_season=curr_season, context=ctx)
         _, kwargs2 = mock_cache.get_or_fetch.call_args
         assert kwargs2["max_age"] == timedelta(days=1)
         assert kwargs2["force_update"] is False
 
         # 3. Custom cache_max_age overrides default
         await fg_data(
-            FanGraphsRequest.batting(start_season=curr_season),
+            start_season=curr_season,
             context=ctx,
             cache_max_age=timedelta(hours=2),
         )
@@ -601,7 +482,7 @@ class TestConvenienceFunctionsWithFilters:
 
         # 4. force_update=True is propagated
         await fg_data(
-            FanGraphsRequest.batting(start_season=curr_season),
+            start_season=curr_season,
             context=ctx,
             force_update=True,
         )

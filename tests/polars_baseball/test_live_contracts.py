@@ -57,14 +57,11 @@ def test_live_savant_exit_velo_barrels() -> None:
 
 @pytest.mark.live
 def test_live_fangraphs_batting() -> None:
-    from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
-
-    # Request batting stats for 2023 season with custom columns
-    request = FanGraphsRequest.batting(start_season=2023, stat_columns=["WAR", "OPS"])
+    import polars_baseball as pb
 
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await fg_data(request, context=ctx)
+            return await pb.fangraphs.batting(start_season=2023, stat_columns=["WAR", "OPS"], context=ctx)
 
     try:
         df = run_async(run())

@@ -119,13 +119,12 @@ The following example shows how to perform player searches, reverse ID lookups, 
 import asyncio
 import polars as pl
 from polars_baseball import (
-    FanGraphsRequest,
     KeyType,
-    fg_data,
-    playerid_lookup,
-    player_search_list,
-    playerid_reverse_lookup,
     chadwick_register,
+    fangraphs,
+    player_search_list,
+    playerid_lookup,
+    playerid_reverse_lookup,
 )
 from polars_baseball.apis.teamid import team_ids
 
@@ -142,7 +141,7 @@ async def main() -> None:
 
     # 3. Synchronous Team ID mapping joined with FanGraphs data
     teams_df = team_ids(2019)
-    batting_df = await fg_data(FanGraphsRequest.team_batting(start_season=2019))
+    batting_df = await fangraphs.team_batting(start_season=2019)
     batting_df = batting_df.select([
         pl.col(column).alias(f"batting.{column}")
         for column in batting_df.columns

@@ -7,7 +7,6 @@ ROOT_PUBLIC_API = {
     "BaseballContext",
     "FanGraphsFilter",
     "FanGraphsFilterOp",
-    "FanGraphsRequest",
     "FangraphsLeague",
     "FangraphsMonth",
     "FangraphsPositions",

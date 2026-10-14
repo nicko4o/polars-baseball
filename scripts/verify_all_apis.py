@@ -32,7 +32,7 @@ from polars_baseball import (
     bref,
     cleanup,
     configure_cache,
-    fg_data,
+    fangraphs,
     lahman,
     mlb,
     prospect_rankings,
@@ -40,7 +40,6 @@ from polars_baseball import (
     savant,
     standings,
 )
-from polars_baseball.apis.fangraphs import FanGraphsRequest
 from polars_baseball.apis.playerid import chadwick_register, playerid_lookup
 from polars_baseball.context import BaseballContext
 
@@ -150,13 +149,9 @@ def _build_tests() -> list[TestCase]:
             TestCase(
                 "fangraphs_batting",
                 "FanGraphs",
-                lambda: fg_data(
-                    FanGraphsRequest.from_raw(
-                        start_season=2023,
-                        stats_category="bat",
-                        league="all",
-                        qual=0,
-                    )
+                lambda: fangraphs.batting(
+                    start_season=2023,
+                    qual=0,
                 ),
             ),
         ]

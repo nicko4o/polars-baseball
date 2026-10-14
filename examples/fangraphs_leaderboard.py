@@ -24,14 +24,12 @@ def _parse_args() -> argparse.Namespace:
 async def _main() -> None:
     args = _parse_args()
     filters = [("HR", ">", args.min_hr)] if args.min_hr is not None else None
-    request = pb.FanGraphsRequest.batting(
+    df = await pb.fangraphs.batting(
         start_season=args.season,
-        end_season=args.season,
         qual=args.qual,
         filters=filters,
         max_results=args.max_results,
     )
-    df = await pb.fg_data(request)
     print(df.head(args.max_results))
 
 
