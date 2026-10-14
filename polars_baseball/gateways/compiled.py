@@ -19,8 +19,8 @@ from polars_baseball._storage_primitives import (
 )
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import (
+    ClientError,
     UpstreamDataCorruptedError,
-    UpstreamParseError,
     UpstreamStructureChangedError,
 )
 
@@ -97,7 +97,7 @@ class CompiledDatasetGateway:
             when cache_dir is None.
         """
         if self._cache_dir is None:
-            raise UpstreamParseError("Compiled dataset table paths require a file-backed cache directory.")
+            raise ClientError("Compiled dataset table paths require a file-backed cache directory.")
         path = self._table_path(table)
         async with get_file_lock(str(path)):
             if not path.exists():
@@ -134,7 +134,7 @@ class CompiledDatasetGateway:
 
     def _file_cache_dir(self) -> Path:
         if self._cache_dir is None:
-            raise UpstreamParseError("Compiled datasets require a file-backed cache directory for file paths.")
+            raise ClientError("Compiled datasets require a file-backed cache directory for file paths.")
         return self._cache_dir
 
     async def _fetch_table(self, table: CompiledTable) -> pl.DataFrame:

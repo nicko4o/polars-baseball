@@ -8,8 +8,8 @@ from polars_baseball.exceptions import UpstreamParseError
 
 EVENTS_SCHEMA: dict[str, pl.DataType | type[pl.DataType]] = {
     "season": pl.Int64,
-    "event_type": pl.Utf8,
-    "filename": pl.Utf8,
+    "event_type": pl.String,
+    "filename": pl.String,
     "content": pl.Binary,
 }
 
@@ -62,7 +62,7 @@ def parse_roster_csv(raw: str | bytes) -> pl.DataFrame:
 
 def empty_rosters_frame() -> pl.DataFrame:
     """Return an empty DataFrame with the roster schema."""
-    return pl.DataFrame(schema={column: pl.Utf8 for column in ROSTER_COLUMNS})
+    return pl.DataFrame(schema={column: pl.String for column in ROSTER_COLUMNS})
 
 
 def parse_park_codes_csv(raw: str | bytes) -> pl.DataFrame:

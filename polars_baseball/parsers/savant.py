@@ -1,10 +1,22 @@
+from __future__ import annotations
+
+import json
+import re
 from typing import TYPE_CHECKING, cast
 
+import lxml.etree
 import polars as pl
 
 from polars_baseball._config import DEFAULT_CSV_INFER_SCHEMA_LENGTH
+from polars_baseball._encoding import ensure_bytes, ensure_str
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.savant import (
+    SAVANT_PARK_FACTORS_REQUIRED,
+    SAVANT_PARK_FACTORS_TYPES,
+    SAVANT_SCHEMA_OVERRIDES,
+)
+from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
 from polars_baseball.parsers.base import BaseParser
-from polars_baseball.parsers.savant_schema import SAVANT_SCHEMA_OVERRIDES
 
 if TYPE_CHECKING:
     from lxml.etree import _Element
@@ -40,9 +52,6 @@ class SavantCSVParser(BaseParser):
 
 
 def check_savant_error_row(raw_data: str | bytes) -> None:
-    from polars_baseball._encoding import ensure_bytes
-    from polars_baseball.exceptions import UpstreamParseError
-
     raw_bin = ensure_bytes(raw_data)
     if b"error" not in raw_bin[:200]:
         return
@@ -57,15 +66,7 @@ def check_savant_error_row(raw_data: str | bytes) -> None:
     raise UpstreamParseError("Savant request failed with an error row.")
 
 
-_check_savant_error_row = check_savant_error_row
-
-
 def _parse_savant_embedded_json(raw_text: str) -> pl.DataFrame:
-    import json
-    import re
-
-    from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
-
     match = re.search(r"var data = (\[.*?\]);", raw_text, re.DOTALL)
     if not match:
         raise UpstreamStructureChangedError("Could not extract 'var data = [...]' JSON payload.")
@@ -79,10 +80,6 @@ def _parse_savant_embedded_json(raw_text: str) -> pl.DataFrame:
 
 
 def _parse_savant_html_table(raw_text: str) -> pl.DataFrame:
-    import lxml.etree
-
-    from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
-
     try:
         tree = lxml.etree.HTML(raw_text)
         if tree is None:
@@ -129,15 +126,12 @@ def parse_savant_leaderboard(raw: str | bytes) -> pl.DataFrame:
     Fails fast with UpstreamStructureChangedError if none of the formats match,
     or UpstreamParseError if error responses or corrupted formats are encountered.
     """
-    from polars_baseball._encoding import ensure_str
-    from polars_baseball.exceptions import UpstreamStructureChangedError
-
     raw_text = ensure_str(raw)
     stripped = raw_text.strip()
     if not stripped:
         return pl.DataFrame()
 
-    _check_savant_error_row(raw_text)
+    check_savant_error_row(raw_text)
 
     if not stripped.startswith("<") and "," in stripped:
         return SavantCSVParser().parse(raw_text)
@@ -155,9 +149,6 @@ def parse_savant_leaderboard(raw: str | bytes) -> pl.DataFrame:
 
 def parse_savant_park_factors(df: pl.DataFrame) -> pl.DataFrame:
     """Parse and normalize Savant Statcast Park Factors dataset."""
-    from polars_baseball._schema_utils import validate_and_cast_schema
-    from polars_baseball._schemas.savant import SAVANT_PARK_FACTORS_REQUIRED, SAVANT_PARK_FACTORS_TYPES
-
     if df.is_empty():
         return pl.DataFrame()
 

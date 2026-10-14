@@ -1,9 +1,8 @@
-"""MLB Stats API parser for schedule data."""
-
-from typing import Any, NamedTuple, cast
+from typing import NamedTuple, cast
 
 import polars as pl
 
+from polars_baseball._json_utils import JsonObject
 from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball._schemas.mlb import MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
 from polars_baseball.parsers.mlb.types import GameDict
@@ -17,7 +16,7 @@ class TeamInfo(NamedTuple):
     probable_pitcher_name: str | None
 
 
-def _team_info(game_data: dict[str, Any], team_type: str) -> TeamInfo:
+def _team_info(game_data: JsonObject, team_type: str) -> TeamInfo:
     teams = game_data.get("teams")
     if not isinstance(teams, dict):
         return TeamInfo(None, None, None, None, None)
@@ -47,7 +46,7 @@ class DecisionPitcher(NamedTuple):
     pitcher_name: str | None
 
 
-def _line_score(game_data: dict[str, Any], team_type: str) -> LineScore:
+def _line_score(game_data: JsonObject, team_type: str) -> LineScore:
     linescore = game_data.get("linescore")
     if not isinstance(linescore, dict):
         return LineScore(None, None)
@@ -63,7 +62,7 @@ def _line_score(game_data: dict[str, Any], team_type: str) -> LineScore:
     )
 
 
-def _decision_pitcher(game_data: dict[str, Any], decision_type: str) -> DecisionPitcher:
+def _decision_pitcher(game_data: JsonObject, decision_type: str) -> DecisionPitcher:
     decisions = game_data.get("decisions")
     if not isinstance(decisions, dict):
         return DecisionPitcher(None, None)
@@ -76,9 +75,11 @@ def _decision_pitcher(game_data: dict[str, Any], decision_type: str) -> Decision
     )
 
 
-def _game_metadata(game_data: dict[str, Any]) -> dict[str, Any]:
-    status = game_data.get("status", {})
-    venue = game_data.get("venue", {})
+def _game_metadata(game_data: JsonObject) -> JsonObject:
+    status_val = game_data.get("status")
+    status = status_val if isinstance(status_val, dict) else {}
+    venue_val = game_data.get("venue")
+    venue = venue_val if isinstance(venue_val, dict) else {}
     return {
         "gamePk": game_data.get("gamePk"),
         "gameType": game_data.get("gameType"),
@@ -104,7 +105,7 @@ def _game_metadata(game_data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def parse_game(game_data: dict[str, Any]) -> GameDict:
+def parse_game(game_data: JsonObject) -> GameDict:
     away = _team_info(game_data, "away")
     home = _team_info(game_data, "home")
     away_line = _line_score(game_data, "away")
@@ -140,7 +141,7 @@ def parse_game(game_data: dict[str, Any]) -> GameDict:
     )
 
 
-def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
+def parse_mlb_schedule(data: JsonObject) -> pl.DataFrame:
     """Parse schedule from MLB Stats API /schedule response.
 
     Iterates dates[].games[] across all dates in the response. Each
@@ -149,9 +150,14 @@ def parse_mlb_schedule(data: dict[str, Any]) -> pl.DataFrame:
     """
     dates = data.get("dates", [])
     rows: list[GameDict] = []
-    for schedule_date in dates:
-        for game in schedule_date.get("games", []):
-            rows.append(parse_game(game))
+    if isinstance(dates, list):
+        for schedule_date in dates:
+            if isinstance(schedule_date, dict):
+                games = schedule_date.get("games", [])
+                if isinstance(games, list):
+                    for game in games:
+                        if isinstance(game, dict):
+                            rows.append(parse_game(cast(JsonObject, game)))
     return validate_and_cast_schema(
         pl.DataFrame(rows, schema=MLB_SCHEDULE_TYPES), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
     )

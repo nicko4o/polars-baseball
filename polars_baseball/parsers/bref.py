@@ -1,4 +1,5 @@
 import io
+import logging
 from typing import cast
 
 import lxml.etree
@@ -6,12 +7,15 @@ import polars as pl
 from lxml.etree import _Element
 from lxml.html import HtmlElement
 
-from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
-from polars_baseball.parsers.base import BaseParser
-from polars_baseball.parsers.bref_schema import (
+from polars_baseball._schemas.bref import (
+    coerce_bref_schema,
     sanitize_and_coerce_bref,
     sanitize_bref_nulls,
 )
+from polars_baseball.exceptions import UpstreamParseError, UpstreamStructureChangedError
+from polars_baseball.parsers.base import BaseParser
+
+logger = logging.getLogger(__name__)
 
 # Named constants for mlbID extraction — avoids magic strings in DOM traversal.
 _MLB_ID_PARAM: str = "mlb_ID="
@@ -23,7 +27,7 @@ class BRefHTMLParser(BaseParser):
 
     Handles multi-column HTML tables from BRef player/team pages, extracting
     header rows and data rows via lxml. Applies null-token sanitization and
-    schema coercion via bref_schema.
+    schema coercion via _schemas.bref.
     """
 
     def parse(self, raw: str) -> pl.DataFrame:
@@ -196,8 +200,8 @@ def parse_bref_dataset(raw: str | bytes) -> pl.DataFrame:
     if not is_markup:
         try:
             return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
-        except Exception:
-            pass
+        except (pl.exceptions.PolarsError, UnicodeDecodeError) as exc:
+            logger.debug("Plain text not parseable as CSV, continuing fallback: %s", exc)
 
     # 1. Embedded CSV export
     df_export = _try_parse_bref_csv_export(raw_text)
@@ -282,7 +286,7 @@ class BRefGameLogParser(BaseParser):
 
     def _build_dataframe(self, rows: list[list[str]], flat_cols: list[str]) -> pl.DataFrame:
         if not rows:
-            return pl.DataFrame(schema={col: pl.Utf8 for col in flat_cols})
+            return pl.DataFrame(schema={col: pl.String for col in flat_cols})
 
         max_cols = len(flat_cols)
         col_data: dict[str, list[str]] = {col: [] for col in flat_cols}
@@ -293,10 +297,6 @@ class BRefGameLogParser(BaseParser):
         return pl.DataFrame(col_data)
 
     def _normalize_dataframe(self, df: pl.DataFrame) -> pl.DataFrame:
-        from polars_baseball.parsers.bref_schema import (
-            coerce_bref_schema,
-        )
-
         df = sanitize_bref_nulls(df)
         if "Rk" in df.columns:
             df = df.drop("Rk")

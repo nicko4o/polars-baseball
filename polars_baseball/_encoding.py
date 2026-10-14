@@ -1,8 +1,3 @@
-from typing import TypeVar
-
-_T = TypeVar("_T")
-
-
 def ensure_str(data: str | bytes) -> str:
     if isinstance(data, str):
         return data

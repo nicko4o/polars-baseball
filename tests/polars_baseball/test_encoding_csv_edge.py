@@ -110,5 +110,5 @@ async def test_default_context_concurrent_tasks() -> None:
 
     results = await asyncio.gather(*[get_default() for _ in range(10)])
     assert all(isinstance(r, BaseballContext) for r in results)
-    # Ensure instances are independent and not a shared mutable singleton
-    assert len({id(r) for r in results}) == 10
+    # Ensure instances share the thread-safe singleton
+    assert len({id(r) for r in results}) == 1

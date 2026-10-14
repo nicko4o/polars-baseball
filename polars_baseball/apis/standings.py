@@ -1,6 +1,5 @@
 import polars as pl
 
-from polars_baseball._cache import cached, generate_cache_key
 from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
 from polars_baseball._season import most_recent_season
 from polars_baseball.context import BaseballContext
@@ -9,29 +8,7 @@ from polars_baseball.gateways.mlb import MlbStatsGateway
 from polars_baseball.parsers.standings import parse_standings_payload
 
 _PRE_DEAD_BALL_START = MLB_FIRST_YEAR
-
-
-def _standings_cache_key(**kw: object) -> str:
-    season = kw.get("season")
-    url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
-    return generate_cache_key(url, {})
-
-
-@cached(key=_standings_cache_key)
-async def _fetch_standings(
-    season: int,
-    context: BaseballContext | None = None,
-    *,
-    force_update: bool = False,
-) -> pl.DataFrame:
-    ctx = context or BaseballContext.default()
-    url = f"{STATS_API_ROOT}/standings?leagueId=103,104&season={season}"
-    return await MlbStatsGateway(ctx).fetch(
-        url,
-        params=None,
-        error_msg="Failed to fetch or parse standings from MLB Stats API",
-        parser=lambda payload: parse_standings_payload(payload, season),
-    )
+_STANDINGS_URL = f"{STATS_API_ROOT}/standings"
 
 
 async def standings(
@@ -57,4 +34,12 @@ async def standings(
             f"This query currently only returns standings until the {_PRE_DEAD_BALL_START} season. "
             f"Try looking at years from {_PRE_DEAD_BALL_START} to present."
         )
-    return await _fetch_standings(season, context=context, force_update=force_update)
+    ctx = context or BaseballContext.default()
+    return await MlbStatsGateway(ctx).fetch(
+        _STANDINGS_URL,
+        params={"leagueId": "103,104", "season": season},
+        error_msg="Failed to fetch or parse standings from MLB Stats API",
+        parser=lambda payload: parse_standings_payload(payload, season),
+        use_cache=True,
+        force_update=force_update,
+    )

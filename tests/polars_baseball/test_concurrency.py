@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from polars_baseball._concurrency import LoopBoundLockRegistry, SingleFlight, bounded_gather
+from polars_baseball._concurrency import LoopBoundLockRegistry, bounded_gather
 
 
 @pytest.mark.asyncio
@@ -120,45 +120,6 @@ async def test_bounded_gather_calls_on_progress() -> None:
     await bounded_gather(tasks, concurrency_limit=2, on_progress=on_progress)
 
     assert progress_count == 5
-
-
-@pytest.mark.asyncio
-async def test_single_flight_coalesces_concurrent_calls() -> None:
-    sf = SingleFlight()
-    call_count = 0
-
-    async def expensive_task() -> str:
-        nonlocal call_count
-        call_count += 1
-        await asyncio.sleep(0.01)
-        return "result"
-
-    results = await asyncio.gather(
-        sf.do("k1", expensive_task),
-        sf.do("k1", expensive_task),
-        sf.do("k1", expensive_task),
-    )
-
-    assert results == ["result", "result", "result"]
-    assert call_count == 1
-    assert len(sf._calls) == 0
-
-
-@pytest.mark.asyncio
-async def test_single_flight_propagates_exception_and_cleans_up() -> None:
-    sf = SingleFlight()
-
-    async def failing_task() -> str:
-        await asyncio.sleep(0.005)
-        raise ValueError("task failed")
-
-    with pytest.raises(ValueError, match="task failed"):
-        await asyncio.gather(
-            sf.do("err_k", failing_task),
-            sf.do("err_k", failing_task),
-        )
-
-    assert len(sf._calls) == 0
 
 
 @pytest.mark.asyncio

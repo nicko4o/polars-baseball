@@ -184,11 +184,12 @@ async def statcast(
         logger.info("This is a large query, it may take a moment to complete")
 
     date_range = list(statcast_date_range(start_dt_date, end_dt_date, step=STATCAST_DATE_STEP, verbose=verbose))
+    ctx = context or BaseballContext.default()
 
     if parallel:
-        dataframe_list = await _run_statcast_parallel(date_range, team, verbose, context, concurrency_limit)
+        dataframe_list = await _run_statcast_parallel(date_range, team, verbose, ctx, concurrency_limit)
     else:
-        dataframe_list = await _run_statcast_sequential(date_range, team, verbose, context)
+        dataframe_list = await _run_statcast_sequential(date_range, team, verbose, ctx)
 
     dfs = [df for df in dataframe_list if df is not None and not df.is_empty()]
     if not dfs:
@@ -243,11 +244,12 @@ async def _statcast_player(
 ) -> pl.LazyFrame:
     pid = _check_player_id(player_id)
     start_dt_date, end_dt_date = sanitize_date_range(start_dt, end_dt)
+    ctx = context or BaseballContext.default()
     dfs = []
     curr = start_dt_date
     while curr <= end_dt_date:
         year_end = min(date(curr.year, 12, 31), end_dt_date)
-        chunk = await _player_request(curr, year_end, pid, player_type, context=context)
+        chunk = await _player_request(curr, year_end, pid, player_type, context=ctx)
         if not chunk.is_empty():
             dfs.append(chunk)
         curr = date(curr.year + 1, 1, 1)
