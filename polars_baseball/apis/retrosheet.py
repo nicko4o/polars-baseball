@@ -32,20 +32,13 @@ def _events_cache_key(**kw: object) -> str:
 
 
 @cached(key=_events_cache_key)
-async def events(
+async def _events_cached(
     season: int,
     game_type: str = "regular",
     context: BaseballContext | None = None,
     *,
     concurrency_limit: int = 5,
 ) -> pl.DataFrame:
-    """Fetch Retrosheet event files for a given season.
-
-    Returns one DataFrame with filename and raw event file content.
-    Note: game_type parameter selects file extensions (".EVA"/".EVN" for "regular",
-    post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
-    for unknown types and ServerError if no event files are found.
-    """
     if game_type not in _RETROSHEET_GAME_TYPE_EXTENSIONS:
         raise InvalidParameterError(
             f"Illegal type argument {game_type}, the valid types are: 'regular', 'post', and 'asg'."
@@ -67,6 +60,29 @@ async def events(
     results = await bounded_gather(tasks, concurrency_limit=concurrency_limit)
     rows = [row for row in results if row is not None]
     return events_frame(rows)
+
+
+async def events(
+    season: int,
+    game_type: str = "regular",
+    context: BaseballContext | None = None,
+    *,
+    concurrency_limit: int = 5,
+) -> pl.LazyFrame:
+    """Fetch Retrosheet event files for a given season.
+
+    Returns one LazyFrame with filename and raw event file content.
+    Note: game_type parameter selects file extensions (".EVA"/".EVN" for "regular",
+    post-season variants for "post", ".AS.EVE" for "asg"); raises InvalidParameterError
+    for unknown types and ServerError if no event files are found.
+    """
+    df = await _events_cached(
+        season,
+        game_type=game_type,
+        context=context,
+        concurrency_limit=concurrency_limit,
+    )
+    return df.lazy()
 
 
 def _rosters_cache_key(**kw: object) -> str:

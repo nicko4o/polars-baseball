@@ -31,9 +31,11 @@ async def test_events_uses_supplied_context() -> None:
     ctx = BaseballContext(http=mock_http)
 
     result = await events(2026, game_type="regular", context=ctx)
+    assert isinstance(result, pl.LazyFrame)
+    df = result.collect()
 
-    assert result["filename"].to_list() == ["2026NYN.EVA", "2026NYN.EVN"]
-    assert result["content"].to_list() == [mock_eva.encode("utf-8"), mock_evn.encode("utf-8")]
+    assert df["filename"].to_list() == ["2026NYN.EVA", "2026NYN.EVN"]
+    assert df["content"].to_list() == [mock_eva.encode("utf-8"), mock_evn.encode("utf-8")]
     assert mock_http.get_text.await_count == 3
 
 
@@ -56,17 +58,18 @@ async def test_events_returns_dataframe_with_raw_content() -> None:
     ctx = BaseballContext(http=mock_http)
     result = await events(2026, game_type="regular", context=ctx)
 
-    assert isinstance(result, pl.DataFrame)
-    assert result.schema == {
+    assert isinstance(result, pl.LazyFrame)
+    df = result.collect()
+    assert df.schema == {
         "season": pl.Int64,
         "event_type": pl.String,
         "filename": pl.String,
         "content": pl.Binary,
     }
-    assert result["season"].to_list() == [2026, 2026]
-    assert result["event_type"].to_list() == ["regular", "regular"]
-    assert result["filename"].to_list() == ["2026NYN.EVA", "2026NYN.EVN"]
-    assert result["content"].to_list() == [mock_eva.encode("utf-8"), mock_evn.encode("utf-8")]
+    assert df["season"].to_list() == [2026, 2026]
+    assert df["event_type"].to_list() == ["regular", "regular"]
+    assert df["filename"].to_list() == ["2026NYN.EVA", "2026NYN.EVN"]
+    assert df["content"].to_list() == [mock_eva.encode("utf-8"), mock_evn.encode("utf-8")]
 
 
 @pytest.mark.asyncio
@@ -164,5 +167,5 @@ async def test_events_bounded_concurrency_admission() -> None:
     limit = 2
     result = await events(2026, game_type="regular", context=ctx, concurrency_limit=limit)
 
-    assert isinstance(result, pl.DataFrame)
+    assert isinstance(result, pl.LazyFrame)
     assert peak <= limit

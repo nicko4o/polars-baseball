@@ -165,7 +165,7 @@ async def statcast(
     context: BaseballContext | None = None,
     *,
     concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Fetch Statcast pitch-level data for a date range.
 
     Dates beyond a single day are split into sub-queries internally (max 7 days per request)
@@ -192,24 +192,24 @@ async def statcast(
 
     dfs = [df for df in dataframe_list if df is not None and not df.is_empty()]
     if not dfs:
-        return pl.DataFrame()
+        return pl.LazyFrame()
 
     final_df = pl.concat(_align_schemas(dfs), how="diagonal")
     return _sort_statcast(final_df)
 
 
-async def statcast_single_game(game_pk: str | int, context: BaseballContext | None = None) -> pl.DataFrame:
+async def statcast_single_game(game_pk: str | int, context: BaseballContext | None = None) -> pl.LazyFrame:
     """Fetch Statcast data for a single game.
 
     Note:
-        - Returns empty DataFrame when ``game_pk`` is invalid or the game has no data.
-        - Postponed or cancelled games return an empty DataFrame.
+        - Returns empty LazyFrame when ``game_pk`` is invalid or the game has no data.
+        - Postponed or cancelled games return an empty LazyFrame.
     """
     url = _SC_SINGLE_GAME_REQUEST.format(game_pk=game_pk)
     ctx = context or BaseballContext.default()
     df = await SavantGateway(ctx).get_dataset(url)
     if df.is_empty():
-        return pl.DataFrame()
+        return pl.LazyFrame()
 
     return _sort_statcast(df)
 
@@ -224,11 +224,11 @@ def _check_player_id(player_id: int | None) -> int:
     return player_id
 
 
-def _sort_statcast(df: pl.DataFrame) -> pl.DataFrame:
+def _sort_statcast(df: pl.DataFrame) -> pl.LazyFrame:
     existing = [c for c in _SORT_COLS if c in df.columns]
     if existing:
-        return df.sort(existing, descending=True)
-    return df
+        return df.sort(existing, descending=True).lazy()
+    return df.lazy()
 
 
 _align_schemas = align_statcast_schemas
@@ -240,7 +240,7 @@ async def _statcast_player(
     end_dt: str | date | None,
     player_id: int | None,
     context: BaseballContext | None = None,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     pid = _check_player_id(player_id)
     start_dt_date, end_dt_date = sanitize_date_range(start_dt, end_dt)
     dfs = []
@@ -252,7 +252,7 @@ async def _statcast_player(
             dfs.append(chunk)
         curr = date(curr.year + 1, 1, 1)
     if not dfs:
-        return pl.DataFrame()
+        return pl.LazyFrame()
     return _sort_statcast(pl.concat(_align_schemas(dfs), how="diagonal"))
 
 
@@ -261,7 +261,7 @@ async def statcast_batter(
     end_date: str | date | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Fetch Statcast data for a specific batter.
 
     Delegates to ``_statcast_player`` with ``player_type="batter"``.
@@ -275,7 +275,7 @@ async def statcast_pitcher(
     end_date: str | date | None = None,
     player_id: int | None = None,
     context: BaseballContext | None = None,
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     """Fetch Statcast data for a specific pitcher.
 
     Delegates to ``_statcast_player`` with ``player_type="pitcher"``.

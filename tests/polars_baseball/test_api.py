@@ -20,9 +20,10 @@ async def test_statcast_batter_api(
     mock_http.get_text = AsyncMock(return_value="pitcher,release_speed,pitch_type\n123456,95.5,FF\n")
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_batter(start_date="2026-06-01", end_date="2026-06-02", player_id=123456, context=ctx)
+    lf = await statcast_batter(start_date="2026-06-01", end_date="2026-06-02", player_id=123456, context=ctx)
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 1
     assert df["pitcher"][0] == 123456
 
@@ -38,9 +39,10 @@ async def test_statcast_pitcher_api(
     mock_http.get_text = AsyncMock(return_value="pitcher,release_speed,pitch_type\n789012,84.2,SL\n")
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_pitcher(start_date="2026-06-01", end_date="2026-06-02", player_id=789012, context=ctx)
+    lf = await statcast_pitcher(start_date="2026-06-01", end_date="2026-06-02", player_id=789012, context=ctx)
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 1
     assert df["pitcher"][0] == 789012
 
@@ -56,14 +58,15 @@ async def test_statcast_api_cache_hit(
     mock_cache_get.return_value = cached_df
     ctx = BaseballContext()
 
-    df = await statcast_batter(
+    lf = await statcast_batter(
         start_date="2026-06-01",
         end_date="2026-06-02",
         player_id=111,
         context=ctx,
     )
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.equals(cached_df)
 
 

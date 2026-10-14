@@ -32,7 +32,8 @@ def test_live_savant_statcast_single_game() -> None:
     # Fetch a single real game from 2024 (game_pk=747046)
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await statcast_single_game(game_pk=747046, context=ctx)
+            lf = await statcast_single_game(game_pk=747046, context=ctx)
+            return lf.collect()
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)
