@@ -13,18 +13,21 @@ from polars_baseball import __version__
 from .models import BenchmarkDimensions, BenchmarkMetrics, BenchmarkRun
 
 
-def _extract_shape(result: pl.DataFrame | list[pl.DataFrame]) -> tuple[int, int]:
+def _extract_shape(result: pl.DataFrame | pl.LazyFrame | list[pl.DataFrame]) -> tuple[int, int]:
     if isinstance(result, list):
         if not result:
             return (0, 0)
         rows = sum(df.height for df in result)
         cols = result[0].width
         return (rows, cols)
+    if isinstance(result, pl.LazyFrame):
+        df = result.collect()
+        return (df.height, df.width)
     return (result.height, result.width)
 
 
 async def run_benchmark(
-    fn: Callable[..., Awaitable[pl.DataFrame | list[pl.DataFrame]]],
+    fn: Callable[..., Awaitable[pl.DataFrame | pl.LazyFrame | list[pl.DataFrame]]],
     dimensions: BenchmarkDimensions,
     /,
     **kwargs: object,

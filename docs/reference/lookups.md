@@ -118,29 +118,21 @@ The following example shows how to perform player searches, reverse ID lookups, 
 ```python
 import asyncio
 import polars as pl
-from polars_baseball import (
-    KeyType,
-    chadwick_register,
-    fangraphs,
-    player_search_list,
-    playerid_lookup,
-    playerid_reverse_lookup,
-)
-from polars_baseball.apis.teamid import team_ids
+from polars_baseball import KeyType, fangraphs, lookup
 
 async def main() -> None:
     # 1. Player search and batch search
-    jones = await playerid_lookup("jones")
-    judge = await playerid_lookup("judge", "aaron")
-    players = await player_search_list([("judge", "aaron")])
+    jones = await lookup.playerid_lookup("jones")
+    judge = await lookup.playerid_lookup("judge", "aaron")
+    players = await lookup.player_search_list([("judge", "aaron")])
     print("Player Search:", judge.head())
 
     # 2. Reverse lookup
-    reversed_df = await playerid_reverse_lookup([592450], key_type=KeyType.MLBAM)
+    reversed_df = await lookup.playerid_reverse_lookup([592450], key_type=KeyType.MLBAM)
     print("Reverse Lookup:", reversed_df.head())
 
     # 3. Synchronous Team ID mapping joined with FanGraphs data
-    teams_df = team_ids(2019)
+    teams_df = lookup.team_ids(2019)
     batting_df = await fangraphs.team_batting(start_season=2019)
     batting_df = batting_df.select([
         pl.col(column).alias(f"batting.{column}")
@@ -155,7 +147,7 @@ async def main() -> None:
     print("Joined Teams:", joined_df.head(2))
 
     # 4. Chadwick Register
-    register = await chadwick_register(save=True)
+    register = await lookup.chadwick_register(save=True)
     print("Chadwick Register:", register.head(2))
 
 if __name__ == "__main__":

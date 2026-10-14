@@ -51,7 +51,7 @@ Use standard Python `try...except` blocks to handle caller errors vs. transient 
 
 ```python
 import asyncio
-from polars_baseball import statcast
+from polars_baseball.savant import statcast
 from polars_baseball.exceptions import (
     ClientError,
     PolarsBaseballHttpError,

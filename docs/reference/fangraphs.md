@@ -55,9 +55,9 @@ FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AV
 ### Supported Syntax Options
 
 - **Tuple Shorthand (Zero-import, Recommended)**: `[("HR", ">", 40), ("AVG", ">=", 0.300)]`
-- **Mathematical Operators**: `[pb.FanGraphsFilter("HR", ">", 40)]`
-- **Factory Methods**: `[pb.FanGraphsFilter.gt("HR", 40)]`
-- **Enum Values**: `[pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]`
+- **Mathematical Operators**: `[pb.fangraphs.FanGraphsFilter("HR", ">", 40)]`
+- **Factory Methods**: `[pb.fangraphs.FanGraphsFilter.gt("HR", 40)]`
+- **Enum Values**: `[pb.fangraphs.FanGraphsFilter("HR", pb.fangraphs.FanGraphsFilterOp.GT, 40)]`
 
 ```python
 import polars_baseball as pb
@@ -66,13 +66,13 @@ import polars_baseball as pb
 filters_tuple = [("HR", ">", 40), ("AVG", ">=", 0.300)]
 
 # 2. Mathematical Operators
-filters_math = [pb.FanGraphsFilter("HR", ">", 40)]
+filters_math = [pb.fangraphs.FanGraphsFilter("HR", ">", 40)]
 
 # 3. Factory Methods
-filters_factory = [pb.FanGraphsFilter.gt("HR", 40), pb.FanGraphsFilter.gte("AVG", 0.300)]
+filters_factory = [pb.fangraphs.FanGraphsFilter.gt("HR", 40), pb.fangraphs.FanGraphsFilter.gte("AVG", 0.300)]
 
 # 4. Typed Enum
-filters_enum = [pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]
+filters_enum = [pb.fangraphs.FanGraphsFilter("HR", pb.fangraphs.FanGraphsFilterOp.GT, 40)]
 ```
 
 ### Operator Mappings
@@ -151,9 +151,9 @@ async def main() -> None:
     print("Filtered Batting (HR > 40, AVG >= .300):", filtered_batting.head(2))
 
     # 3. Using fg_data directly for custom queries
-    season_df = await pb.fg_data(start_season=2026)
-    qualified_df = await pb.fg_data(start_season=2023, qual=50)
-    split_df = await pb.fg_data(start_season=2022, end_season=2026, split_seasons=True)
+    season_df = await pb.fangraphs.fg_data(start_season=2026)
+    qualified_df = await pb.fangraphs.fg_data(start_season=2023, qual=50)
+    split_df = await pb.fangraphs.fg_data(start_season=2022, end_season=2026, split_seasons=True)
     print("Direct Query:", season_df.head(2))
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 | Identity | `mlb.people`, `mlb.people_awards` | You need official person metadata or award timelines. |
 | Schedule and team metadata | `mlb.schedule`, `mlb.teams`, `mlb.roster`, `mlb.venues`, `mlb.divisions`, `mlb.leagues` | You need game lists, roster snapshots, or joinable dimension tables. |
 | Game data | `mlb.game_boxscore`, `mlb.game_boxscore_stats`, `mlb.game_play_by_play`, `mlb.game_win_probability`, `mlb.game_feed_live`, `mlb.game_linescore`, `mlb.game_highlights`, `mlb.film_room_search` | You need single-game player, play, live-feed, inning, or video highlight and Film Room search data. |
-| Stats and leaderboards | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `standings` | You need official stat groups, league leaders, or standings. |
+| Stats and leaderboards | `mlb.player_stats`, `mlb.team_stats`, `mlb.stat_leaders`, `mlb.pitch_arsenal`, `mlb.standings` | You need official stat groups, league leaders, or standings. |
 | Operations | `mlb.transactions`, `mlb.draft`, `mlb.postseason_schedule` | You need roster movement, draft records, or postseason schedule rows. |
 
 > [!TIP]
@@ -438,9 +438,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 24. Standings (`standings`)
+## 24. Standings (`mlb.standings`)
 
-`standings(season: int | None = None) -> pl.DataFrame`
+`mlb.standings(season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
 
 Retrieves one MLB standings table for a season, with division metadata columns.
 
@@ -450,10 +450,10 @@ Retrieves one MLB standings table for a season, with division metadata columns.
 
 ```python
 import asyncio
-from polars_baseball import standings
+import polars_baseball as pb
 
 async def main() -> None:
-    df = await standings(2019)
+    df = await pb.mlb.standings(2019)
     print(df.head())
 
 if __name__ == "__main__":

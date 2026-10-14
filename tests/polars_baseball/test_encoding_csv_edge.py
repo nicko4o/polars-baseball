@@ -104,14 +104,11 @@ async def test_cffi_429_is_wrapped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_default_singleton_concurrent_tasks() -> None:
-    BaseballContext._default_instance = None
-
-    async def get_default() -> int:
-        ctx = BaseballContext.default()
-        return id(ctx)
+async def test_default_context_concurrent_tasks() -> None:
+    async def get_default() -> BaseballContext:
+        return BaseballContext.default()
 
     results = await asyncio.gather(*[get_default() for _ in range(10)])
-    assert all(r == results[0] for r in results)
-
-    BaseballContext._default_instance = None
+    assert all(isinstance(r, BaseballContext) for r in results)
+    # Ensure instances are independent and not a shared mutable singleton
+    assert len({id(r) for r in results}) == 10

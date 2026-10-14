@@ -3,9 +3,13 @@ from unittest.mock import AsyncMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import statcast, statcast_single_game
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.statcast import statcast_batter, statcast_pitcher
+from polars_baseball.apis.statcast import (
+    statcast,
+    statcast_batter,
+    statcast_pitcher,
+    statcast_single_game,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError, UpstreamUnavailableError
 

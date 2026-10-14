@@ -25,6 +25,8 @@ from polars_baseball.apis.mlb import (
     mlb_transactions as transactions,
     mlb_venues as venues,
 )
+from polars_baseball.apis.standings import standings
+from polars_baseball.apis.top_prospects import prospect_rankings
 
 __all__ = [
     "divisions",
@@ -43,8 +45,10 @@ __all__ = [
     "pitch_arsenal",
     "player_stats",
     "postseason_schedule",
+    "prospect_rankings",
     "roster",
     "schedule",
+    "standings",
     "stat_leaders",
     "team_stats",
     "teams",

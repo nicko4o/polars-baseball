@@ -1,55 +1,40 @@
 from __future__ import annotations
 
 import logging
-import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
 
-from polars_baseball._cache import CacheAdapter, FileCacheAdapter, global_cache
+from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter, global_cache
 from polars_baseball._client import HttpClient
 
 
 @dataclass
-class BaseballContext:
-    """Context container for HTTP client and caching adapter.
-
-    Supports the async context manager protocol to ensure that resources (e.g., HTTP sessions)
-    are cleaned up automatically upon exit.
-
-    Use :meth:`BaseballContext.default` to get a lazily-initialized shared instance,
-    or create your own with the ``async with`` pattern for explicit lifecycle control.
-
-    Warning:
-        If you pass a shared HttpClient instance to multiple BaseballContexts, exiting one context
-        will close the shared HTTP client, affecting other contexts. In such cases, manage client
-        lifecycles manually instead of using context managers.
-    """
+class BaseballClient:
+    """Explicit client instance managing transport sessions and isolated cache."""
 
     http: HttpClient = field(default_factory=HttpClient)
     cache: CacheAdapter = field(default_factory=lambda: global_cache)
     github_token: str | None = None
 
-    _default_instance: ClassVar[BaseballContext | None] = None
-    _lock: ClassVar[threading.Lock] = threading.Lock()
+    @classmethod
+    def with_file_cache(cls, cache_dir: Path, *, http: HttpClient | None = None) -> BaseballClient:
+        return cls(http=http or HttpClient(), cache=FileCacheAdapter(cache_dir))
 
     @classmethod
-    def default(cls) -> BaseballContext:
-        with cls._lock:
-            if cls._default_instance is None:
-                cls._default_instance = cls()
-            return cls._default_instance
+    def with_null_cache(cls, *, http: HttpClient | None = None) -> BaseballClient:
+        return cls(http=http or HttpClient(), cache=NullCacheAdapter())
+
+    @classmethod
+    def default(cls) -> BaseballClient:
+        """Create a fresh default client instance."""
+        return cls()
 
     @classmethod
     def reset_default(cls) -> None:
-        with cls._lock:
-            cls._default_instance = None
+        """No-op retained for API compatibility without global singleton state."""
+        pass
 
-    @classmethod
-    def with_file_cache(cls, cache_dir: Path, *, http: HttpClient | None = None) -> BaseballContext:
-        return cls(http=http or HttpClient(), cache=FileCacheAdapter(cache_dir))
-
-    async def __aenter__(self) -> BaseballContext:
+    async def __aenter__(self) -> BaseballClient:
         return self
 
     async def __aexit__(
@@ -63,38 +48,23 @@ class BaseballContext:
         except Exception as close_exc:
             if _exc_val is not None:
                 logging.getLogger("polars_baseball").warning(
-                    "Error closing BaseballContext during exception cleanup: %s", close_exc
+                    "Error closing BaseballClient during exception cleanup: %s", close_exc
                 )
             else:
                 raise
 
     async def close(self) -> None:
-        """Close HTTP resources owned by this context and reset the default if this is it."""
-        with BaseballContext._lock:
-            if BaseballContext._default_instance is self:
-                BaseballContext._default_instance = None
+        """Close HTTP resources owned by this client."""
         await self.http.close()
 
 
-async def cleanup(ctx: BaseballContext | None = None) -> None:
-    """Close HTTP resources and reset the default context singleton if applicable.
+BaseballContext = BaseballClient
 
-    When called without arguments, the current default singleton is targeted and
-    cleared before closing, so no other caller can observe a half-closed client.
 
-    Args:
-        ctx: Context to clean up. If ``None``, the current default singleton is
-             targeted. Passing an explicit context cleans it up and clears the
-             default reference if it is the singleton.
+async def cleanup(ctx: BaseballClient | None = None) -> None:
+    """Close HTTP resources owned by the given client.
+
+    If ctx is None, no-op as there is no shared global singleton.
     """
-    if ctx is None:
-        with BaseballContext._lock:
-            target = BaseballContext._default_instance
-            BaseballContext._default_instance = None
-    else:
-        target = ctx
-        with BaseballContext._lock:
-            if BaseballContext._default_instance is target:
-                BaseballContext._default_instance = None
-    if target is not None:
-        await target.http.close()
+    if ctx is not None:
+        await ctx.close()

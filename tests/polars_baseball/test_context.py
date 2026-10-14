@@ -1,86 +1,78 @@
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from polars_baseball._cache import CacheAdapter, FileCacheAdapter, global_cache
+from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter
 from polars_baseball._client import HttpClient
-from polars_baseball.context import BaseballContext, cleanup
+from polars_baseball.context import BaseballClient, BaseballContext, cleanup
 
 
-@pytest.fixture(autouse=False)
-def reset_default():
-    BaseballContext._default_instance = None
-    yield
-    BaseballContext._default_instance = None
+def test_baseball_client_alias() -> None:
+    assert BaseballContext is BaseballClient
 
 
-def test_baseball_context_defaults() -> None:
-    ctx = BaseballContext()
-    assert isinstance(ctx.http, HttpClient)
-    assert isinstance(ctx.cache, CacheAdapter)
-    assert ctx.cache is global_cache
+def test_baseball_client_defaults() -> None:
+    client = BaseballClient()
+    assert isinstance(client.http, HttpClient)
+    assert isinstance(client.cache, CacheAdapter)
 
 
-def test_baseball_context_with_file_cache(tmp_path: Path) -> None:
-    ctx = BaseballContext.with_file_cache(tmp_path)
-    assert isinstance(ctx.http, HttpClient)
-    assert isinstance(ctx.cache, FileCacheAdapter)
-    assert ctx.cache.cache_dir == tmp_path
+def test_baseball_client_with_file_cache(tmp_path: Path) -> None:
+    client = BaseballClient.with_file_cache(tmp_path)
+    assert isinstance(client.http, HttpClient)
+    assert isinstance(client.cache, FileCacheAdapter)
+    assert client.cache.cache_dir == tmp_path
 
 
-def test_baseball_context_injection() -> None:
+def test_baseball_client_with_null_cache() -> None:
+    client = BaseballClient.with_null_cache()
+    assert isinstance(client.http, HttpClient)
+    assert isinstance(client.cache, NullCacheAdapter)
+
+
+def test_baseball_client_injection() -> None:
     mock_http = MagicMock(spec=HttpClient)
     mock_cache = MagicMock(spec=CacheAdapter)
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
-    assert ctx.http is mock_http
-    assert ctx.cache is mock_cache
+    client = BaseballClient(http=mock_http, cache=mock_cache)
+    assert client.http is mock_http
+    assert client.cache is mock_cache
 
 
-@pytest.mark.usefixtures("reset_default")
-def test_default_singleton() -> None:
-    ctx1 = BaseballContext.default()
-    ctx2 = BaseballContext.default()
-    assert ctx1 is ctx2
+def test_default_returns_fresh_instance_without_singleton() -> None:
+    ctx1 = BaseballClient.default()
+    ctx2 = BaseballClient.default()
+    assert ctx1 is not ctx2
+    assert isinstance(ctx1, BaseballClient)
+    assert isinstance(ctx2, BaseballClient)
 
 
-@pytest.mark.usefixtures("reset_default")
-def test_reset_default() -> None:
-    ctx1 = BaseballContext.default()
-    BaseballContext.reset_default()
-    ctx2 = BaseballContext.default()
-    assert ctx2 is not ctx1
+def test_reset_default_is_noop() -> None:
+    BaseballClient.reset_default()
 
 
 @pytest.mark.asyncio
-async def test_cleanup_with_explicit_context() -> None:
+async def test_cleanup_with_explicit_client() -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
-    await cleanup(ctx)
+    await cleanup(client)
 
     mock_http.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("reset_default")
-async def test_cleanup_without_arg_closes_default() -> None:
-    mock_http = AsyncMock(spec=HttpClient)
-    BaseballContext._default_instance = BaseballContext(http=mock_http)
-
+async def test_cleanup_without_arg_is_noop() -> None:
+    # No singleton exists, calling cleanup() without arguments should safely no-op
     await cleanup()
 
-    mock_http.close.assert_awaited_once()
-    assert BaseballContext._default_instance is None
-
 
 @pytest.mark.asyncio
-async def test_context_close_closes_http_client() -> None:
+async def test_client_close_closes_http_client() -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
-    await ctx.close()
+    await client.close()
 
     mock_http.close.assert_awaited_once()
 
@@ -88,73 +80,29 @@ async def test_context_close_closes_http_client() -> None:
 @pytest.mark.asyncio
 async def test_context_manager() -> None:
     mock_http = AsyncMock(spec=HttpClient)
-    async with BaseballContext(http=mock_http) as ctx:
-        assert ctx.http is mock_http
+    async with BaseballClient(http=mock_http) as client:
+        assert client.http is mock_http
 
     mock_http.close.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("reset_default")
-async def test_close_resets_default_if_is_default() -> None:
-    mock_http = AsyncMock(spec=HttpClient)
-    ctx = BaseballContext(http=mock_http)
-    BaseballContext._default_instance = ctx
-
-    await ctx.close()
-
-    assert BaseballContext._default_instance is None
-    mock_http.close.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("reset_default")
-async def test_cleanup_detaches_default_before_closing() -> None:
-    close_started = asyncio.Event()
-    allow_close = asyncio.Event()
-    mock_http = AsyncMock(spec=HttpClient)
-
-    async def delayed_close() -> None:
-        close_started.set()
-        await allow_close.wait()
-
-    mock_http.close.side_effect = delayed_close
-    ctx = BaseballContext(http=mock_http)
-    BaseballContext._default_instance = ctx
-
-    cleanup_task = asyncio.create_task(cleanup(ctx))
-    await close_started.wait()
-
-    assert BaseballContext._default_instance is None
-
-    allow_close.set()
-    await cleanup_task
-
-
-@pytest.mark.usefixtures("reset_default")
-def test_default_is_baseballcontext_instance() -> None:
-    ctx = BaseballContext.default()
-    assert isinstance(ctx, BaseballContext)
-    assert isinstance(ctx.http, HttpClient)
 
 
 @pytest.mark.asyncio
 async def test_context_aexit_preserves_exception() -> None:
-    ctx = BaseballContext()
-    ctx.http = AsyncMock()
-    ctx.http.close.side_effect = RuntimeError("Close failed")
+    client = BaseballClient()
+    client.http = AsyncMock()
+    client.http.close.side_effect = RuntimeError("Close failed")
 
     with pytest.raises(ValueError, match="Original error"):
-        async with ctx:
+        async with client:
             raise ValueError("Original error")
 
 
 @pytest.mark.asyncio
 async def test_context_aexit_does_not_swallow_keyboard_interrupt() -> None:
-    ctx = BaseballContext()
-    ctx.http = AsyncMock()
-    ctx.http.close.side_effect = KeyboardInterrupt()
+    client = BaseballClient()
+    client.http = AsyncMock()
+    client.http.close.side_effect = KeyboardInterrupt()
 
     with pytest.raises(KeyboardInterrupt):
-        async with ctx:
+        async with client:
             raise ValueError("Original error")

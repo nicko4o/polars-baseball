@@ -3,49 +3,18 @@ import inspect
 import polars_baseball as pb
 
 ROOT_PUBLIC_API = {
-    "ArsenalType",
+    "BaseballClient",
     "BaseballContext",
-    "FanGraphsFilter",
-    "FanGraphsFilterOp",
-    "FangraphsLeague",
-    "FangraphsMonth",
-    "FangraphsPositions",
-    "FangraphsStatColumn",
-    "FangraphsStatsCategory",
     "KeyType",
-    "MlbRosterType",
-    "MlbStatsGroup",
     "Position",
     "bref",
-    "bref_game_logs",
-    "bref_splits",
-    "chadwick_register",
     "cleanup",
-    "configure_cache",
     "fangraphs",
-    "fg_data",
-    "get_lookup_table",
     "lahman",
+    "lookup",
     "mlb",
-    "mlb_film_room_search",
-    "mlb_game_highlights",
-    "player_name_suggestions",
-    "player_search_list",
-    "playerid_lookup",
-    "playerid_reverse_lookup",
-    "prospect_rankings",
-    "reset_lookup_table",
     "retrosheet",
     "savant",
-    "scan_statcast",
-    "standings",
-    "statcast",
-    "statcast_batter",
-    "statcast_pitcher",
-    "statcast_single_game",
-    "sync_statcast",
-    "team_ids",
-    "top_prospects",
 }
 
 IMPLEMENTATION_NAMESPACE_LEAKS = {
@@ -66,7 +35,7 @@ def test_public_api_symbols_exist() -> None:
 
 
 def test_root_all_is_stable_public_api() -> None:
-    assert set(pb.__all__) == ROOT_PUBLIC_API
+    assert set(pb.__all__) == ROOT_PUBLIC_API | {"__version__"}
 
 
 def test_root_namespace_hides_implementation_packages() -> None:
@@ -84,12 +53,12 @@ def test_root_namespace_has_no_unlisted_user_facing_symbols() -> None:
 
 
 def test_statcast_is_async_function() -> None:
-    assert inspect.iscoroutinefunction(pb.statcast)
+    assert inspect.iscoroutinefunction(pb.savant.statcast)
 
 
 def test_scan_sync_statcast_are_async_functions() -> None:
-    assert inspect.iscoroutinefunction(pb.scan_statcast)
-    assert inspect.iscoroutinefunction(pb.sync_statcast)
+    assert inspect.iscoroutinefunction(pb.savant.scan_statcast)
+    assert inspect.iscoroutinefunction(pb.savant.sync_statcast)
 
 
 def test_savant_namespace_exposes_scan_sync_statcast() -> None:
@@ -99,6 +68,12 @@ def test_savant_namespace_exposes_scan_sync_statcast() -> None:
 
 def test_cleanup_is_async_function() -> None:
     assert inspect.iscoroutinefunction(pb.cleanup)
+
+
+def test_lookup_namespace_functions_are_async() -> None:
+    assert inspect.iscoroutinefunction(pb.lookup.playerid_lookup)
+    assert inspect.iscoroutinefunction(pb.lookup.playerid_reverse_lookup)
+    assert inspect.iscoroutinefunction(pb.lookup.chadwick_register)
 
 
 def test_provider_namespace_functions_are_async() -> None:
@@ -120,7 +95,7 @@ def test_provider_namespace_functions_are_async() -> None:
 def test_root_public_api_has_docstrings() -> None:
     missing_docstrings = [
         name
-        for name in pb.__all__
+        for name in ROOT_PUBLIC_API
         if (inspect.isfunction(getattr(pb, name)) or inspect.isclass(getattr(pb, name)))
         and not inspect.getdoc(getattr(pb, name))
     ]
@@ -130,7 +105,7 @@ def test_root_public_api_has_docstrings() -> None:
 
 def test_root_public_api_docstrings_do_not_use_numpy_sections() -> None:
     numpy_style_docstrings = []
-    for name in pb.__all__:
+    for name in ROOT_PUBLIC_API:
         doc = inspect.getdoc(getattr(pb, name))
         if doc is not None and "----------" in doc:
             numpy_style_docstrings.append(name)

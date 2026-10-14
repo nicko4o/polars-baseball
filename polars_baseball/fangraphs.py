@@ -8,7 +8,9 @@ import polars as pl
 
 from polars_baseball._config import FG_MAX_RESULTS
 from polars_baseball.apis.fangraphs import (
+    FanGraphsFilter,
     FanGraphsFilterInput,
+    FanGraphsFilterOp,
     fg_data,
 )
 from polars_baseball.context import BaseballContext
@@ -244,7 +246,10 @@ async def team_relievers(
 
 
 __all__ = [
+    "FanGraphsFilter",
+    "FanGraphsFilterOp",
     "batting",
+    "fg_data",
     "fielding",
     "pitching",
     "team_batting",

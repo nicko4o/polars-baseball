@@ -53,7 +53,7 @@ polars-baseball -> Polars -> analysis
 - **多資料來源**：Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、
   Retrosheet、MLB Stats API 與 player ID workflow。
 - **Built-in cache**：重複網路請求會以 Parquet 快取，適合大量查詢。
-- **Service-ready context**：`BaseballContext` 讓長駐服務明確控制 HTTP 與 cache 資源。
+- **Service-ready client**：`BaseballClient`（亦稱 `BaseballContext`）讓長駐服務明確控制 HTTP 與 cache 資源。
 
 ## 安裝
 
@@ -86,7 +86,8 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
+    lf = await pb.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
+    df = lf.collect()
     print(df.head(5))
 
 
@@ -104,12 +105,13 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast_pitcher(
+    lf = await pb.savant.pitcher(
         start_date="2026-06-01",
         end_date="2026-06-01",
-        # 不知道 ID？用 pb.playerid_lookup("法官", "Aaron") 查詢
+        # 不知道 ID？用 pb.lookup.playerid_lookup("Judge", "Aaron") 查詢
         player_id=506433,
     )
+    df = lf.collect()
     summary = df.group_by("pitch_type").agg(
         pl.col("release_speed").mean().alias("mean_speed"),
         pl.len().alias("pitch_count"),
@@ -188,8 +190,7 @@ Runner 會回報 wall time、CPU time、peak Python memory（透過 `tracemalloc
 
 ## Web 服務與高並行
 
-未傳入 `context` 時，套件會使用隱式的 package-level `BaseballContext`。這對腳本很方便，
-但長駐高並行服務應該自己管理 context，並把它傳給每次 API 呼叫。
+長駐高並行服務應該自己管理 `BaseballClient`（或 `BaseballContext`），並把它傳給每次 API 呼叫，達到明確連線池與資源管理：
 
 ```python
 from contextlib import asynccontextmanager
@@ -201,8 +202,8 @@ import polars_baseball as pb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with pb.BaseballContext() as context:
-        app.state.pb_context = context
+    async with pb.BaseballClient() as client:
+        app.state.pb_client = client
         yield
 
 
@@ -211,21 +212,20 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/statcast")
 async def get_statcast() -> dict[str, int]:
-    df = await pb.statcast(
+    lf = await pb.savant.statcast(
         start_date="2026-06-01",
         end_date="2026-06-02",
-        context=app.state.pb_context,
+        context=app.state.pb_client,
     )
+    df = lf.collect()
     return {"rows": df.height}
 ```
 
 ## API 命名空間政策
 
-套件根目錄（`import polars_baseball as pb`）公開核心 convenience API 與 provider namespace。
-Provider-specific 工作流請使用 `pb.fangraphs`、`pb.savant`、`pb.mlb`。
-Lahman、Retrosheet、Baseball Reference 與 player ID workflows 仍可從 package root 使用。
+套件根目錄（`import polars_baseball as pb`）公開 7 大 Provider 命名空間（`pb.savant`、`pb.fangraphs`、`pb.bref`、`pb.mlb`、`pb.retrosheet`、`pb.lahman`、`pb.lookup`）、Client 類別（`pb.BaseballClient`、`pb.BaseballContext`）與核心 Enum（`Position`、`KeyType`）。
 
-以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
+各資料源專屬函式與 Enum 均收斂於各自命名空間中（例如 `pb.fangraphs.*`、`pb.mlb.*`）。以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 
 ## 文件與資源
 

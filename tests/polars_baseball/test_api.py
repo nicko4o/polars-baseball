@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import statcast_batter, statcast_pitcher
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
+from polars_baseball.apis.statcast import statcast_batter, statcast_pitcher
 from polars_baseball.context import BaseballContext
 
 
@@ -73,7 +73,7 @@ async def test_statcast_api_cache_hit(
 @pytest.mark.asyncio
 @patch("polars_baseball.apis.top_prospects.resolve_team_id")
 async def test_top_prospects_api_export(mock_resolve_team_id: AsyncMock) -> None:
-    from polars_baseball import top_prospects
+    from polars_baseball.apis.top_prospects import top_prospects
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(
