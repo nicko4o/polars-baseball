@@ -39,7 +39,7 @@ class FangraphsHTMLParser(BaseParser):
         utf8_cols = [
             pl.col(col).str.replace_all(r"<[^>]+>", "", literal=False).str.strip_chars().alias(col)
             for col in df.columns
-            if df[col].dtype == pl.Utf8
+            if df[col].dtype == pl.String
         ]
         return df.with_columns(utf8_cols) if utf8_cols else df
 

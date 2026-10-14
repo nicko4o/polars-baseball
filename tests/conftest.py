@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from polars_baseball._cache import global_cache
+from polars_baseball.context import BaseballContext
 
 
 @pytest.fixture(autouse=True)
@@ -11,5 +12,7 @@ def isolated_polars_baseball_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     cache_path = tmp_path / "polars_baseball-cache"
     monkeypatch.setenv("POLARS_BASEBALL_CACHE_DIR", str(cache_path))
     global_cache.reset()
+    BaseballContext.reset_default()
     yield
     global_cache.reset()
+    BaseballContext.reset_default()

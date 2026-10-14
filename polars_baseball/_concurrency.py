@@ -11,44 +11,6 @@ from typing import TypeVar, cast
 T = TypeVar("T")
 
 
-class SingleFlight:
-    """Coalesce duplicate concurrent in-flight requests for the same key.
-
-    Only the first caller initiates the execution; subsequent concurrent callers
-    await the shared in-flight future until completion.
-    """
-
-    def __init__(self) -> None:
-        self._calls: dict[str, asyncio.Future[object]] = {}
-        self._guard = threading.Lock()
-
-    async def do(self, key: str, fn: Callable[[], Awaitable[T]]) -> T:
-        loop = asyncio.get_running_loop()
-        with self._guard:
-            existing = self._calls.get(key)
-            if existing is not None:
-                fut = existing
-                is_initiator = False
-            else:
-                fut = loop.create_future()
-                self._calls[key] = fut
-                is_initiator = True
-
-        if not is_initiator:
-            return cast(T, await fut)
-
-        try:
-            result = await fn()
-            fut.set_result(result)
-            return result
-        except BaseException as exc:
-            fut.set_exception(exc)
-            raise
-        finally:
-            with self._guard:
-                self._calls.pop(key, None)
-
-
 class LoopBoundLockRegistry:
     """Event-loop bound lock registry that cleans up automatically when loops close.
 

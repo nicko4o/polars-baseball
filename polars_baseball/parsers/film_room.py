@@ -10,8 +10,8 @@ from polars_baseball.exceptions import UpstreamParseError
 
 PLAYBACK_SCHEMA = pl.Struct(
     {
-        "name": pl.Utf8,
-        "url": pl.Utf8,
+        "name": pl.String,
+        "url": pl.String,
         "bitrate": pl.Int64,
         "width": pl.Int64,
         "height": pl.Int64,
@@ -19,17 +19,17 @@ PLAYBACK_SCHEMA = pl.Struct(
 )
 
 FILM_ROOM_SCHEMA: Mapping[str, pl.DataType | type[pl.DataType]] = {
-    "content_id": pl.Utf8,
+    "content_id": pl.String,
     "date": pl.Date,
-    "title": pl.Utf8,
-    "blurb": pl.Utf8,
+    "title": pl.String,
+    "blurb": pl.String,
     "player_id": pl.Int64,
-    "player_name": pl.Utf8,
-    "event_type": pl.Utf8,
+    "player_name": pl.String,
+    "event_type": pl.String,
     "exit_velocity": pl.Float64,
     "hit_distance": pl.Int64,
-    "best_mp4_url": pl.Utf8,
-    "hls_url": pl.Utf8,
+    "best_mp4_url": pl.String,
+    "hls_url": pl.String,
     "playbacks": pl.List(PLAYBACK_SCHEMA),
 }
 

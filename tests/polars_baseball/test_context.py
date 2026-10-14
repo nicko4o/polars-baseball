@@ -39,16 +39,18 @@ def test_baseball_client_injection() -> None:
     assert client.cache is mock_cache
 
 
-def test_default_returns_fresh_instance_without_singleton() -> None:
+def test_default_returns_shared_instance() -> None:
     ctx1 = BaseballClient.default()
     ctx2 = BaseballClient.default()
-    assert ctx1 is not ctx2
+    assert ctx1 is ctx2
     assert isinstance(ctx1, BaseballClient)
-    assert isinstance(ctx2, BaseballClient)
 
 
-def test_reset_default_is_noop() -> None:
+def test_reset_default_clears_singleton() -> None:
+    ctx1 = BaseballClient.default()
     BaseballClient.reset_default()
+    ctx2 = BaseballClient.default()
+    assert ctx1 is not ctx2
 
 
 @pytest.mark.asyncio
@@ -62,9 +64,15 @@ async def test_cleanup_with_explicit_client() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cleanup_without_arg_is_noop() -> None:
-    # No singleton exists, calling cleanup() without arguments should safely no-op
+async def test_cleanup_without_arg_closes_default_singleton() -> None:
+    client = BaseballClient.default()
+    mock_http = AsyncMock(spec=HttpClient)
+    client.http = mock_http
+
     await cleanup()
+
+    mock_http.close.assert_awaited_once()
+    assert BaseballClient._default_instance is None
 
 
 @pytest.mark.asyncio

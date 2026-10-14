@@ -12,7 +12,7 @@ from polars_baseball._storage_primitives import (
     resolve_cache_dir,
 )
 from polars_baseball.context import BaseballContext
-from polars_baseball.exceptions import UpstreamUnavailableError
+from polars_baseball.exceptions import ClientError
 from polars_baseball.gateways.compiled import COMPILED_DATASETS_DIR
 
 _DATASET_DIR = "statcast"
@@ -34,7 +34,7 @@ class StatcastDatasetGateway:
 
     def _root(self) -> Path:
         if self._cache_dir is None:
-            raise UpstreamUnavailableError("Compiled dataset requires a file-backed cache directory.")
+            raise ClientError("Compiled dataset requires a file-backed cache directory.")
         return self._cache_dir / COMPILED_DATASETS_DIR / _DATASET_DIR
 
     def partition_path(self, year: int) -> Path:

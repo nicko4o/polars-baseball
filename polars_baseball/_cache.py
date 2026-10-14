@@ -318,6 +318,7 @@ class GlobalCache(CacheAdapter):
     """Cache adapter routing to the dynamically configured cache directory."""
 
     def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
+        self._lock = threading.Lock()
         if use_null_default and cache_dir is None:
             self._explicit_adapter: CacheAdapter | None = NullCacheAdapter()
         elif cache_dir is not None:
@@ -336,15 +337,20 @@ class GlobalCache(CacheAdapter):
     def _get_adapter(self) -> CacheAdapter:
         if self._explicit_adapter is not None:
             return self._explicit_adapter
-        return FileCacheAdapter(_resolve_default_cache_dir())
+        with self._lock:
+            if self._explicit_adapter is None:
+                self._explicit_adapter = FileCacheAdapter(_resolve_default_cache_dir())
+            return self._explicit_adapter
 
     def configure(self, cache_dir: Path) -> None:
-        self._explicit_adapter = FileCacheAdapter(cache_dir)
-        os.environ["POLARS_BASEBALL_CACHE_DIR"] = str(cache_dir)
+        with self._lock:
+            self._explicit_adapter = FileCacheAdapter(cache_dir)
+            os.environ["POLARS_BASEBALL_CACHE_DIR"] = str(cache_dir)
 
     def reset(self) -> None:
         """Reset explicit adapter back to dynamic environment-driven default."""
-        self._explicit_adapter = None
+        with self._lock:
+            self._explicit_adapter = None
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         return self._get_adapter().get(key, max_age)
