@@ -24,6 +24,9 @@ ignore = [
     "RUF100", # unused noqa — false-positive on F403 when isolated-file scanning differs from package scan
 ]
 
+[lint.isort]
+combine-as-imports = true
+
 [lint.mccabe]
 max-complexity = 12
 
