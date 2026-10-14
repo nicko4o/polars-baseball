@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 from typing import Final, Literal
 
-import httpx
 import polars as pl
+from curl_cffi import requests
 
 from polars_baseball._config import CHADWICK_REGISTER_ARCHIVE_URL, LAHMAN_ARCHIVE_URL
 from polars_baseball.apis.lahman import LAHMAN_DATASET, LAHMAN_TABLE_FILES, _lahman_table
@@ -26,10 +26,9 @@ DatasetName = Literal["all", "lahman", "chadwick-register"]
 
 
 def _download_archive(url: str) -> bytes:
-    with httpx.Client(timeout=HTTP_TIMEOUT_SECONDS, follow_redirects=True) as client:
-        response = client.get(url)
-        response.raise_for_status()
-        return response.content
+    response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return response.content
 
 
 def _sha256(raw: bytes) -> str:

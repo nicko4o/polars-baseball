@@ -2,8 +2,8 @@ import asyncio
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from polars_baseball._client import HttpClient
 from polars_baseball._encoding import ensure_str
@@ -86,27 +86,21 @@ def test_savant_csv_whitespace_only() -> None:
 
 
 @pytest.mark.asyncio
-async def test_httpx_429_is_wrapped() -> None:
+async def test_cffi_429_is_wrapped() -> None:
     client = HttpClient(max_retries=0, retry_backoff_base_seconds=0)
-    error_response = MagicMock(spec=httpx.Response)
-    error_response.status_code = 429
-    error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        message="Too Many Requests",
-        request=MagicMock(),
-        response=error_response,
-    )
+    error_response = MagicMock(status_code=429)
 
-    mock_httpx = MagicMock(spec=httpx.AsyncClient)
-    mock_httpx.get = AsyncMock(return_value=error_response)
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(side_effect=CurlHTTPError("Too Many Requests", response=error_response))
 
     from polars_baseball.exceptions import PolarsBaseballHttpError
 
-    with patch.object(client, "_httpx_client", mock_httpx):
+    with patch.object(client, "_cffi_session", mock_session):
         with pytest.raises(PolarsBaseballHttpError) as exc_info:
             await client.get_text("https://baseballsavant.mlb.com/api")
 
     assert exc_info.value.status_code == 429
-    assert mock_httpx.get.await_count == 1
+    assert mock_session.get.await_count == 1
 
 
 @pytest.mark.asyncio

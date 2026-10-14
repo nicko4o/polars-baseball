@@ -43,7 +43,6 @@ dependencies = [
     "tqdm>=4.50.0",
     "curl_cffi>=0.10.0",
     "polars>=1.0.0",
-    "httpx",
     "typing_extensions>=4.0.0",
 ]
 
