@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import timedelta
 
 import polars as pl
@@ -177,361 +177,127 @@ def _apply_filters(df: pl.DataFrame, filters: Sequence[FanGraphsFilter]) -> pl.D
     return df.filter(*exprs)
 
 
-@dataclass(frozen=True)
-class FanGraphsRequest:
-    start_season: int
-    end_season: int | None = None
-    stats_category: FangraphsStatsCategory = FangraphsStatsCategory.BATTING
-    league: FangraphsLeague = FangraphsLeague.ALL
-    month: FangraphsMonth = FangraphsMonth.ALL
-    position: FangraphsPositions = FangraphsPositions.ALL
-    stat_columns: list[FangraphsStatColumn] = field(default_factory=list)
-    qual: int | None = None
-    split_seasons: bool = True
-    ind: int = 1
-    on_active_roster: bool = False
-    minimum_age: int = 0
-    maximum_age: int = 100
-    team: str = ""
-    filters: list[FanGraphsFilter] = field(default_factory=list)
-    players: str = ""
-    max_results: int = FG_MAX_RESULTS
-    is_team_data: bool = False
-    _row_id_name: str = "IDfg"
-    _row_id_param: str = "playerid"
-
-    def __post_init__(self) -> None:
-        if self.end_season is None:
-            object.__setattr__(self, "end_season", self.start_season)
-
-        if isinstance(self.stats_category, str):
-            object.__setattr__(self, "stats_category", _resolve_stats_category(self.stats_category))
-        if isinstance(self.league, str):
-            object.__setattr__(self, "league", _resolve_league(self.league))
-        if isinstance(self.month, str):
-            object.__setattr__(self, "month", _resolve_month(self.month))
-        if isinstance(self.position, str):
-            object.__setattr__(self, "position", _resolve_position(self.position))
-        if isinstance(self.filters, list):
-            coerced_filters = [FanGraphsFilter.coerce(f) for f in self.filters]
-            object.__setattr__(self, "filters", coerced_filters)
-
-        _validate_enum_field(self.stats_category, FangraphsStatsCategory, "stats_category")
-        _validate_enum_field(self.league, FangraphsLeague, "league")
-        _validate_enum_field(self.month, FangraphsMonth, "month")
-        _validate_enum_field(self.position, FangraphsPositions, "position")
-        _validate_list_of_enum(self.stat_columns, FangraphsStatsBase, "stat_columns")
-
-        if not self.stat_columns:
-            object.__setattr__(self, "stat_columns", stat_list_from_str(self.stats_category, "ALL"))
-
-    @classmethod
-    def from_raw(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        stats_category: str | FangraphsStatsCategory = FangraphsStatsCategory.BATTING,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-        is_team_data: bool = False,
-    ) -> FanGraphsRequest:
-        """Create a FanGraphsRequest from raw string or enum inputs."""
-        resolved_category = _resolve_stats_category(stats_category)
-        resolved_columns = stat_list_from_str(resolved_category, stat_columns)
-
-        return cls(
-            start_season=start_season,
-            end_season=end_season,
-            stats_category=resolved_category,
-            league=_resolve_league(league),
-            month=_resolve_month(month),
-            position=_resolve_position(position),
-            stat_columns=resolved_columns,
-            qual=qual,
-            split_seasons=split_seasons,
-            ind=ind,
-            on_active_roster=on_active_roster,
-            minimum_age=minimum_age,
-            maximum_age=maximum_age,
-            team=team,
-            filters=[FanGraphsFilter.coerce(f) for f in filters] if filters else [],
-            players=players,
-            max_results=max_results,
-            is_team_data=is_team_data,
-        )
-
-    @classmethod
-    def _create_variant(
-        cls,
-        category: FangraphsStatsCategory,
-        is_team_data: bool,
-        raw_args: dict[str, object],
-    ) -> FanGraphsRequest:
-        kwargs = {k: v for k, v in raw_args.items() if k not in ("cls", "self")}
-        return cls.from_raw(stats_category=category, is_team_data=is_team_data, **kwargs)  # type: ignore[arg-type]
-
-    @classmethod
-    def batting(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.BATTING, False, locals())
-
-    @classmethod
-    def pitching(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.PITCHING, False, locals())
-
-    @classmethod
-    def fielding(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.FIELDING, False, locals())
-
-    @classmethod
-    def team_batting(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.BATTING, True, locals())
-
-    @classmethod
-    def team_pitching(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.PITCHING, True, locals())
-
-    @classmethod
-    def team_fielding(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.FIELDING, True, locals())
-
-    @classmethod
-    def team_starters(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: Sequence[FanGraphsFilterInput] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.STARTERS, True, locals())
-
-    @classmethod
-    def team_relievers(
-        cls,
-        start_season: int,
-        *,
-        end_season: int | None = None,
-        league: str | FangraphsLeague = FangraphsLeague.ALL,
-        month: str | FangraphsMonth = FangraphsMonth.ALL,
-        position: str | FangraphsPositions = FangraphsPositions.ALL,
-        stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
-        qual: int | None = None,
-        split_seasons: bool = True,
-        ind: int = 1,
-        on_active_roster: bool = False,
-        minimum_age: int = 0,
-        maximum_age: int = 100,
-        team: str = "",
-        filters: list[FanGraphsFilter] | None = None,
-        players: str = "",
-        max_results: int = FG_MAX_RESULTS,
-    ) -> FanGraphsRequest:
-        return cls._create_variant(FangraphsStatsCategory.RELIEVERS, True, locals())
-
-
-def _build_fg_url_options(request: FanGraphsRequest) -> dict[str, object]:
-    page_params = {"pageitems": str(request.max_results), "pagenum": "1"}
-    team = f"{request.team or 0},ts" if request.is_team_data else request.team
-    ind = request.ind if request.ind == 0 else int(request.split_seasons)
-    position: FangraphsPositions = request.position
-    league: FangraphsLeague = request.league
-    month: FangraphsMonth = request.month
+def _build_fg_url_options(
+    start_season: int,
+    end_season: int,
+    category: FangraphsStatsCategory,
+    league: FangraphsLeague,
+    month: FangraphsMonth,
+    position: FangraphsPositions,
+    stat_columns: list[FangraphsStatColumn],
+    qual: int | None,
+    split_seasons: bool,
+    ind: int,
+    on_active_roster: bool,
+    minimum_age: int,
+    maximum_age: int,
+    team: str,
+    filters: Sequence[FanGraphsFilterInput],
+    players: str,
+    max_results: int,
+    is_team_data: bool,
+) -> dict[str, object]:
+    page_params = {"pageitems": str(max_results), "pagenum": "1"}
+    team_param = f"{team or 0},ts" if is_team_data else team
+    ind_val = ind if ind == 0 else int(split_seasons)
     return {
         "pos": position.value,
-        "stats": request.stats_category.value,
+        "stats": category.value,
         "lg": league.value,
-        "qual": request.qual if request.qual is not None else "y",
-        "type": stat_list_to_str(request.stat_columns),
-        "season": request.end_season,
+        "qual": qual if qual is not None else "y",
+        "type": stat_list_to_str(stat_columns),
+        "season": end_season,
         "month": month.value,
-        "season1": request.start_season,
-        "ind": ind,
-        "team": team,
-        "rost": int(request.on_active_roster),
-        "age": f"{request.minimum_age},{request.maximum_age}",
-        "filter": _serialize_filters(request.filters),
-        "players": request.players,
+        "season1": start_season,
+        "ind": ind_val,
+        "team": team_param,
+        "rost": int(on_active_roster),
+        "age": f"{minimum_age},{maximum_age}",
+        "filter": _serialize_filters(filters),
+        "players": players,
         **page_params,
     }
 
 
-def _resolve_fg_cache_max_age(request: FanGraphsRequest, cache_max_age: timedelta | None) -> timedelta | None:
+def _resolve_fg_cache_max_age(end_season: int, cache_max_age: timedelta | None) -> timedelta | None:
     if cache_max_age is not None:
         return cache_max_age
-    end_season = request.end_season if request.end_season is not None else request.start_season
     if end_season >= most_recent_season():
         return FG_ACTIVE_SEASON_CACHE_TTL
     return None
 
 
 async def fg_data(
-    request: FanGraphsRequest,
-    context: BaseballContext | None = None,
+    start_season: int,
     *,
+    end_season: int | None = None,
+    stats_category: str | FangraphsStatsCategory = FangraphsStatsCategory.BATTING,
+    league: str | FangraphsLeague = FangraphsLeague.ALL,
+    month: str | FangraphsMonth = FangraphsMonth.ALL,
+    position: str | FangraphsPositions = FangraphsPositions.ALL,
+    stat_columns: str | list[str] | list[FangraphsStatColumn] = "ALL",
+    qual: int | None = None,
+    split_seasons: bool = True,
+    ind: int = 1,
+    on_active_roster: bool = False,
+    minimum_age: int = 0,
+    maximum_age: int = 100,
+    team: str = "",
+    filters: Sequence[FanGraphsFilterInput] | None = None,
+    players: str = "",
+    max_results: int = FG_MAX_RESULTS,
+    is_team_data: bool = False,
+    context: BaseballContext | None = None,
     force_update: bool = False,
     cache_max_age: timedelta | None = None,
 ) -> pl.DataFrame:
-    """Execute a pre-built FanGraphs request and return the parsed results.
+    """Fetch and return parsed FanGraphs leaderboard results.
 
     Uses ``curl_cffi`` (via :class:`BaseballContext`) to bypass Cloudflare protection.
     Results are cached in the context cache backend.
-
-    Args:
-        request: The configured FanGraphsRequest object.
-        context: Optional BaseballContext.
-        force_update: Bypass cache and fetch fresh data from FanGraphs.
-        cache_max_age: Cache expiration duration. Defaults to 24 hours for current
-            or future seasons, or None (permanent) for historical seasons.
-
-    Note:
-        - Returns empty DataFrame when the upstream HTML contains no data table.
-        - FanGraphs rate-limiting or Cloudflare challenges may cause delays or failures.
     """
+    resolved_end_season = start_season if end_season is None else end_season
+    resolved_category = _resolve_stats_category(stats_category)
+    resolved_league = _resolve_league(league)
+    resolved_month = _resolve_month(month)
+    resolved_position = _resolve_position(position)
+    resolved_columns = stat_list_from_str(resolved_category, stat_columns)
+
+    _validate_enum_field(resolved_category, FangraphsStatsCategory, "stats_category")
+    _validate_enum_field(resolved_league, FangraphsLeague, "league")
+    _validate_enum_field(resolved_month, FangraphsMonth, "month")
+    _validate_enum_field(resolved_position, FangraphsPositions, "position")
+    _validate_list_of_enum(resolved_columns, FangraphsStatsBase, "stat_columns")
+
+    coerced_filters = [FanGraphsFilter.coerce(f) for f in filters] if filters else []
+
+    options = _build_fg_url_options(
+        start_season=start_season,
+        end_season=resolved_end_season,
+        category=resolved_category,
+        league=resolved_league,
+        month=resolved_month,
+        position=resolved_position,
+        stat_columns=resolved_columns,
+        qual=qual,
+        split_seasons=split_seasons,
+        ind=ind,
+        on_active_roster=on_active_roster,
+        minimum_age=minimum_age,
+        maximum_age=maximum_age,
+        team=team,
+        filters=coerced_filters,
+        players=players,
+        max_results=max_results,
+        is_team_data=is_team_data,
+    )
+
     ctx = context or BaseballContext.default()
-    effective_max_age = _resolve_fg_cache_max_age(request, cache_max_age)
+    effective_max_age = _resolve_fg_cache_max_age(resolved_end_season, cache_max_age)
     df = await FanGraphsGateway(ctx).get_leaderboard(
         FG_LEADERS_URL,
-        _build_fg_url_options(request),
+        options,
         max_age=effective_max_age,
         force_update=force_update,
     )
-    return _apply_filters(df, request.filters)
+    return _apply_filters(df, coerced_filters)

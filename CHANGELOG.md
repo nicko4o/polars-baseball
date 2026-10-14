@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-14
+
 ### Added
 
-- `pb.bref_game_logs()` (and `pb.bref.game_logs()`) retrieves single-season game-by-game statistics from Baseball Reference.
-- `pb.bref_splits()` (and `pb.bref.splits()`) retrieves platoon and situational splits from Baseball Reference.
+- `pb.lookup` namespace containing player and entity resolution endpoints (`playerid_lookup`, `playerid_reverse_lookup`, `chadwick_register`, etc.).
+- `BaseballClient` class for explicit transport session and isolated cache management (`BaseballContext` is retained as an alias).
+- `pb.bref.game_logs()` retrieves single-season game-by-game statistics from Baseball Reference.
+- `pb.bref.splits()` retrieves platoon and situational splits from Baseball Reference.
+
+### Changed
+
+- **[Breaking]** Purified package root namespace: data-fetching functions must now be accessed through their respective provider namespaces (`pb.savant.*`, `pb.fangraphs.*`, `pb.bref.*`, `pb.mlb.*`, `pb.lahman.*`, `pb.retrosheet.*`, `pb.lookup.*`). Deprecated flat exports at package root (`pb.statcast`, `pb.schedule`, etc.) have been removed.
+- **[Breaking]** Statcast pitch-level queries (`pb.savant.statcast`, `pb.savant.batter`, `pb.savant.pitcher`, `pb.savant.single_game`) and Retrosheet events (`pb.retrosheet.events`) now return `polars.LazyFrame` instead of eager `polars.DataFrame`. Call `.collect()` to trigger evaluation.
+- **[Breaking]** Removed `FanGraphsRequest` DTO class; custom FanGraphs leaderboard queries now pass parameters directly to `pb.fangraphs.fg_data()`.
+- Unified HTTP transport engine on `curl_cffi` across all endpoints with consistent browser impersonation and Cloudflare Turnstile detection.
 
 ## [0.24.0] - 2026-10-05
 

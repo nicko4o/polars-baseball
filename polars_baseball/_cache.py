@@ -6,6 +6,7 @@ import hashlib
 import inspect
 import json
 import logging
+import os
 import threading
 import weakref
 from abc import ABC, abstractmethod
@@ -17,7 +18,7 @@ from typing import ParamSpec, Protocol, TypeVar, cast
 import polars as pl
 from polars.exceptions import ComputeError
 
-from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR
+from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR, _resolve_default_cache_dir
 from polars_baseball._storage_primitives import atomic_write_bytes, atomic_write_parquet
 from polars_baseball.exceptions import CacheClearError
 
@@ -314,34 +315,36 @@ class NullCacheAdapter(CacheAdapter):
 
 
 class GlobalCache(CacheAdapter):
-    """Thread-safe process-wide cache adapter with dynamic backend switching."""
+    """Cache adapter routing to the dynamically configured cache directory."""
 
     def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
-        self._cache_dir = cache_dir if cache_dir is not None else DEFAULT_CACHE_DIR
         if use_null_default and cache_dir is None:
-            self._adapter: CacheAdapter | None = NullCacheAdapter()
+            self._explicit_adapter: CacheAdapter | None = NullCacheAdapter()
+        elif cache_dir is not None:
+            self._explicit_adapter = FileCacheAdapter(cache_dir)
         else:
-            self._adapter = None
-        self._lock = threading.Lock()
+            self._explicit_adapter = None
 
     @property
     def cache_dir(self) -> Path:
-        with self._lock:
-            if isinstance(self._adapter, NullCacheAdapter):
-                raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
-            return self._cache_dir
+        adapter = self._get_adapter()
+        if isinstance(adapter, NullCacheAdapter):
+            raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
+        assert adapter.cache_dir is not None
+        return adapter.cache_dir
 
     def _get_adapter(self) -> CacheAdapter:
-        with self._lock:
-            if self._adapter is None:
-                self._adapter = FileCacheAdapter(self._cache_dir)
-            return self._adapter
+        if self._explicit_adapter is not None:
+            return self._explicit_adapter
+        return FileCacheAdapter(_resolve_default_cache_dir())
 
     def configure(self, cache_dir: Path) -> None:
-        adapter = FileCacheAdapter(cache_dir)
-        with self._lock:
-            self._cache_dir = cache_dir
-            self._adapter = adapter
+        self._explicit_adapter = FileCacheAdapter(cache_dir)
+        os.environ["POLARS_BASEBALL_CACHE_DIR"] = str(cache_dir)
+
+    def reset(self) -> None:
+        """Reset explicit adapter back to dynamic environment-driven default."""
+        self._explicit_adapter = None
 
     def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
         return self._get_adapter().get(key, max_age)
@@ -363,7 +366,7 @@ global_cache = GlobalCache()
 
 
 def configure_cache(cache_dir: Path) -> None:
-    """Configure the process-wide file cache directory."""
+    """Configure the file cache directory."""
     global_cache.configure(cache_dir)
 
 

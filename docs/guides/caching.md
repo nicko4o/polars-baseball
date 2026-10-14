@@ -12,25 +12,19 @@
 
 ### Programmatic Configuration
 
-Use `configure_cache` from `polars_baseball`:
+For explicit lifecycle control, create a file-backed `BaseballClient` (or `BaseballContext`):
 
 ```python
 from pathlib import Path
-from polars_baseball import configure_cache
+from polars_baseball import BaseballClient
 
-custom_cache_path = Path("./my_project_cache")
-configure_cache(custom_cache_path)
+client = BaseballClient.with_file_cache(Path("./my_project_cache"))
 ```
 
-`configure_cache()` enables the package-level cache used by APIs called without an explicit `context=`.
-For explicit lifecycle control, create a file-backed context instead:
+For package-level defaults, configure the `POLARS_BASEBALL_CACHE_DIR` environment variable before running your application:
 
-```python
-from pathlib import Path
-from polars_baseball import BaseballContext
-from polars_baseball._cache import FileCacheAdapter, NullCacheAdapter
-
-context = BaseballContext.with_file_cache(Path("./my_project_cache"))
+```bash
+export POLARS_BASEBALL_CACHE_DIR="./my_project_cache"
 ```
 
 Use `NullCacheAdapter` for production services that need all caching controlled by the application.
@@ -91,10 +85,8 @@ async def lifespan(app: FastAPI):
         await app.state.pb_context.close()
 ```
 
-### Environment Variable
-
-`POLARS_BASEBALL_CACHE_DIR` only affects `FileCacheAdapter()` instances created without an explicit path.
-Call `configure_cache()` or `BaseballContext.with_file_cache()` to enable file caching.
+`POLARS_BASEBALL_CACHE_DIR` configures the default cache directory for file-backed operations.
+Call `BaseballClient.with_file_cache()` (or `BaseballContext.with_file_cache()`) to enable file caching explicitly.
 
 ## Cache Behavior
 

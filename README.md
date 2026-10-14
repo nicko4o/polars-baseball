@@ -57,7 +57,7 @@ polars-baseball -> Polars -> analysis
 - **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
   Retrosheet, MLB Stats API, and player ID workflows.
 - **Opt-in file cache**: Large workflows can cache repeated network requests as Parquet files.
-- **Service-ready context**: `BaseballContext` lets long-running apps control HTTP and cache
+- **Service-ready client**: `BaseballClient` (or `BaseballContext`) lets long-running apps control HTTP and cache
   resources explicitly.
 - **Explicit HTTP policy**: `HttpClient` exposes timeout, retry, and BRef rate-limit settings.
 
@@ -92,7 +92,8 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
+    lf = await pb.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
+    df = lf.collect()
     print(df.head(5))
 
 
@@ -110,12 +111,13 @@ import polars_baseball as pb
 
 
 async def main() -> None:
-    df = await pb.statcast_pitcher(
+    lf = await pb.savant.pitcher(
         start_date="2026-06-01",
         end_date="2026-06-01",
-        # Use pb.playerid_lookup("Judge", "Aaron") to find player IDs
+        # Use pb.lookup.playerid_lookup("Judge", "Aaron") to find player IDs
         player_id=506433,
     )
+    df = lf.collect()
     summary = df.group_by("pitch_type").agg(
         pl.col("release_speed").mean().alias("mean_speed"),
         pl.len().alias("pitch_count"),
@@ -195,10 +197,7 @@ against pandas-first workflows.
 
 ## Web Services & Concurrency
 
-Calling package functions without `context` uses the implicit package-level `BaseballContext`.
-That default context is convenient for scripts and does not write cache files unless
-`configure_cache()` has been called. Long-running concurrent services should manage their own
-context and pass it into every API call.
+Long-running concurrent services should manage their own `BaseballClient` (or `BaseballContext`) and pass it into API calls for explicit resource and connection pool management:
 
 ```python
 from contextlib import asynccontextmanager
@@ -210,8 +209,8 @@ import polars_baseball as pb
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with pb.BaseballContext() as context:
-        app.state.pb_context = context
+    async with pb.BaseballClient() as client:
+        app.state.pb_client = client
         yield
 
 
@@ -220,26 +219,20 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/statcast")
 async def get_statcast() -> dict[str, int]:
-    df = await pb.statcast(
+    lf = await pb.savant.statcast(
         start_date="2026-06-01",
         end_date="2026-06-02",
-        context=app.state.pb_context,
+        context=app.state.pb_client,
     )
+    df = lf.collect()
     return {"rows": df.height}
 ```
 
 ## API Namespace Policy
 
-The package root (`import polars_baseball as pb`) exposes core convenience APIs and provider
-namespaces. Use `pb.fangraphs`, `pb.savant`, and `pb.mlb` for provider-specific workflows.
-Lahman, Retrosheet, Baseball Reference, and player ID workflows remain available from the package root.
+The package root (`import polars_baseball as pb`) exposes provider namespaces (`pb.savant`, `pb.fangraphs`, `pb.bref`, `pb.mlb`, `pb.retrosheet`, `pb.lahman`, `pb.lookup`), client classes (`pb.BaseballClient`, `pb.BaseballContext`), and universal enums (`Position`, `KeyType`).
 
-Typed enums such as `Position`, `MlbStatsGroup`, `MlbRosterType`, `FangraphsStatsCategory`,
-`FangraphsMonth`, `FangraphsLeague`, `FangraphsPositions`, and `FangraphsStatColumn` are exported from
-the package root for use in typed parameters.
-
-Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part
-of the compatibility contract.
+Provider-specific workflows and enums live in their dedicated namespaces (e.g. `pb.fangraphs.*`, `pb.mlb.*`). Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part of the compatibility contract.
 
 ## Documentation & Resources
 

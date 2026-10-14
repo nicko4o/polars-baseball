@@ -26,27 +26,13 @@ For common queries, use helper functions under the `fangraphs` namespace (e.g. `
 
 ### Arguments
 
-The namespace helpers accept all arguments supported by `FanGraphsRequest` directly as keyword arguments.
-
----
-
-## Advanced Queries (`fg_data`)
-
-Advanced callers can construct a `FanGraphsRequest` object and pass it directly to `fg_data` to execute custom or fine-tuned requests.
-
-### Functions
-
-- `fg_data(request: FanGraphsRequest) -> pl.DataFrame`
-
-### `FanGraphsRequest` Attributes
-
-Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGraphsRequest.pitching(...)`, `FanGraphsRequest.team_batting(...)`, etc.
+The namespace helpers accept the following keyword arguments:
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `start_season` | `int` | required | First season to retrieve. |
-| `end_season` | `int | None` | `start_season` | Final season to retrieve. |
-| `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch. |
+| `end_season` | `int \| None` | `start_season` | Final season to retrieve. |
+| `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch (for `fg_data`). |
 | `league` | `FangraphsLeague \| str` | `ALL` | League filter (e.g. `"AL"`, `"NL"`). |
 | `month` | `FangraphsMonth \| str` | `ALL` | Month or split filter. |
 | `position` | `FangraphsPositions \| str` | `ALL` | Position filter. |
@@ -64,14 +50,14 @@ Construct requests using classmethods: `FanGraphsRequest.batting(...)`, `FanGrap
 
 ## Leaderboard Filtering (`filters`)
 
-FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of tuples or `FanGraphsFilter` objects via the `filters` argument in either `pb.fangraphs.*` helpers or `FanGraphsRequest`.
+FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of tuples or `FanGraphsFilter` objects via the `filters` argument in `pb.fangraphs.*` helpers.
 
 ### Supported Syntax Options
 
 - **Tuple Shorthand (Zero-import, Recommended)**: `[("HR", ">", 40), ("AVG", ">=", 0.300)]`
-- **Mathematical Operators**: `[pb.FanGraphsFilter("HR", ">", 40)]`
-- **Factory Methods**: `[pb.FanGraphsFilter.gt("HR", 40)]`
-- **Enum Values**: `[pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]`
+- **Mathematical Operators**: `[pb.fangraphs.FanGraphsFilter("HR", ">", 40)]`
+- **Factory Methods**: `[pb.fangraphs.FanGraphsFilter.gt("HR", 40)]`
+- **Enum Values**: `[pb.fangraphs.FanGraphsFilter("HR", pb.fangraphs.FanGraphsFilterOp.GT, 40)]`
 
 ```python
 import polars_baseball as pb
@@ -80,13 +66,13 @@ import polars_baseball as pb
 filters_tuple = [("HR", ">", 40), ("AVG", ">=", 0.300)]
 
 # 2. Mathematical Operators
-filters_math = [pb.FanGraphsFilter("HR", ">", 40)]
+filters_math = [pb.fangraphs.FanGraphsFilter("HR", ">", 40)]
 
 # 3. Factory Methods
-filters_factory = [pb.FanGraphsFilter.gt("HR", 40), pb.FanGraphsFilter.gte("AVG", 0.300)]
+filters_factory = [pb.fangraphs.FanGraphsFilter.gt("HR", 40), pb.fangraphs.FanGraphsFilter.gte("AVG", 0.300)]
 
 # 4. Typed Enum
-filters_enum = [pb.FanGraphsFilter("HR", pb.FanGraphsFilterOp.GT, 40)]
+filters_enum = [pb.fangraphs.FanGraphsFilter("HR", pb.fangraphs.FanGraphsFilterOp.GT, 40)]
 ```
 
 ### Operator Mappings
@@ -138,7 +124,7 @@ FanGraphs functions (`batting`, `pitching`, `fielding`, `fg_data`) return a `pl.
 
 ## Example
 
-The following example shows how to use both the quick namespace helpers and custom `FanGraphsRequest` queries.
+The following example shows how to use both the quick namespace helpers and custom queries.
 
 ```python
 import asyncio
@@ -164,15 +150,11 @@ async def main() -> None:
     )
     print("Filtered Batting (HR > 40, AVG >= .300):", filtered_batting.head(2))
 
-    # 2. Using advanced fg_data with FanGraphsRequest
-    req_batting = pb.FanGraphsRequest.batting(start_season=2026)
-    req_qualified = pb.FanGraphsRequest.batting(start_season=2023, qual=50)
-    req_split = pb.FanGraphsRequest.batting(start_season=2022, end_season=2026, split_seasons=True)
-    
-    season_df = await pb.fg_data(req_batting)
-    qualified_df = await pb.fg_data(req_qualified)
-    split_df = await pb.fg_data(req_split)
-    print("Advanced Query:", season_df.head(2))
+    # 3. Using fg_data directly for custom queries
+    season_df = await pb.fangraphs.fg_data(start_season=2026)
+    qualified_df = await pb.fangraphs.fg_data(start_season=2023, qual=50)
+    split_df = await pb.fangraphs.fg_data(start_season=2022, end_season=2026, split_seasons=True)
+    print("Direct Query:", season_df.head(2))
 
 if __name__ == "__main__":
     asyncio.run(main())

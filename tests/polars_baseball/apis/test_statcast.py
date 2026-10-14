@@ -3,9 +3,13 @@ from unittest.mock import AsyncMock, patch
 import polars as pl
 import pytest
 
-from polars_baseball import statcast, statcast_single_game
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.statcast import statcast_batter, statcast_pitcher
+from polars_baseball.apis.statcast import (
+    statcast,
+    statcast_batter,
+    statcast_pitcher,
+    statcast_single_game,
+)
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError, UpstreamUnavailableError
 
@@ -31,8 +35,9 @@ async def test_statcast_single_game(mock_statcast_csv: str) -> None:
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast_single_game(123456, context=ctx)
-    assert isinstance(df, pl.DataFrame)
+    lf = await statcast_single_game(123456, context=ctx)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 2
     assert df["game_pk"][0] == 123456
     assert df["pitch_type"][0] == "SL"
@@ -57,7 +62,9 @@ async def test_statcast_date_range(
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
+    lf = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 3
     assert df["game_date"][0] == "2026-06-08"
     assert df["game_date"][1] == "2026-06-01"
@@ -78,7 +85,9 @@ async def test_statcast_accepts_date_parameters(
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_date="2026-06-01", end_date="2026-06-01", verbose=False, context=ctx)
+    lf = await statcast(start_date="2026-06-01", end_date="2026-06-01", verbose=False, context=ctx)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
 
     assert df.height == 2
     mock_cache_set.assert_called_once()
@@ -90,11 +99,15 @@ async def test_statcast_player_lookups(mock_statcast_csv: str) -> None:
     mock_http.get_text = AsyncMock(return_value=mock_statcast_csv)
     ctx = BaseballContext(http=mock_http)
 
-    df_bat = await statcast_batter(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
+    lf_bat = await statcast_batter(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
+    assert isinstance(lf_bat, pl.LazyFrame)
+    df_bat = lf_bat.collect()
     assert df_bat.height == 2
     assert df_bat["game_pk"][0] == 123456
 
-    df_pit = await statcast_pitcher(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
+    lf_pit = await statcast_pitcher(start_date="2026-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
+    assert isinstance(lf_pit, pl.LazyFrame)
+    df_pit = lf_pit.collect()
     assert df_pit.height == 2
     assert df_pit["game_pk"][0] == 123456
 
@@ -110,8 +123,8 @@ async def test_statcast_single_game_empty_returns_dataframe() -> None:
 
     result = await statcast_single_game(999999, context=ctx)
 
-    assert isinstance(result, pl.DataFrame), f"Expected DataFrame, got {type(result)}"
-    assert result.is_empty()
+    assert isinstance(result, pl.LazyFrame), f"Expected LazyFrame, got {type(result)}"
+    assert result.collect().is_empty()
 
 
 @pytest.mark.asyncio
@@ -145,9 +158,10 @@ async def test_statcast_player_cross_year_with_empty_chunk(
     mock_get_dataset.side_effect = [df_2025, df_2026]
     ctx = BaseballContext()
 
-    df = await statcast_batter(start_date="2025-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
+    lf = await statcast_batter(start_date="2025-06-01", end_date="2026-06-01", player_id=123456, context=ctx)
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 1
     assert df["game_date"][0] == "2025-06-01"
 
@@ -205,9 +219,10 @@ async def test_statcast_concat_path_with_schema_alignment(
     mock_http.get_text = AsyncMock(side_effect=[csv_part1, csv_part2])
     ctx = BaseballContext(http=mock_http)
 
-    df = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
+    lf = await statcast(start_date="2026-06-01", end_date="2026-06-08", verbose=False, context=ctx)
 
-    assert isinstance(df, pl.DataFrame)
+    assert isinstance(lf, pl.LazyFrame)
+    df = lf.collect()
     assert df.height == 3
     # Verify that bat_speed and miss_distance have been aligned to Float64
     assert df["bat_speed"].dtype == pl.Float64

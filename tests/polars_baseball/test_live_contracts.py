@@ -3,9 +3,8 @@ import pytest
 
 from polars_baseball import (
     BaseballContext,
-    standings,
-    statcast,
-    statcast_single_game,
+    mlb,
+    savant,
 )
 from polars_baseball.apis.savant_leaderboards import statcast_exitvelo_barrels
 from polars_baseball.exceptions import PolarsBaseballHttpError
@@ -17,7 +16,7 @@ def test_live_mlb_standings() -> None:
     # Fetch historical standings for 2023 season
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await standings(season=2023, context=ctx)
+            return await mlb.standings(season=2023, context=ctx)
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)
@@ -32,7 +31,8 @@ def test_live_savant_statcast_single_game() -> None:
     # Fetch a single real game from 2024 (game_pk=747046)
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await statcast_single_game(game_pk=747046, context=ctx)
+            lf = await savant.single_game(game_pk=747046, context=ctx)
+            return lf.collect()
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)
@@ -57,14 +57,11 @@ def test_live_savant_exit_velo_barrels() -> None:
 
 @pytest.mark.live
 def test_live_fangraphs_batting() -> None:
-    from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
-
-    # Request batting stats for 2023 season with custom columns
-    request = FanGraphsRequest.batting(start_season=2023, stat_columns=["WAR", "OPS"])
+    import polars_baseball as pb
 
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await fg_data(request, context=ctx)
+            return await pb.fangraphs.batting(start_season=2023, stat_columns=["WAR", "OPS"], context=ctx)
 
     try:
         df = run_async(run())
@@ -86,12 +83,13 @@ def test_live_statcast_benchmark_range_does_not_schema_error() -> None:
     # Benchmark date range from 2024 to verify alignment and guard against upstream schema drift
     async def run() -> pl.DataFrame:
         async with BaseballContext() as ctx:
-            return await statcast(
+            lf = await savant.statcast(
                 start_date="2024-04-01",
                 end_date="2024-04-02",
                 verbose=False,
                 context=ctx,
             )
+            return lf.collect()
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)

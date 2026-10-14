@@ -6,7 +6,6 @@ import polars as pl
 import pytest
 
 from polars_baseball._validation import validate_critical_columns_present
-from polars_baseball.apis.fangraphs import FanGraphsRequest
 from polars_baseball.enums.fangraphs import (
     FangraphsBattingStats,
     FangraphsFieldingStats,
@@ -39,17 +38,14 @@ class TestLiveFetchAndValidate:
     FIELDING_CRITICAL = {"Name", "Team", "Season", "Inn", "DRS", "UZR"}
 
     def _fetch_and_check(
-        self, builder: typing.Callable[..., FanGraphsRequest], critical: set[str], **kwargs: int
+        self, fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]], critical: set[str], **kwargs: int
     ) -> pl.DataFrame:
-        from polars_baseball.apis.fangraphs import fg_data
         from polars_baseball.context import BaseballContext
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
-        request = builder(**kwargs)
-
         async def run() -> pl.DataFrame:
             async with BaseballContext() as ctx:
-                return await fg_data(request, context=ctx)
+                return await fetcher(context=ctx, **kwargs)
 
         try:
             df = run_async(run())
@@ -63,21 +59,21 @@ class TestLiveFetchAndValidate:
         return df
 
     def test_live_batting(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        df = self._fetch_and_check(FanGraphsRequest.batting, self.BATTING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check(pb.fangraphs.batting, self.BATTING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_pitching(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        df = self._fetch_and_check(FanGraphsRequest.pitching, self.PITCHING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check(pb.fangraphs.pitching, self.PITCHING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_fielding(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        df = self._fetch_and_check(FanGraphsRequest.fielding, self.FIELDING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check(pb.fangraphs.fielding, self.FIELDING_CRITICAL, start_season=2024)
         assert df.height > 0
 
 
@@ -114,17 +110,20 @@ class TestLiveCodeToNameMapping:
 
     @staticmethod
     def _fetch_and_check(
-        codes: dict[str, str], builder: typing.Callable[..., FanGraphsRequest], enum_class: type[FangraphsStatsBase]
+        codes: dict[str, str],
+        fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]],
+        enum_class: type[FangraphsStatsBase],
     ) -> None:
-        from polars_baseball.apis.fangraphs import fg_data
         from polars_baseball.context import BaseballContext
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
-        request = builder(start_season=2024, stat_columns=[enum_class.parse(c) for c in codes])
-
         async def run() -> pl.DataFrame:
             async with BaseballContext() as ctx:
-                return await fg_data(request, context=ctx)
+                return await fetcher(
+                    start_season=2024,
+                    stat_columns=[enum_class.parse(c) for c in codes],
+                    context=ctx,
+                )
 
         try:
             df = run_async(run())
@@ -137,19 +136,19 @@ class TestLiveCodeToNameMapping:
             assert expected_name in df.columns, f"Missing column: {expected_name}"
 
     def test_batting_codes(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        self._fetch_and_check(self.BATTING_EXPECTATIONS, FanGraphsRequest.batting, FangraphsBattingStats)
+        self._fetch_and_check(self.BATTING_EXPECTATIONS, pb.fangraphs.batting, FangraphsBattingStats)
 
     def test_pitching_codes(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        self._fetch_and_check(self.PITCHING_EXPECTATIONS, FanGraphsRequest.pitching, FangraphsPitchingStats)
+        self._fetch_and_check(self.PITCHING_EXPECTATIONS, pb.fangraphs.pitching, FangraphsPitchingStats)
 
     def test_fielding_codes(self) -> None:
-        from polars_baseball.apis.fangraphs import FanGraphsRequest
+        import polars_baseball as pb
 
-        self._fetch_and_check(self.FIELDING_EXPECTATIONS, FanGraphsRequest.fielding, FangraphsFieldingStats)
+        self._fetch_and_check(self.FIELDING_EXPECTATIONS, pb.fangraphs.fielding, FangraphsFieldingStats)
 
 
 class TestEnumColumnDriftDetector:

@@ -31,17 +31,14 @@ import polars as pl
 from polars_baseball import (
     bref,
     cleanup,
-    configure_cache,
-    fg_data,
+    fangraphs,
     lahman,
+    lookup,
     mlb,
-    prospect_rankings,
     retrosheet,
     savant,
-    standings,
 )
-from polars_baseball.apis.fangraphs import FanGraphsRequest
-from polars_baseball.apis.playerid import chadwick_register, playerid_lookup
+from polars_baseball._cache import configure_cache
 from polars_baseball.context import BaseballContext
 
 GAME_PK = 823359
@@ -103,6 +100,8 @@ async def _run_test(test: TestCase) -> ApiTestResult:
     start = time.time()
     try:
         result = await test.fn()
+        if isinstance(result, pl.LazyFrame):
+            result = result.collect()
         elapsed = time.time() - start
 
         if isinstance(result, list):
@@ -150,13 +149,9 @@ def _build_tests() -> list[TestCase]:
             TestCase(
                 "fangraphs_batting",
                 "FanGraphs",
-                lambda: fg_data(
-                    FanGraphsRequest.from_raw(
-                        start_season=2023,
-                        stats_category="bat",
-                        league="all",
-                        qual=0,
-                    )
+                lambda: fangraphs.batting(
+                    start_season=2023,
+                    qual=0,
                 ),
             ),
         ]
@@ -184,15 +179,15 @@ def _build_tests() -> list[TestCase]:
             TestCase("mlb_venues", "MLB_API", lambda: mlb.venues(10)),
             TestCase("mlb_game_feed_live", "MLB_API", lambda: mlb.game_feed_live(GAME_PK)),
             TestCase("mlb_game_linescore", "MLB_API", lambda: mlb.game_linescore(GAME_PK)),
-            TestCase("mlb_standings", "MLB_API", lambda: standings(2023)),
-            TestCase("mlb_prospect_rankings", "MLB_API", lambda: prospect_rankings("top100", 2023)),
+            TestCase("mlb_standings", "MLB_API", lambda: mlb.standings(2023)),
+            TestCase("mlb_prospect_rankings", "MLB_API", lambda: mlb.prospect_rankings("top100", 2023)),
         ]
 
     if os.environ.get("SKIP_COMPILED") != "1":
         tests += [
             TestCase("lahman_people", "Compiled", lambda: lahman.people()),
-            TestCase("chadwick_register", "Compiled", lambda: chadwick_register()),
-            TestCase("playerid_lookup", "Compiled", lambda: playerid_lookup("Trout", "Mike")),
+            TestCase("chadwick_register", "Compiled", lambda: lookup.chadwick_register()),
+            TestCase("playerid_lookup", "Compiled", lambda: lookup.playerid_lookup("Trout", "Mike")),
         ]
 
     if os.environ.get("SKIP_RETROSHEET") != "1":

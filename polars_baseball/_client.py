@@ -5,12 +5,11 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import TypeVar, cast
 
-import httpx
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
 from polars_baseball._config import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT
-from polars_baseball._http_policy import TransportKind, resolve_request_policy
+from polars_baseball._http_policy import resolve_request_policy
 from polars_baseball.exceptions import (
     PolarsBaseballHttpClientError,
     PolarsBaseballHttpError,
@@ -55,7 +54,6 @@ class HttpClient:
             )
         if timeout <= 0:
             raise ValueError(f"timeout must be greater than 0, got {timeout}")
-        self._httpx_client: httpx.AsyncClient | None = None
         self._cffi_session: AsyncSession | None = None
         self._lock = asyncio.Lock()
         self._bref_last_request = 0.0
@@ -98,15 +96,6 @@ class HttpClient:
             resolved.update(extra_headers)
         return resolved
 
-    def get_httpx_client(self) -> httpx.AsyncClient:
-        if self._httpx_client is None:
-            self._httpx_client = httpx.AsyncClient(
-                timeout=self._timeout,
-                follow_redirects=True,
-                headers=self._default_headers if self._default_headers else None,
-            )
-        return self._httpx_client
-
     def get_cffi_session(self) -> AsyncSession:
         if self._cffi_session is None:
             if self._impersonate is not None:
@@ -116,27 +105,11 @@ class HttpClient:
         return self._cffi_session
 
     async def close(self) -> None:
-        errors: list[Exception] = []
-        if self._httpx_client is not None:
-            try:
-                await self._httpx_client.aclose()
-            except Exception as e:
-                errors.append(e)
-            finally:
-                self._httpx_client = None
-
         if self._cffi_session is not None:
             try:
                 await self._cffi_session.close()
-            except Exception as e:
-                errors.append(e)
             finally:
                 self._cffi_session = None
-
-        if errors:
-            if len(errors) == 1:
-                raise errors[0]
-            raise ExceptionGroup("Errors occurred during HttpClient close", errors)
 
     @staticmethod
     def _str_params(params: Mapping[str, object] | None) -> dict[str, str] | None:
@@ -186,52 +159,22 @@ class HttpClient:
 
         raise RuntimeError("retry loop exited without returning or raising")
 
-    async def _httpx_request(
+    async def _request(
         self,
         url: str,
+        *,
+        method: str = "GET",
         params: Mapping[str, object] | None = None,
         headers: Mapping[str, str] | None = None,
+        json_data: Mapping[str, object] | None = None,
         as_text: bool = True,
+        rate_limited: bool = False,
     ) -> str | bytes:
-        client = self.get_httpx_client()
-        str_params = self._str_params(params)
-        merged_headers = dict(self._extra_headers)
-        if headers is not None:
-            merged_headers.update(headers)
-
-        async def request_once() -> str | bytes:
-            try:
-                if merged_headers:
-                    response = await client.get(url, params=str_params, headers=merged_headers)
-                else:
-                    response = await client.get(url, params=str_params)
-                response.raise_for_status()
-                return response.text if as_text else response.content
-            except httpx.HTTPStatusError as e:
-                msg = f"HTTP status error: {e}"
-                if e.response.status_code == 403:
-                    msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
-                raise self._create_http_error(
-                    msg,
-                    status_code=e.response.status_code,
-                ) from e
-            except httpx.RequestError as e:
-                raise PolarsBaseballTransportError(f"Network request failed: {e}") from e
-
-        return await self._with_retries(request_once)
-
-    async def _cffi_request(
-        self,
-        url: str,
-        params: Mapping[str, object] | None = None,
-        headers: Mapping[str, str] | None = None,
-        rate_limited: bool = True,
-    ) -> str:
         session = self.get_cffi_session()
         if rate_limited and self._bref_delay is not None:
             await self._rate_limit()
         str_params = self._str_params(params)
-        merged_headers = {}
+        merged_headers: dict[str, str] = {}
         if self._impersonate is None:
             merged_headers.update(self._default_headers)
         else:
@@ -243,12 +186,16 @@ class HttpClient:
         if headers is not None:
             merged_headers.update(headers)
 
-        async def request_once() -> str:
+        async def request_once() -> str | bytes:
             str_headers = merged_headers if merged_headers else None
             try:
-                response = await session.get(url, params=str_params, headers=str_headers)
+                if method.upper() == "POST":
+                    json_payload = dict(json_data) if json_data is not None else None
+                    response = await session.post(url, json=json_payload, headers=str_headers)
+                else:
+                    response = await session.get(url, params=str_params, headers=str_headers)
                 response.raise_for_status()  # type: ignore[no-untyped-call]  # curl_cffi stubs missing return type
-                return response.text
+                return response.text if as_text else response.content
             except CurlRequestException as e:
                 raise self._wrap_cffi_error(url, e) from e
 
@@ -269,8 +216,11 @@ class HttpClient:
         if response is None:
             return PolarsBaseballTransportError(f"{label} network request failed: {error}")
         msg = f"{label} HTTP request failed: {error}"
-        if response.status_code == 403 and label in ("BRef", "FanGraphs"):
-            msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers or use cached data)"
+        if response.status_code == 403:
+            if label in ("BRef", "FanGraphs"):
+                msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers or use cached data)"
+            else:
+                msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
         return cls._create_http_error(
             msg,
             status_code=response.status_code,
@@ -284,9 +234,17 @@ class HttpClient:
         headers: Mapping[str, str] | None = None,
     ) -> str:
         policy = resolve_request_policy(url)
-        if policy.transport is TransportKind.BROWSER:
-            return await self._cffi_request(url, params, headers=headers, rate_limited=policy.rate_limited)
-        return cast(str, await self._httpx_request(url, params, headers, as_text=True))
+        return cast(
+            str,
+            await self._request(
+                url,
+                method="GET",
+                params=params,
+                headers=headers,
+                as_text=True,
+                rate_limited=policy.rate_limited,
+            ),
+        )
 
     async def get_bytes(
         self,
@@ -295,7 +253,18 @@ class HttpClient:
         params: Mapping[str, object] | None = None,
         headers: Mapping[str, str] | None = None,
     ) -> bytes:
-        return cast(bytes, await self._httpx_request(url, params, headers, as_text=False))
+        policy = resolve_request_policy(url)
+        return cast(
+            bytes,
+            await self._request(
+                url,
+                method="GET",
+                params=params,
+                headers=headers,
+                as_text=False,
+                rate_limited=policy.rate_limited,
+            ),
+        )
 
     async def post_json(
         self,
@@ -304,25 +273,15 @@ class HttpClient:
         *,
         headers: Mapping[str, str] | None = None,
     ) -> str:
-        client = self.get_httpx_client()
-        merged_headers = dict(self._extra_headers)
-        if headers is not None:
-            merged_headers.update(headers)
-
-        async def request_once() -> str:
-            try:
-                response = await client.post(url, json=json_data, headers=merged_headers if merged_headers else None)
-                response.raise_for_status()
-                return response.text
-            except httpx.HTTPStatusError as e:
-                msg = f"HTTP status error: {e}"
-                if e.response.status_code == 403:
-                    msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
-                raise self._create_http_error(
-                    msg,
-                    status_code=e.response.status_code,
-                ) from e
-            except httpx.RequestError as e:
-                raise PolarsBaseballTransportError(f"Network request failed: {e}") from e
-
-        return await self._with_retries(request_once)
+        policy = resolve_request_policy(url)
+        return cast(
+            str,
+            await self._request(
+                url,
+                method="POST",
+                headers=headers,
+                json_data=json_data,
+                as_text=True,
+                rate_limited=policy.rate_limited,
+            ),
+        )

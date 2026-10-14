@@ -177,10 +177,10 @@ def test_global_cache_starts_as_noop_when_explicitly_configured() -> None:
 
 
 def test_global_cache_defaults_to_file_cache() -> None:
-    from polars_baseball._config import DEFAULT_CACHE_DIR
+    from polars_baseball._config import _resolve_default_cache_dir
 
     adapter = GlobalCache()
-    assert adapter.cache_dir == DEFAULT_CACHE_DIR
+    assert adapter.cache_dir == _resolve_default_cache_dir()
 
 
 @pytest.mark.asyncio

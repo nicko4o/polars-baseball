@@ -5,7 +5,7 @@ import pytest
 
 from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.fangraphs import FanGraphsRequest, fg_data
+from polars_baseball.apis.fangraphs import fg_data
 from polars_baseball.context import BaseballContext
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
@@ -70,7 +70,7 @@ async def test_fg_data_uses_injected_context(
     mock_http.get_text = AsyncMock(return_value=_next_data_html([_fangraphs_query(rows)]))
     ctx = BaseballContext(http=mock_http)
 
-    df = await fg_data(FanGraphsRequest.batting(start_season=2019), context=ctx)
+    df = await fg_data(2019, context=ctx)
 
     assert df.height == 1
     assert df["Name"][0] == "Mike Trout"

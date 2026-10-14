@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from polars_baseball import lahman, standings, statcast
+from polars_baseball import lahman, mlb, savant
 
 from .models import BenchmarkDimensions
 
@@ -17,7 +17,7 @@ DEFAULT_END = "2024-04-07"
 class BenchmarkProfile:
     name: str
     dimensions: BenchmarkDimensions
-    fn: Callable[..., Awaitable[pl.DataFrame | list[pl.DataFrame]]]
+    fn: Callable[..., Awaitable[pl.DataFrame | pl.LazyFrame | list[pl.DataFrame]]]
     kwargs: dict[str, object]
 
     def to_kwargs(self) -> dict[str, object]:
@@ -34,7 +34,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="cold",
         ),
-        fn=statcast,
+        fn=savant.statcast,
         kwargs={
             "start_date": "2024-04-01",
             "end_date": "2024-04-01",
@@ -51,7 +51,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="cold",
         ),
-        fn=statcast,
+        fn=savant.statcast,
         kwargs={
             "start_date": DEFAULT_START,
             "end_date": DEFAULT_END,
@@ -68,7 +68,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="warm",
         ),
-        fn=statcast,
+        fn=savant.statcast,
         kwargs={
             "start_date": DEFAULT_START,
             "end_date": DEFAULT_END,
@@ -117,7 +117,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="2024",
             cache_state="cold",
         ),
-        fn=standings,
+        fn=mlb.standings,
         kwargs={"season": 2024},
     ),
 }

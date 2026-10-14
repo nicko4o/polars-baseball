@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
+from typing import cast
 
 import polars as pl
 
 from polars_baseball._config import FG_MAX_RESULTS
 from polars_baseball.apis.fangraphs import (
+    FanGraphsFilter,
     FanGraphsFilterInput,
-    FanGraphsRequest,
+    FanGraphsFilterOp,
     fg_data,
 )
 from polars_baseball.context import BaseballContext
@@ -34,16 +36,15 @@ async def _dispatch_fg(
 
     excluded = {"context", "force_update", "cache_max_age"}
     kwargs = {k: v for k, v in raw_args.items() if k not in excluded}
-    request = FanGraphsRequest.from_raw(
+    start_season = cast(int, kwargs.pop("start_season"))
+    return await fg_data(
+        start_season,
         stats_category=category,
         is_team_data=is_team_data,
-        **kwargs,  # type: ignore[arg-type]
-    )
-    return await fg_data(
-        request,
         context=context,
         force_update=force_update,
         cache_max_age=cache_max_age,
+        **kwargs,  # type: ignore[arg-type]
     )
 
 
@@ -245,7 +246,10 @@ async def team_relievers(
 
 
 __all__ = [
+    "FanGraphsFilter",
+    "FanGraphsFilterOp",
     "batting",
+    "fg_data",
     "fielding",
     "pitching",
     "team_batting",
