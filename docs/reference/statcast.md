@@ -97,7 +97,7 @@ if __name__ == "__main__":
 > [!NOTE]
 > `scan_statcast` raises `UpstreamUnavailableError` when a requested season has no
 > local partition and `auto_download` is `False`. Requires a file-backed cache
-> directory (set via `pb.configure_cache(Path)`).
+> directory (configured via `BaseballClient(cache_dir=Path)`).
 
 ---
 
@@ -248,6 +248,19 @@ spray_angle = atan2(hc_x - 125.42, 198.27 - hc_y) * 180 / pi
 ### Sample Distribution
 
 ![Spray angle histograms](../images/spray_angle_hists.png)
+
+---
+
+## Savant Client Interface
+
+When using `BaseballClient`, Statcast and Baseball Savant APIs are accessible via `savant.SavantClient` on `client.savant`:
+
+```python
+from polars_baseball import BaseballClient
+
+async with BaseballClient() as client:
+    df = await client.savant.statcast("2026-06-01", "2026-06-02")
+```
 
 ---
 

@@ -48,12 +48,14 @@ summary = (
 summary
 ```
 
-## Cache Behavior
+## Client Lifecycle in Notebooks
 
-Notebook sessions do not write cache files unless you call `configure_cache()` first. Long-running notebooks should call `cleanup()` before kernel shutdown when they are done with package-managed HTTP resources.
+Long-running notebooks can use `BaseballClient` to manage HTTP resources, or use `async with BaseballClient()`:
 
 ```python
 import polars_baseball as pb
 
-await pb.cleanup()
+client = pb.BaseballClient()
+df = await client.savant.statcast("2026-06-01", "2026-06-02")
+await client.close()
 ```

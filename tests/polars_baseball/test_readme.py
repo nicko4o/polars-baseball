@@ -17,19 +17,13 @@ _DOCUMENTED_ROOT_API_EXEMPTIONS = {
     "Position",
 }
 _DOCUMENTED_MODULES = (
-    "polars_baseball.apis.bref",
-    "polars_baseball.apis.fangraphs",
-    "polars_baseball.apis.lahman",
-    "polars_baseball.apis.mlb",
-    "polars_baseball.apis.playerid",
-    "polars_baseball.apis.retrosheet",
-    "polars_baseball.apis.savant_fielding_running",
-    "polars_baseball.apis.savant_gamefeed",
-    "polars_baseball.apis.savant_leaderboards",
-    "polars_baseball.apis.standings",
-    "polars_baseball.apis.statcast",
-    "polars_baseball.apis.teamid",
-    "polars_baseball.apis.top_prospects",
+    "polars_baseball.bref",
+    "polars_baseball.fangraphs",
+    "polars_baseball.lahman",
+    "polars_baseball.lookup",
+    "polars_baseball.mlb",
+    "polars_baseball.retrosheet",
+    "polars_baseball.savant",
 )
 
 
@@ -42,19 +36,38 @@ def _python_examples(path: Path) -> list[str]:
     return _PYTHON_FENCE_RE.findall(path.read_text(encoding="utf-8"))
 
 
+def _resolve_parts(root: object, parts: list[str]) -> object | None:
+    symbol: object = root
+    for part in parts:
+        if not hasattr(symbol, part):
+            return None
+        symbol = getattr(symbol, part)
+    return symbol
+
+
 def _documented_symbol(name: str) -> object | None:
+    from polars_baseball.client import BaseballClient
+
+    client = BaseballClient()
+
     if "." in name:
-        symbol: object = pb
-        for part in name.split("."):
-            if not hasattr(symbol, part):
-                return None
-            symbol = getattr(symbol, part)
-        return symbol
+        parts = name.split(".")
+        return _resolve_parts(pb, parts) or _resolve_parts(client, parts)
+
     if hasattr(pb, name):
         return getattr(pb, name)
-    for ns in (pb.bref, pb.fangraphs, pb.lahman, pb.lookup, pb.mlb, pb.retrosheet, pb.savant):
-        if hasattr(ns, name):
-            return getattr(ns, name)
+
+    for sub in (
+        client.bref,
+        client.fangraphs,
+        client.lahman,
+        client.lookup,
+        client.mlb,
+        client.retrosheet,
+        client.savant,
+    ):
+        if hasattr(sub, name):
+            return getattr(sub, name)
     for module_name in _DOCUMENTED_MODULES:
         module = importlib.import_module(module_name)
         if hasattr(module, name):

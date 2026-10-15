@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballContext
 from polars_baseball.gateways.savant import SavantGateway
 
 

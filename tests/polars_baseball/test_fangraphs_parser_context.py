@@ -1,12 +1,10 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from polars_baseball._cache import GlobalCache
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.fangraphs import fg_data
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
 
@@ -59,18 +57,13 @@ def test_fangraphs_parser_returns_empty_df_for_empty_player_data() -> None:
 
 
 @pytest.mark.asyncio
-@patch.object(GlobalCache, "set")
-@patch.object(GlobalCache, "get", return_value=None)
-async def test_fg_data_uses_injected_context(
-    _mock_cache_get: MagicMock,
-    _mock_cache_set: MagicMock,
-) -> None:
+async def test_fg_data_uses_injected_context() -> None:
     rows: list[object] = [{"Name": "<a>Mike Trout</a>", "playerid": 19755}]
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=_next_data_html([_fangraphs_query(rows)]))
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
-    df = await fg_data(2019, context=ctx)
+    df = await client.fangraphs.batting(2019)
 
     assert df.height == 1
     assert df["Name"][0] == "Mike Trout"

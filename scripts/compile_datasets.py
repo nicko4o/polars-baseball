@@ -11,13 +11,13 @@ import polars as pl
 from curl_cffi import requests
 
 from polars_baseball._config import CHADWICK_REGISTER_ARCHIVE_URL, LAHMAN_ARCHIVE_URL
-from polars_baseball.apis.lahman import LAHMAN_DATASET, LAHMAN_TABLE_FILES, _lahman_table
-from polars_baseball.apis.playerid import (
+from polars_baseball.gateways.compiled import PARQUET_SUFFIX, CompiledTable, read_archive_table_bytes
+from polars_baseball.lahman import LAHMAN_DATASET, LAHMAN_TABLE_FILES, _lahman_table
+from polars_baseball.lookup import (
     CHADWICK_REGISTER_DATASET,
     _chadwick_people_table,
     _normalize_chadwick_register,
 )
-from polars_baseball.gateways.compiled import PARQUET_SUFFIX, CompiledTable, read_archive_table_bytes
 
 DEFAULT_OUTPUT_DIR: Final[Path] = Path("dist/compiled-datasets")
 MANIFEST_FILENAME: Final[str] = "manifest.json"
@@ -27,7 +27,7 @@ DatasetName = Literal["all", "lahman", "chadwick-register"]
 
 def _download_archive(url: str) -> bytes:
     response = requests.get(url, timeout=HTTP_TIMEOUT_SECONDS)
-    response.raise_for_status()
+    response.raise_for_status()  # type: ignore[no-untyped-call]
     return response.content
 
 

@@ -1,14 +1,14 @@
 import inspect
 
+import pytest
+
 import polars_baseball as pb
 
 ROOT_PUBLIC_API = {
     "BaseballClient",
-    "BaseballContext",
     "KeyType",
     "Position",
     "bref",
-    "cleanup",
     "fangraphs",
     "lahman",
     "lookup",
@@ -19,6 +19,7 @@ ROOT_PUBLIC_API = {
 
 IMPLEMENTATION_NAMESPACE_LEAKS = {
     "apis",
+    "client",
     "context",
     "enums",
     "exceptions",
@@ -52,44 +53,55 @@ def test_root_namespace_has_no_unlisted_user_facing_symbols() -> None:
     assert not extra_ok, f"Unexpected symbols in public namespace: {extra_ok}"
 
 
-def test_statcast_is_async_function() -> None:
-    assert inspect.iscoroutinefunction(pb.savant.statcast)
+def test_client_subclients_methods_are_async() -> None:
+    client = pb.BaseballClient()
+    assert inspect.iscoroutinefunction(client.savant.statcast)
+    assert inspect.iscoroutinefunction(client.savant.scan_statcast)
+    assert inspect.iscoroutinefunction(client.savant.sync_statcast)
+    assert inspect.iscoroutinefunction(client.savant.park_factors)
+    assert inspect.iscoroutinefunction(client.savant.gamefeed_pitch_data)
+    assert inspect.iscoroutinefunction(client.savant.composite_percentile_ranks)
+    assert inspect.iscoroutinefunction(client.savant.player_percentile_profile)
+
+    assert inspect.iscoroutinefunction(client.mlb.schedule)
+    assert inspect.iscoroutinefunction(client.mlb.game_boxscore)
+    assert inspect.iscoroutinefunction(client.mlb.film_room_search)
+    assert inspect.iscoroutinefunction(client.mlb.standings)
+
+    assert inspect.iscoroutinefunction(client.fangraphs.batting)
+    assert inspect.iscoroutinefunction(client.fangraphs.pitching)
+
+    assert inspect.iscoroutinefunction(client.bref.bwar_bat)
+    assert inspect.iscoroutinefunction(client.bref.game_logs)
+    assert inspect.iscoroutinefunction(client.bref.splits)
+
+    assert inspect.iscoroutinefunction(client.retrosheet.events)
+    assert inspect.iscoroutinefunction(client.retrosheet.rosters)
+
+    assert inspect.iscoroutinefunction(client.lahman.batting)
+    assert inspect.iscoroutinefunction(client.lahman.pitching)
+
+    assert inspect.iscoroutinefunction(client.lookup.playerid_lookup)
+    assert inspect.iscoroutinefunction(client.lookup.playerid_reverse_lookup)
+    assert inspect.iscoroutinefunction(client.lookup.chadwick_register)
 
 
-def test_scan_sync_statcast_are_async_functions() -> None:
-    assert inspect.iscoroutinefunction(pb.savant.scan_statcast)
-    assert inspect.iscoroutinefunction(pb.savant.sync_statcast)
-
-
-def test_savant_namespace_exposes_scan_sync_statcast() -> None:
-    assert inspect.iscoroutinefunction(pb.savant.scan_statcast)
-    assert inspect.iscoroutinefunction(pb.savant.sync_statcast)
-
-
-def test_cleanup_is_async_function() -> None:
-    assert inspect.iscoroutinefunction(pb.cleanup)
-
-
-def test_lookup_namespace_functions_are_async() -> None:
-    assert inspect.iscoroutinefunction(pb.lookup.playerid_lookup)
-    assert inspect.iscoroutinefunction(pb.lookup.playerid_reverse_lookup)
-    assert inspect.iscoroutinefunction(pb.lookup.chadwick_register)
-
-
-def test_provider_namespace_functions_are_async() -> None:
-    assert inspect.iscoroutinefunction(pb.mlb.schedule)
-    assert inspect.iscoroutinefunction(pb.mlb.game_boxscore)
-    assert inspect.iscoroutinefunction(pb.mlb.film_room_search)
-    assert inspect.iscoroutinefunction(pb.savant.statcast)
-    assert inspect.iscoroutinefunction(pb.savant.park_factors)
-    assert inspect.iscoroutinefunction(pb.savant.gamefeed_pitch_data)
-    assert inspect.iscoroutinefunction(pb.savant.composite_percentile_ranks)
-    assert inspect.iscoroutinefunction(pb.savant.player_percentile_profile)
-    assert inspect.iscoroutinefunction(pb.lahman.batting)
-    assert inspect.iscoroutinefunction(pb.retrosheet.events)
-    assert inspect.iscoroutinefunction(pb.bref.bwar_bat)
-    assert inspect.iscoroutinefunction(pb.bref.game_logs)
-    assert inspect.iscoroutinefunction(pb.bref.splits)
+@pytest.mark.parametrize(
+    ("module", "func_name"),
+    [
+        (pb.savant, "statcast"),
+        (pb.mlb, "schedule"),
+        (pb.bref, "bwar_bat"),
+        (pb.fangraphs, "batting"),
+        (pb.retrosheet, "events"),
+        (pb.lahman, "batting"),
+        (pb.lookup, "playerid_lookup"),
+    ],
+)
+def test_removed_toplevel_functions_raise_actionable_attribute_error(module: object, func_name: str) -> None:
+    mod_name = getattr(module, "__name__", "")
+    with pytest.raises(AttributeError, match=f"Top-level function '{mod_name}.{func_name}' was removed"):
+        getattr(module, func_name)
 
 
 def test_root_public_api_has_docstrings() -> None:

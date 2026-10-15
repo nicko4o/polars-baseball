@@ -1,10 +1,12 @@
 import json
 from collections.abc import Callable
+from datetime import timedelta
 
 import polars as pl
 
+from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import FILM_ROOM_GRAPHQL_URL, FILM_ROOM_SEARCH_URL, MLB_ROOT
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
 
 PAGE_SIZE = 20
@@ -39,7 +41,7 @@ query FilmRoomSearch($query: String!, $limit: Int, $page: Int) {
 class FilmRoomGateway:
     """Gateway for querying MLB Film Room GraphQL and REST services."""
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         self._context = context
 
     async def fetch_search(
@@ -48,31 +50,49 @@ class FilmRoomGateway:
         limit: int,
         error_msg: str,
         parser: Callable[[object], pl.DataFrame],
+        *,
+        use_cache: bool = True,
+        max_age: timedelta | None = None,
+        force_update: bool = False,
+        cache_key: str | None = None,
     ) -> pl.DataFrame:
         if limit <= 0:
             raise ValueError(f"limit must be positive, got {limit}")
 
-        num_pages = (limit + PAGE_SIZE - 1) // PAGE_SIZE
-        dfs: list[pl.DataFrame] = []
-        remaining = limit
+        key = cache_key or generate_cache_key(FILM_ROOM_GRAPHQL_URL, {"query": query_str, "limit": limit})
 
-        for page in range(1, num_pages + 1):
-            fetch_limit = min(remaining, PAGE_SIZE)
-            raw_payload = await self._fetch_page(query_str, limit=fetch_limit, page=page, error_msg=error_msg)
-            df = self._parse(raw_payload, f"{error_msg} (page {page})", parser)
-            if df.is_empty():
-                break
-            dfs.append(df)
-            if len(df) < fetch_limit:
-                break
-            remaining -= len(df)
-            if remaining <= 0:
-                break
+        async def _fetch() -> pl.DataFrame:
+            num_pages = (limit + PAGE_SIZE - 1) // PAGE_SIZE
+            dfs: list[pl.DataFrame] = []
+            remaining = limit
 
-        if not dfs:
-            return parser({})
+            for page in range(1, num_pages + 1):
+                fetch_limit = min(remaining, PAGE_SIZE)
+                raw_payload = await self._fetch_page(query_str, limit=fetch_limit, page=page, error_msg=error_msg)
+                df = self._parse(raw_payload, f"{error_msg} (page {page})", parser)
+                if df.is_empty():
+                    break
+                dfs.append(df)
+                if len(df) < fetch_limit:
+                    break
+                remaining -= len(df)
+                if remaining <= 0:
+                    break
 
-        return pl.concat(dfs)
+            if not dfs:
+                return parser({})
+
+            return pl.concat(dfs)
+
+        if not use_cache:
+            return await _fetch()
+
+        return await self._context.cache.get_or_fetch(
+            key,
+            _fetch,
+            max_age=max_age,
+            force_update=force_update,
+        )
 
     async def _fetch_page(self, query_str: str, limit: int, page: int, error_msg: str) -> object:
         payload = {

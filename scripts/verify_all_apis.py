@@ -28,18 +28,7 @@ from pathlib import Path
 
 import polars as pl
 
-from polars_baseball import (
-    bref,
-    cleanup,
-    fangraphs,
-    lahman,
-    lookup,
-    mlb,
-    retrosheet,
-    savant,
-)
-from polars_baseball._cache import configure_cache
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 
 GAME_PK = 823359
 PLAYER_ID = 660271
@@ -78,7 +67,7 @@ def _has_cf_bypass() -> bool:
     return bool(os.environ.get("CF_CLEARANCE") or os.environ.get("CF_COOKIE"))
 
 
-def _configure_http_client(ctx: BaseballContext) -> None:
+def _configure_http_client(client: BaseballClient) -> None:
     cf_clearance = os.environ.get("CF_CLEARANCE")
     cf_cookie = os.environ.get("CF_COOKIE")
     user_agent = os.environ.get("USER_AGENT")
@@ -93,7 +82,7 @@ def _configure_http_client(ctx: BaseballContext) -> None:
     if user_agent:
         extra_headers["User-Agent"] = user_agent
 
-    ctx.http.extra_headers = extra_headers
+    client.http.extra_headers = extra_headers
 
 
 async def _run_test(test: TestCase) -> ApiTestResult:
@@ -124,24 +113,26 @@ async def _run_test(test: TestCase) -> ApiTestResult:
         return ApiTestResult(test.name, test.source, False, error=str(exc), duration_sec=elapsed)
 
 
-def _build_tests() -> list[TestCase]:
+def _build_tests(client: BaseballClient) -> list[TestCase]:
     tests: list[TestCase] = []
 
     if os.environ.get("SKIP_SAVANT") != "1":
         tests += [
             TestCase(
-                "statcast_range_3day", "Savant", lambda: savant.statcast("2023-08-01", "2023-08-03", verbose=False)
+                "statcast_range_3day",
+                "Savant",
+                lambda: client.savant.statcast("2023-08-01", "2023-08-03", verbose=False),
             ),
-            TestCase("statcast_single_game", "Savant", lambda: savant.single_game(GAME_PK)),
-            TestCase("savant_exitvelo_barrels", "Savant", lambda: savant.exitvelo_barrels(2023)),
-            TestCase("savant_outs_above_average", "Savant", lambda: savant.outs_above_average(2023, pos="CF")),
-            TestCase("savant_gamefeed_exit_velocity", "Savant", lambda: savant.gamefeed_exit_velocity(GAME_PK)),
-            TestCase("savant_gamefeed_pitch_data", "Savant", lambda: savant.gamefeed_pitch_data(GAME_PK)),
+            TestCase("statcast_single_game", "Savant", lambda: client.savant.single_game(GAME_PK)),
+            TestCase("savant_exitvelo_barrels", "Savant", lambda: client.savant.exitvelo_barrels(2023)),
+            TestCase("savant_outs_above_average", "Savant", lambda: client.savant.outs_above_average(2023, pos="CF")),
+            TestCase("savant_gamefeed_exit_velocity", "Savant", lambda: client.savant.gamefeed_exit_velocity(GAME_PK)),
+            TestCase("savant_gamefeed_pitch_data", "Savant", lambda: client.savant.gamefeed_pitch_data(GAME_PK)),
         ]
 
     if os.environ.get("SKIP_BREF") != "1":
         tests += [
-            TestCase("bref_bwar_bat", "BRef", lambda: bref.bwar_bat(all_columns=False)),
+            TestCase("bref_bwar_bat", "BRef", lambda: client.bref.bwar_bat(all_columns=False)),
         ]
 
     if os.environ.get("SKIP_FG") != "1":
@@ -149,7 +140,7 @@ def _build_tests() -> list[TestCase]:
             TestCase(
                 "fangraphs_batting",
                 "FanGraphs",
-                lambda: fangraphs.batting(
+                lambda: client.fangraphs.batting(
                     start_season=2023,
                     qual=0,
                 ),
@@ -158,41 +149,43 @@ def _build_tests() -> list[TestCase]:
 
     if os.environ.get("SKIP_MLB_API") != "1":
         tests += [
-            TestCase("mlb_teams", "MLB_API", lambda: mlb.teams(season=2023)),
-            TestCase("mlb_divisions", "MLB_API", lambda: mlb.divisions()),
-            TestCase("mlb_leagues", "MLB_API", lambda: mlb.leagues()),
-            TestCase("mlb_people", "MLB_API", lambda: mlb.people([PLAYER_ID])),
-            TestCase("mlb_people_awards", "MLB_API", lambda: mlb.people_awards(PLAYER_ID)),
-            TestCase("mlb_schedule", "MLB_API", lambda: mlb.schedule(2023, team_id=108)),
-            TestCase("mlb_roster", "MLB_API", lambda: mlb.roster(TEAM_ID, 2023)),
-            TestCase("mlb_player_stats", "MLB_API", lambda: mlb.player_stats(PLAYER_ID, "hitting", season=2023)),
-            TestCase("mlb_game_boxscore", "MLB_API", lambda: mlb.game_boxscore(GAME_PK)),
-            TestCase("mlb_game_boxscore_stats", "MLB_API", lambda: mlb.game_boxscore_stats(GAME_PK)),
-            TestCase("mlb_game_play_by_play", "MLB_API", lambda: mlb.game_play_by_play(GAME_PK)),
-            TestCase("mlb_game_win_probability", "MLB_API", lambda: mlb.game_win_probability(GAME_PK)),
-            TestCase("mlb_stat_leaders", "MLB_API", lambda: mlb.stat_leaders(season=2023, categories=["homeRuns"])),
-            TestCase("mlb_team_stats", "MLB_API", lambda: mlb.team_stats(TEAM_ID, season=2023, group="hitting")),
-            TestCase("mlb_postseason_schedule", "MLB_API", lambda: mlb.postseason_schedule(season=2023)),
-            TestCase("mlb_draft", "MLB_API", lambda: mlb.draft(2023)),
-            TestCase("mlb_pitch_arsenal", "MLB_API", lambda: mlb.pitch_arsenal(PLAYER_ID, 2023)),
-            TestCase("mlb_transactions", "MLB_API", lambda: mlb.transactions(date="2023-06-01")),
-            TestCase("mlb_venues", "MLB_API", lambda: mlb.venues(10)),
-            TestCase("mlb_game_feed_live", "MLB_API", lambda: mlb.game_feed_live(GAME_PK)),
-            TestCase("mlb_game_linescore", "MLB_API", lambda: mlb.game_linescore(GAME_PK)),
-            TestCase("mlb_standings", "MLB_API", lambda: mlb.standings(2023)),
-            TestCase("mlb_prospect_rankings", "MLB_API", lambda: mlb.prospect_rankings("top100", 2023)),
+            TestCase("mlb_teams", "MLB_API", lambda: client.mlb.teams(season=2023)),
+            TestCase("mlb_divisions", "MLB_API", lambda: client.mlb.divisions()),
+            TestCase("mlb_leagues", "MLB_API", lambda: client.mlb.leagues()),
+            TestCase("mlb_people", "MLB_API", lambda: client.mlb.people([PLAYER_ID])),
+            TestCase("mlb_people_awards", "MLB_API", lambda: client.mlb.people_awards(PLAYER_ID)),
+            TestCase("mlb_schedule", "MLB_API", lambda: client.mlb.schedule(2023, team_id=108)),
+            TestCase("mlb_roster", "MLB_API", lambda: client.mlb.roster(TEAM_ID, 2023)),
+            TestCase("mlb_player_stats", "MLB_API", lambda: client.mlb.player_stats(PLAYER_ID, "hitting", season=2023)),
+            TestCase("mlb_game_boxscore", "MLB_API", lambda: client.mlb.game_boxscore(GAME_PK)),
+            TestCase("mlb_game_boxscore_stats", "MLB_API", lambda: client.mlb.game_boxscore_stats(GAME_PK)),
+            TestCase("mlb_game_play_by_play", "MLB_API", lambda: client.mlb.game_play_by_play(GAME_PK)),
+            TestCase("mlb_game_win_probability", "MLB_API", lambda: client.mlb.game_win_probability(GAME_PK)),
+            TestCase(
+                "mlb_stat_leaders", "MLB_API", lambda: client.mlb.stat_leaders(season=2023, categories=["homeRuns"])
+            ),
+            TestCase("mlb_team_stats", "MLB_API", lambda: client.mlb.team_stats(TEAM_ID, season=2023, group="hitting")),
+            TestCase("mlb_postseason_schedule", "MLB_API", lambda: client.mlb.postseason_schedule(season=2023)),
+            TestCase("mlb_draft", "MLB_API", lambda: client.mlb.draft(2023)),
+            TestCase("mlb_pitch_arsenal", "MLB_API", lambda: client.mlb.pitch_arsenal(PLAYER_ID, 2023)),
+            TestCase("mlb_transactions", "MLB_API", lambda: client.mlb.transactions(date="2023-06-01")),
+            TestCase("mlb_venues", "MLB_API", lambda: client.mlb.venues(10)),
+            TestCase("mlb_game_feed_live", "MLB_API", lambda: client.mlb.game_feed_live(GAME_PK)),
+            TestCase("mlb_game_linescore", "MLB_API", lambda: client.mlb.game_linescore(GAME_PK)),
+            TestCase("mlb_standings", "MLB_API", lambda: client.mlb.standings(2023)),
+            TestCase("mlb_prospect_rankings", "MLB_API", lambda: client.mlb.prospect_rankings("top100", 2023)),
         ]
 
     if os.environ.get("SKIP_COMPILED") != "1":
         tests += [
-            TestCase("lahman_people", "Compiled", lambda: lahman.people()),
-            TestCase("chadwick_register", "Compiled", lambda: lookup.chadwick_register()),
-            TestCase("playerid_lookup", "Compiled", lambda: lookup.playerid_lookup("Trout", "Mike")),
+            TestCase("lahman_people", "Compiled", lambda: client.lahman.people()),
+            TestCase("chadwick_register", "Compiled", lambda: client.lookup.chadwick_register()),
+            TestCase("playerid_lookup", "Compiled", lambda: client.lookup.playerid_lookup("Trout", "Mike")),
         ]
 
     if os.environ.get("SKIP_RETROSHEET") != "1":
         tests += [
-            TestCase("retrosheet_schedules", "Retrosheet", lambda: retrosheet.schedules(2023)),
+            TestCase("retrosheet_schedules", "Retrosheet", lambda: client.retrosheet.schedules(2023)),
         ]
 
     return tests
@@ -200,12 +193,10 @@ def _build_tests() -> list[TestCase]:
 
 async def main() -> int:
     tmp_dir = Path(tempfile.mkdtemp(prefix="pbb_verify_"))
-    configure_cache(tmp_dir)
+    client = BaseballClient(cache_dir=tmp_dir)
+    _configure_http_client(client)
 
-    ctx = BaseballContext()
-    _configure_http_client(ctx)
-
-    tests = _build_tests()
+    tests = _build_tests(client)
 
     if not tests:
         print("No tests to run (all sources skipped via env vars).")
@@ -275,7 +266,7 @@ async def main() -> int:
     except OSError:
         pass
 
-    await cleanup()
+    await client.close()
 
     return 1 if real_fails > 0 else 0
 

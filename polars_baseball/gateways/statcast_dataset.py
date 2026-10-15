@@ -11,7 +11,7 @@ from polars_baseball._storage_primitives import (
     get_file_lock,
     resolve_cache_dir,
 )
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import ClientError
 from polars_baseball.gateways.compiled import COMPILED_DATASETS_DIR
 
@@ -28,7 +28,7 @@ class StatcastDatasetGateway:
     reusing the CompiledDatasetGateway primitives.
     """
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         self._context = context
         self._cache_dir = resolve_cache_dir(context)
 

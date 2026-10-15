@@ -12,7 +12,7 @@ from polars_baseball._storage_primitives import (
     validate_safe_path_component,
     validate_zip_archive,
 )
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballContext
 from polars_baseball.exceptions import UpstreamDataCorruptedError
 
 

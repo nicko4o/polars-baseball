@@ -8,14 +8,14 @@ from datetime import timedelta
 import polars as pl
 
 from polars_baseball._cache import generate_cache_key
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamUnavailableError
 
 
 class BaseGateway:
     """Base gateway handling common HTTP fetch, caching, and parsing lifecycles."""
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         self._context = context
 
     async def _fetch_cached_df(

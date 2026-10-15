@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from polars_baseball._cache import FileCacheAdapter
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballContext
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.compiled import CompiledDatasetGateway, CompiledTable
 

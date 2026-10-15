@@ -16,33 +16,10 @@ import pytest
 from polars_baseball._cache import (
     _IN_FLIGHT_LOCKS,
     FileCacheAdapter,
-    GlobalCache,
     NullCacheAdapter,
     _in_flight_lock_for,
-    cached,
-    configure_cache,
     generate_cache_key,
-    global_cache,
 )
-
-
-class _MemoryCache:
-    def __init__(self) -> None:
-        self.value: pl.DataFrame | None = None
-
-    def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        return self.value
-
-    def set(self, key: str, value: pl.DataFrame) -> None:
-        self.value = value
-
-    def clear(self) -> None:
-        self.value = None
-
-
-class _MemoryContext:
-    def __init__(self) -> None:
-        self.cache = _MemoryCache()
 
 
 def test_generate_cache_key() -> None:
@@ -165,24 +142,6 @@ def test_null_cache_adapter_never_stores_values() -> None:
     assert adapter.get("key") is None
 
 
-def test_global_cache_starts_as_noop_when_explicitly_configured() -> None:
-    adapter = GlobalCache(use_null_default=True)
-    df = pl.DataFrame({"col1": [1]})
-
-    adapter.set("key", df)
-
-    assert adapter.get("key") is None
-    with pytest.raises(RuntimeError, match="not configured"):
-        _ = adapter.cache_dir
-
-
-def test_global_cache_defaults_to_file_cache() -> None:
-    from polars_baseball._config import _resolve_default_cache_dir
-
-    adapter = GlobalCache()
-    assert adapter.cache_dir == _resolve_default_cache_dir()
-
-
 @pytest.mark.asyncio
 async def test_null_cache_get_or_fetch_runs_every_time() -> None:
     adapter = NullCacheAdapter()
@@ -199,16 +158,6 @@ async def test_null_cache_get_or_fetch_runs_every_time() -> None:
     assert first["value"][0] == 1
     assert second["value"][0] == 2
     assert calls == 2
-
-
-def test_configure_cache_keeps_global_proxy(tmp_path: Path) -> None:
-    original_cache = global_cache
-    cache_dir = tmp_path / "configured-cache"
-
-    configure_cache(cache_dir)
-
-    assert global_cache is original_cache
-    assert global_cache.cache_dir == cache_dir
 
 
 def test_file_cache_adapter_concurrent_same_key_writes(tmp_path: Path) -> None:
@@ -235,18 +184,21 @@ def test_file_cache_adapter_concurrent_same_key_writes(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_coalesces_concurrent_misses() -> None:
+async def test_file_cache_coalesces_concurrent_misses(tmp_path: Path) -> None:
     calls = 0
-    context = _MemoryContext()
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
 
-    @cached("shared-key")
-    async def fetch(context: _MemoryContext) -> pl.DataFrame:
+    async def fetch() -> pl.DataFrame:
         nonlocal calls
         calls += 1
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.01)
         return pl.DataFrame({"value": [calls]})
 
-    results = await asyncio.gather(fetch(context), fetch(context), fetch(context))
+    results = await asyncio.gather(
+        adapter.get_or_fetch("shared-key", fetch),
+        adapter.get_or_fetch("shared-key", fetch),
+        adapter.get_or_fetch("shared-key", fetch),
+    )
 
     assert calls == 1
     assert all(result.equals(results[0]) for result in results)
@@ -266,18 +218,17 @@ async def test_in_flight_lock_registry_releases_unused_lock() -> None:
 
 
 @pytest.mark.asyncio
-async def test_cached_checks_cache_before_lock() -> None:
+async def test_file_cache_checks_cache_before_lock(tmp_path: Path) -> None:
     """Cache hits must return before acquiring the in-flight asyncio.Lock."""
-    context = _MemoryContext()
+    adapter = FileCacheAdapter(cache_dir=tmp_path)
 
-    @cached("pre-lock-check-key")
-    async def fetch(context: _MemoryContext) -> pl.DataFrame:  # noqa: ARG001
+    async def fetch() -> pl.DataFrame:
         return pl.DataFrame({"value": [1]})
 
-    await fetch(context)
+    await adapter.get_or_fetch("pre-lock-check-key", fetch)
 
     with patch("polars_baseball._cache._in_flight_lock_for", wraps=_in_flight_lock_for) as mock_lock:
-        df = await fetch(context)
+        df = await adapter.get_or_fetch("pre-lock-check-key", fetch)
 
     assert df["value"][0] == 1
     assert mock_lock.call_count == 0, "Lock was acquired before cache check (pre-lock fast path missing)"
@@ -429,12 +380,6 @@ def test_null_cache_adapter_raw_operations() -> None:
     adapter = NullCacheAdapter()
     adapter.set_raw("k", b"val")
     assert adapter.get_raw("k") is None
-
-
-def test_global_cache_adapter_raw_operations(tmp_path: Path) -> None:
-    global_cache.configure(tmp_path)
-    global_cache.set_raw("gk", b"global raw")
-    assert global_cache.get_raw("gk") == b"global raw"
 
 
 def test_file_cache_adapter_key_locks_weakref_cleanup(tmp_path: Path) -> None:

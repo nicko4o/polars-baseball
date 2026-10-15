@@ -17,7 +17,7 @@ from polars_baseball._storage_primitives import (
     validate_safe_path_component,
     validate_zip_archive,
 )
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import (
     ClientError,
     UpstreamDataCorruptedError,
@@ -69,7 +69,7 @@ class CompiledDatasetGateway:
         2. On-demand compilation from upstream ZIP archives.
     """
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         self._context = context
         self._cache_dir = resolve_cache_dir(context)
 

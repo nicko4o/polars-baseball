@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.25.0] - 2026-10-14
+## [0.26.0] - 2026-10-14
+
+### Changed
+
+- **[Breaking]** Pure Client Architecture: Transitioned to `BaseballClient` as the primary client instance. All data-fetching APIs must now be invoked through `BaseballClient` subclients (`client.savant.*`, `client.mlb.*`, `client.bref.*`, `client.fangraphs.*`, `client.retrosheet.*`, `client.lahman.*`, `client.lookup.*`). Top-level convenience facades on provider modules (`pb.savant.*`, `pb.mlb.*`, etc.) have been completely removed.
+- **[Breaking]** Removed global singleton context pattern (`BaseballContext.default()`, `reset_default()`, `cleanup()`) in favor of instance-managed caching and HTTP sessions. `BaseballContext` is retained as an alias for `BaseballClient`.
+- **[Breaking]** Unified API return types: all live network data queries consistently return eager `polars.DataFrame`.
+
+## [0.25.0] - 2026-10-10
 
 ### Added
 

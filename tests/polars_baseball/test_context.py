@@ -5,7 +5,14 @@ import pytest
 
 from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter
 from polars_baseball._client import HttpClient
-from polars_baseball.context import BaseballClient, BaseballContext, cleanup
+from polars_baseball.bref import BRefClient
+from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.fangraphs import FanGraphsClient
+from polars_baseball.lahman import LahmanClient
+from polars_baseball.lookup import LookupClient
+from polars_baseball.mlb import MlbClient
+from polars_baseball.retrosheet import RetrosheetClient
+from polars_baseball.savant import SavantClient
 
 
 def test_baseball_client_alias() -> None:
@@ -16,6 +23,13 @@ def test_baseball_client_defaults() -> None:
     client = BaseballClient()
     assert isinstance(client.http, HttpClient)
     assert isinstance(client.cache, CacheAdapter)
+    assert isinstance(client.savant, SavantClient)
+    assert isinstance(client.mlb, MlbClient)
+    assert isinstance(client.bref, BRefClient)
+    assert isinstance(client.fangraphs, FanGraphsClient)
+    assert isinstance(client.retrosheet, RetrosheetClient)
+    assert isinstance(client.lahman, LahmanClient)
+    assert isinstance(client.lookup, LookupClient)
 
 
 def test_baseball_client_with_file_cache(tmp_path: Path) -> None:
@@ -37,42 +51,6 @@ def test_baseball_client_injection() -> None:
     client = BaseballClient(http=mock_http, cache=mock_cache)
     assert client.http is mock_http
     assert client.cache is mock_cache
-
-
-def test_default_returns_shared_instance() -> None:
-    ctx1 = BaseballClient.default()
-    ctx2 = BaseballClient.default()
-    assert ctx1 is ctx2
-    assert isinstance(ctx1, BaseballClient)
-
-
-def test_reset_default_clears_singleton() -> None:
-    ctx1 = BaseballClient.default()
-    BaseballClient.reset_default()
-    ctx2 = BaseballClient.default()
-    assert ctx1 is not ctx2
-
-
-@pytest.mark.asyncio
-async def test_cleanup_with_explicit_client() -> None:
-    mock_http = AsyncMock(spec=HttpClient)
-    client = BaseballClient(http=mock_http)
-
-    await cleanup(client)
-
-    mock_http.close.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_cleanup_without_arg_closes_default_singleton() -> None:
-    client = BaseballClient.default()
-    mock_http = AsyncMock(spec=HttpClient)
-    client.http = mock_http
-
-    await cleanup()
-
-    mock_http.close.assert_awaited_once()
-    assert BaseballClient._default_instance is None
 
 
 @pytest.mark.asyncio

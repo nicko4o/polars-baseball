@@ -32,33 +32,34 @@ Use `FileCacheAdapter` when you want to inject a file cache directly:
 
 ```python
 from pathlib import Path
-from polars_baseball import BaseballContext
+from polars_baseball import BaseballClient
 from polars_baseball._cache import FileCacheAdapter, NullCacheAdapter
 from polars_baseball._client import HttpClient
 
-no_cache_context = BaseballContext(http=HttpClient(timeout=5.0, max_retries=0), cache=NullCacheAdapter())
-file_cache_context = BaseballContext(cache=FileCacheAdapter(Path("./my_project_cache")))
+no_cache_client = BaseballClient(http=HttpClient(timeout=5.0, max_retries=0), cache=NullCacheAdapter())
+file_cache_client = BaseballClient(cache=FileCacheAdapter(Path("./my_project_cache")))
 ```
 
 Retries and BRef rate limiting are opt-in:
 
 ```python
-from polars_baseball import BaseballContext
+from polars_baseball import BaseballClient
 from polars_baseball._client import HttpClient
 
-context = BaseballContext(
+client = BaseballClient(
     http=HttpClient(timeout=10.0, max_retries=2, bref_requests_per_minute=10),
 )
 ```
 
-Use `cleanup` when a long-running script needs to close the package-level HTTP clients explicitly:
+Use context managers or explicit `close()` when a long-running script needs to manage HTTP clients cleanly:
 
 ```python
 import asyncio
-from polars_baseball import cleanup
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    await cleanup()
+    async with BaseballClient() as client:
+        df = await client.mlb.schedule(2024)
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -66,27 +67,25 @@ if __name__ == "__main__":
 
 ### Lifecycle & Concurrency in Web Services
 
-The global default context (used when calling package APIs without `context=`) is a lazy singleton designed for CLI scripts. Its default file cache is also initialized lazily on first use. It is not thread-safe or loop-safe in long-running concurrent apps (like FastAPI or Celery).
-
-For web services, always initialize and inject a custom `BaseballContext` tied to your application's lifecycle:
+For web services, always initialize and inject a custom `BaseballClient` tied to your application's lifecycle:
 
 ```python
 from pathlib import Path
 
 from fastapi import FastAPI
-from polars_baseball import BaseballContext
+from polars_baseball import BaseballClient
 
 # tied to lifespan
 async def lifespan(app: FastAPI):
-    app.state.pb_context = BaseballContext.with_file_cache(Path("./service-cache"))
+    app.state.pb_client = BaseballClient.with_file_cache(Path("./service-cache"))
     try:
         yield
     finally:
-        await app.state.pb_context.close()
+        await app.state.pb_client.close()
 ```
 
 `POLARS_BASEBALL_CACHE_DIR` configures the default cache directory for file-backed operations.
-Call `BaseballClient.with_file_cache()` (or `BaseballContext.with_file_cache()`) to enable file caching explicitly.
+Call `BaseballClient.with_file_cache()` to enable file caching explicitly.
 
 ## Cache Behavior
 
@@ -95,15 +94,13 @@ Call `BaseballClient.with_file_cache()` (or `BaseballContext.with_file_cache()`)
 - **Compiled datasets**: Lahman and Chadwick Register tables are cached as per-table Parquet files under `compiled-datasets/`.
 - **Compiled dataset CDN**: Set `POLARS_BASEBALL_DATASETS_URL` to a hosted compiled dataset root. The client then downloads `dataset/table.parquet` files instead of compiling from upstream ZIP archives.
 
-Internal `@cached` key builders receive keyword arguments (`**kw`):
+Internal gateway cache keys use `generate_cache_key`:
 
 ```python
-from polars_baseball._cache import cached, generate_cache_key
+from polars_baseball._cache import generate_cache_key
 
 
 def standings_cache_key(**kw: object) -> str:
     season = kw.get("season")
     return generate_cache_key("standings", {"season": season})
 ```
-
-The decorator passes resolved keyword arguments to key builder functions.

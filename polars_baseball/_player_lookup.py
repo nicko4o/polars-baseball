@@ -14,11 +14,11 @@ from polars_baseball._config import (
     FUZZY_MIN_SIZE_FOR_FILTER,
     FUZZY_NAME_LENGTH_TOLERANCE,
 )
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import InvalidParameterError
 
-LookupTableLoader = Callable[[BaseballContext | None], Awaitable[pl.DataFrame]]
+LookupTableLoader = Callable[[BaseballClient | None], Awaitable[pl.DataFrame]]
 PlayerId = int | str
 _NORMALIZED_LAST_COLUMN = "name_last_normalized"
 _NORMALIZED_FIRST_COLUMN = "name_first_normalized"
@@ -84,7 +84,7 @@ class PlayerLookupService:
     def _get_lock(self) -> asyncio.Lock:
         return self._lock_registry.get_lock("player_lookup_table")
 
-    async def _ensure_table(self, context: BaseballContext | None = None) -> pl.DataFrame:
+    async def _ensure_table(self, context: BaseballClient | None = None) -> pl.DataFrame:
         if self.table is not None:
             return self.table
         async with self._get_lock():
@@ -108,7 +108,7 @@ class PlayerLookupService:
         last: str,
         first: str | None = None,
         ignore_accents: bool = False,
-        context: BaseballContext | None = None,
+        context: BaseballClient | None = None,
     ) -> pl.DataFrame:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
@@ -131,7 +131,7 @@ class PlayerLookupService:
         last: str,
         first: str | None = None,
         ignore_accents: bool = False,
-        context: BaseballContext | None = None,
+        context: BaseballClient | None = None,
     ) -> pl.DataFrame:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
@@ -149,7 +149,7 @@ class PlayerLookupService:
     async def search_list(
         self,
         players: list[tuple[str, str]],
-        context: BaseballContext | None = None,
+        context: BaseballClient | None = None,
     ) -> pl.DataFrame:
         table = await self._ensure_table(context)
         if not players:
@@ -162,7 +162,7 @@ class PlayerLookupService:
         self,
         player_ids: list[PlayerId],
         key_type: KeyType = KeyType.MLBAM,
-        context: BaseballContext | None = None,
+        context: BaseballClient | None = None,
     ) -> pl.DataFrame:
         if not isinstance(key_type, KeyType):
             raise InvalidParameterError("key_type must be a KeyType enum value.")

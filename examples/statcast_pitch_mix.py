@@ -40,12 +40,12 @@ def _build_pitch_mix(df: pl.DataFrame) -> pl.DataFrame:
 
 async def _main() -> None:
     args = _parse_args()
-    lf = await pb.savant.pitcher(
-        start_date=args.start_date,
-        end_date=args.end_date,
-        player_id=args.pitcher_id,
-    )
-    df = lf.collect()
+    async with pb.BaseballClient() as client:
+        df = await client.savant.pitcher(
+            start_date=args.start_date,
+            end_date=args.end_date,
+            player_id=args.pitcher_id,
+        )
     print(_build_pitch_mix(df))
 
 

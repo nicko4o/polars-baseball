@@ -1,0 +1,490 @@
+import asyncio
+import json
+from collections.abc import Sequence
+from unittest.mock import AsyncMock, MagicMock
+
+import polars as pl
+import pytest
+
+from polars_baseball._client import HttpClient
+from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.parsers.savant_gamefeed import EXIT_VELOCITY_SCHEMA, PITCH_DATA_SCHEMA
+
+_default_client = BaseballClient()
+
+
+async def savant_gamefeed_exit_velocity(
+    game_pk: int | str,
+    context: BaseballClient | None = None,
+    client: BaseballClient | None = None,
+) -> pl.DataFrame:
+    c = client or context or _default_client
+    return await c.savant.gamefeed_exit_velocity(game_pk)
+
+
+async def savant_gamefeed_pitch_data(
+    game_pk: int | str,
+    context: BaseballClient | None = None,
+    client: BaseballClient | None = None,
+) -> pl.DataFrame:
+    c = client or context or _default_client
+    return await c.savant.gamefeed_pitch_data(game_pk)
+
+
+async def savant_gamefeed_exit_velocity_many(
+    game_pks: Sequence[int | str],
+    *,
+    context: BaseballClient | None = None,
+    client: BaseballClient | None = None,
+    parallel: bool = True,
+    concurrency_limit: int = 5,
+) -> pl.DataFrame:
+    c = client or context or _default_client
+    return await c.savant.gamefeed_exit_velocity_many(game_pks, parallel=parallel, concurrency_limit=concurrency_limit)
+
+
+async def savant_gamefeed_pitch_data_many(
+    game_pks: Sequence[int | str],
+    *,
+    context: BaseballClient | None = None,
+    client: BaseballClient | None = None,
+    parallel: bool = True,
+    concurrency_limit: int = 5,
+) -> pl.DataFrame:
+    c = client or context or _default_client
+    return await c.savant.gamefeed_pitch_data_many(game_pks, parallel=parallel, concurrency_limit=concurrency_limit)
+
+
+_GAME_PK = 777001
+
+
+def _gamefeed_payload() -> str:
+    return json.dumps(
+        {
+            "exit_velocity": [
+                {
+                    "play_id": "play-uuid-ohtani",
+                    "inning": 1,
+                    "half_inning": "top",
+                    "batter": 660271,
+                    "batter_name": "Ohtani Shohei",
+                    "team_batting": "LAD",
+                    "pitcher": 675916,
+                    "pitcher_name": "Strider Spencer",
+                    "team_fielding": "ATL",
+                    "description": "In play, run(s)",
+                    "des": "Shohei Ohtani homers (1) on a fly ball to right center field.",
+                    "events": "Home Run",
+                    "launch_speed": 118.7,
+                    "launch_angle": 28,
+                    "hit_distance": 455,
+                    "xba": 0.920,
+                    "start_speed": 98.2,
+                    "contextMetrics": {"homeRunBallparks": 30},
+                }
+            ],
+            "home_pitchers": {
+                "675916": [
+                    {
+                        "pitcher_name": "Strider Spencer",
+                        "team_pitching": "ATL",
+                        "batter_name": "Ohtani Shohei",
+                        "team_batting": "LAD",
+                        "pitch_name": "4-Seamer",
+                        "pitch_type": "FF",
+                        "description": "Swinging Strike",
+                        "events": "",
+                        "start_speed": 99.1,
+                        "spin_rate": 2410,
+                        "breakXInches": -8.1,
+                        "breakZInducedInches": 18.4,
+                    }
+                ]
+            },
+            "away_pitchers": {
+                "607192": [
+                    {
+                        "pitcher_name": "Glasnow Tyler",
+                        "team_pitching": "LAD",
+                        "batter_name": "Acuna Ronald",
+                        "team_batting": "ATL",
+                        "pitch_name": "Curveball",
+                        "pitch_type": "CU",
+                        "description": "Called Strike",
+                        "events": "Strikeout",
+                        "start_speed": 84.5,
+                        "spin_rate": 2895,
+                        "breakXInches": 7.2,
+                        "inducedBreakZ": -9.8,
+                    }
+                ]
+            },
+        }
+    )
+
+
+def _context(raw_payload: str) -> BaseballContext:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        return await fetcher()  # type: ignore[misc]
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = raw_payload
+    return BaseballContext(http=mock_http, cache=mock_cache)
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_exit_velocity_flattens_core_columns() -> None:
+    df = await savant_gamefeed_exit_velocity(_GAME_PK, context=_context(_gamefeed_payload()))
+
+    assert df.columns == [
+        "game_pk",
+        "play_id",
+        "inning",
+        "half_inning",
+        "batter_id",
+        "batter_name",
+        "team_batting",
+        "pitcher_id",
+        "pitcher_name",
+        "team_fielding",
+        "description",
+        "des",
+        "events",
+        "launch_speed",
+        "launch_angle",
+        "hit_distance",
+        "xba",
+        "start_speed",
+        "home_run_ballparks",
+    ]
+    assert df.height == 1
+    assert df["game_pk"].dtype == pl.Int64
+    assert df["play_id"][0] == "play-uuid-ohtani"
+    assert df["inning"][0] == 1
+    assert df["half_inning"][0] == "top"
+    assert df["batter_id"][0] == 660271
+    assert df["pitcher_id"][0] == 675916
+    assert df["description"][0] == "In play, run(s)"
+    assert df["des"][0] == "Shohei Ohtani homers (1) on a fly ball to right center field."
+    assert df["launch_speed"].dtype == pl.Float64
+    assert df["home_run_ballparks"].dtype == pl.Int64
+    assert df["home_run_ballparks"][0] == 30
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_pitch_data_combines_pitcher_nodes() -> None:
+    df = await savant_gamefeed_pitch_data(_GAME_PK, context=_context(_gamefeed_payload()))
+
+    assert df.columns == [
+        "game_pk",
+        "pitcher_id",
+        "pitcher_name",
+        "team_pitching",
+        "batter_name",
+        "team_batting",
+        "pitch_name",
+        "pitch_type",
+        "description",
+        "events",
+        "start_speed",
+        "spin_rate",
+        "break_x_inches",
+        "break_z_induced_inches",
+    ]
+    assert df.height == 2
+    assert df["pitcher_id"].dtype == pl.Int64
+    assert df["pitcher_id"].to_list() == [675916, 607192]
+    assert df["spin_rate"].dtype == pl.Int64
+    assert df["break_x_inches"].dtype == pl.Float64
+    assert df["break_z_induced_inches"].to_list() == [18.4, -9.8]
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_pitch_data_reads_row_level_pitcher_ids() -> None:
+    payload = json.dumps(
+        {
+            "home_pitchers": [
+                {
+                    "pitcher_id": "111111",
+                    "pitcher": {"id": 222222},
+                    "player_id": 333333,
+                    "pitcher_name": "Primary Id",
+                },
+                {
+                    "pitcher": 444444,
+                    "player": {"id": 555555},
+                    "pitcher_name": "Pitcher Field",
+                },
+                {
+                    "player_id": 666666,
+                    "pitcher_name": "Player Id",
+                },
+                {
+                    "pitcher": {"id": "777777"},
+                    "pitcher_name": "Nested Pitcher",
+                },
+                {
+                    "player": {"id": "888888"},
+                    "pitcher_name": "Nested Player",
+                },
+            ],
+            "away_pitchers": {},
+        }
+    )
+
+    df = await savant_gamefeed_pitch_data(_GAME_PK, context=_context(payload))
+
+    assert df["pitcher_id"].to_list() == [111111, 444444, 666666, 777777, 888888]
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_exit_velocity_reads_row_level_batter_and_pitcher_ids() -> None:
+    payload = json.dumps(
+        {
+            "exit_velocity": [
+                {
+                    "batter_id": "111111",
+                    "pitcher_id": "222222",
+                    "batter_name": "Batter 1",
+                    "pitcher_name": "Pitcher 1",
+                    "description": "In play, no out",
+                    "des": "Batter 1 singles.",
+                },
+                {
+                    "batter": 333333,
+                    "pitcher": 444444,
+                    "batter_name": "Batter 2",
+                    "pitcher_name": "Pitcher 2",
+                    "description": None,
+                    "des": "Batter 2 homers.",
+                },
+                {
+                    "batter_id": 555555,
+                    "batter_name": "Batter 3",
+                    "pitcher_name": "Pitcher 3",
+                    "description": "Foul Tip",
+                    "des": None,
+                },
+            ]
+        }
+    )
+
+    df = await savant_gamefeed_exit_velocity(_GAME_PK, context=_context(payload))
+
+    assert df["batter_id"].to_list() == [111111, 333333, 555555]
+    assert df["pitcher_id"].to_list() == [222222, 444444, None]
+    assert df["description"].to_list() == ["In play, no out", "Batter 2 homers.", "Foul Tip"]
+    assert df["des"].to_list() == ["Batter 1 singles.", "Batter 2 homers.", None]
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_missing_nodes_return_typed_empty_dataframes() -> None:
+    ctx = _context(json.dumps({}))
+
+    exit_df = await savant_gamefeed_exit_velocity(_GAME_PK, context=ctx)
+    pitch_df = await savant_gamefeed_pitch_data(_GAME_PK, context=ctx)
+
+    assert exit_df.is_empty()
+    assert pitch_df.is_empty()
+    assert exit_df.schema["game_pk"] == pl.Int64
+    assert pitch_df.schema["pitcher_id"] == pl.Int64
+    assert pitch_df.schema["break_z_induced_inches"] == pl.Float64
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_invalid_json_fails_fast() -> None:
+    with pytest.raises(UpstreamParseError, match="valid JSON"):
+        await savant_gamefeed_exit_velocity(_GAME_PK, context=_context("not json"))
+
+
+_GAME_PK_2 = 777002
+
+
+def _gamefeed_payload_second() -> str:
+    return json.dumps(
+        {
+            "exit_velocity": [
+                {
+                    "batter_name": "Judge Aaron",
+                    "team_batting": "NYY",
+                    "pitcher_name": "Cole Gerrit",
+                    "team_fielding": "NYY",
+                    "events": "Single",
+                    "launch_speed": 112.4,
+                    "launch_angle": 12,
+                    "hit_distance": 310,
+                    "xba": 0.580,
+                    "start_speed": 96.8,
+                    "contextMetrics": {"homeRunBallparks": 5},
+                }
+            ],
+            "home_pitchers": {
+                "543037": [
+                    {
+                        "pitcher_name": "Cole Gerrit",
+                        "team_pitching": "NYY",
+                        "batter_name": "Judge Aaron",
+                        "team_batting": "NYY",
+                        "pitch_name": "Sweeper",
+                        "pitch_type": "SW",
+                        "description": "Foul",
+                        "events": "",
+                        "start_speed": 96.8,
+                        "spin_rate": 2560,
+                        "breakXInches": -9.3,
+                        "breakZInducedInches": 12.1,
+                    }
+                ]
+            },
+            "away_pitchers": {},
+        }
+    )
+
+
+def _context_side_effect(payloads: Sequence[str]) -> BaseballContext:
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        return await fetcher()  # type: ignore[misc]
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.side_effect = payloads
+    return BaseballContext(http=mock_http, cache=mock_cache)
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_concatenates_multiple_games() -> None:
+    payloads = [_gamefeed_payload(), _gamefeed_payload_second()]
+    ev_ctx = _context_side_effect(payloads)
+    pitch_ctx = _context_side_effect(payloads)
+
+    ev_df = await savant_gamefeed_exit_velocity_many([_GAME_PK, _GAME_PK_2], context=ev_ctx)
+    pitch_df = await savant_gamefeed_pitch_data_many([_GAME_PK, _GAME_PK_2], context=pitch_ctx)
+
+    assert ev_df.height == 2
+    assert ev_df["game_pk"].to_list() == [777001, 777002]
+    assert ev_df["batter_name"].to_list() == ["Ohtani Shohei", "Judge Aaron"]
+    assert pitch_df.height == 3
+    assert pitch_df["game_pk"].to_list() == [777001, 777001, 777002]
+    assert pitch_df["pitcher_id"].to_list() == [675916, 607192, 543037]
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_empty_input_returns_empty_df() -> None:
+    ev_df = await savant_gamefeed_exit_velocity_many([], context=_context(_gamefeed_payload()))
+    pitch_df = await savant_gamefeed_pitch_data_many([], context=_context(_gamefeed_payload()))
+
+    assert ev_df.is_empty()
+    assert ev_df.schema == pl.Schema(EXIT_VELOCITY_SCHEMA)
+    assert pitch_df.is_empty()
+    assert pitch_df.schema == pl.Schema(PITCH_DATA_SCHEMA)
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_single_game_equals_single_api() -> None:
+    payload = _gamefeed_payload()
+    single_ctx = _context(payload)
+    many_ctx = _context(payload)
+
+    single_df = await savant_gamefeed_exit_velocity(_GAME_PK, context=single_ctx)
+    many_df = await savant_gamefeed_exit_velocity_many([_GAME_PK], context=many_ctx)
+
+    assert single_df.equals(many_df)
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_invalid_game_pk_raises_error() -> None:
+    with pytest.raises(InvalidParameterError):
+        await savant_gamefeed_exit_velocity_many([_GAME_PK, "not-a-number"], context=_context(_gamefeed_payload()))
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_mixed_valid_invalid_fails_fast() -> None:
+    with pytest.raises(InvalidParameterError, match="game_pk"):
+        await savant_gamefeed_pitch_data_many([_GAME_PK, "bad", _GAME_PK_2], context=_context(_gamefeed_payload()))
+
+
+def test_savant_gamefeed_nan_parsing() -> None:
+    from polars_baseball.parsers.savant_gamefeed import _float_or_none, _int_or_none
+
+    assert _float_or_none("NaN") is None
+    assert _float_or_none("nan") is None
+    assert _float_or_none("N/A") is None
+    assert _float_or_none("null") is None
+    assert _float_or_none(float("nan")) is None
+
+    assert _int_or_none("NaN") is None
+    assert _int_or_none("nan") is None
+    assert _int_or_none("N/A") is None
+    assert _int_or_none("null") is None
+    assert _int_or_none(float("nan")) is None
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_bounds_concurrency() -> None:
+    active = 0
+    peak = 0
+    lock = asyncio.Lock()
+
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _mock_gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        nonlocal active, peak
+        async with lock:
+            active += 1
+            if active > peak:
+                peak = active
+        await asyncio.sleep(0.01)
+        res = await fetcher()  # type: ignore[misc]
+        async with lock:
+            active -= 1
+        return res
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _gamefeed_payload()
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    pks = [777000 + i for i in range(10)]
+    df = await savant_gamefeed_exit_velocity_many(pks, context=ctx, concurrency_limit=2)
+
+    assert peak <= 2
+    assert df.height == 10
+
+
+@pytest.mark.asyncio
+async def test_savant_gamefeed_many_sequential_mode() -> None:
+    active = 0
+    peak = 0
+
+    mock_cache = MagicMock()
+    mock_cache.get.return_value = None
+
+    async def _mock_gof(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
+        nonlocal active, peak
+        active += 1
+        if active > peak:
+            peak = active
+        await asyncio.sleep(0.005)
+        res = await fetcher()  # type: ignore[misc]
+        active -= 1
+        return res
+
+    mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.return_value = _gamefeed_payload()
+    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+
+    pks = [777000 + i for i in range(5)]
+    df = await savant_gamefeed_pitch_data_many(pks, context=ctx, parallel=False)
+
+    assert peak == 1
+    assert df.height == 10
