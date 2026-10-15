@@ -9,8 +9,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.apis.retrosheet import events
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 
 
 @pytest.mark.asyncio
@@ -28,11 +27,11 @@ async def test_events_uses_supplied_context() -> None:
         return mock_evn
 
     mock_http.get_text.side_effect = mock_get
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
-    result = await events(2026, game_type="regular", context=ctx)
-    assert isinstance(result, pl.LazyFrame)
-    df = result.collect()
+    result = await client.retrosheet.events(2026, game_type="regular")
+    assert isinstance(result, pl.DataFrame)
+    df = result
 
     assert df["filename"].to_list() == ["2026NYN.EVA", "2026NYN.EVN"]
     assert df["content"].to_list() == [mock_eva.encode("utf-8"), mock_evn.encode("utf-8")]
@@ -55,11 +54,11 @@ async def test_events_returns_dataframe_with_raw_content() -> None:
         return mock_evn
 
     mock_http.get_text.side_effect = mock_get
-    ctx = BaseballContext(http=mock_http)
-    result = await events(2026, game_type="regular", context=ctx)
+    client = BaseballClient(http=mock_http)
+    result = await client.retrosheet.events(2026, game_type="regular")
 
-    assert isinstance(result, pl.LazyFrame)
-    df = result.collect()
+    assert isinstance(result, pl.DataFrame)
+    df = result
     assert df.schema == {
         "season": pl.Int64,
         "event_type": pl.String,
@@ -79,10 +78,10 @@ async def test_events_does_not_write_to_disk(tmp_path: Path) -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.side_effect = [mock_contents, mock_data]
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
-    cache_dir = ctx.cache.cache_dir
-    await events(2026, game_type="regular", context=ctx)
+    cache_dir = client.cache.cache_dir
+    await client.retrosheet.events(2026, game_type="regular")
     non_cache_files = [
         p for p in tmp_path.rglob("*") if cache_dir is not None and cache_dir not in p.parents and p != cache_dir
     ]
@@ -97,10 +96,10 @@ async def test_events_deprecated_type_keyword() -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.side_effect = [mock_contents, mock_data]
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
     with pytest.raises(TypeError):
-        await events(2026, type="regular", context=ctx)
+        await client.retrosheet.events(2026, type="regular")  # type: ignore[call-arg]
 
 
 @pytest.mark.asyncio
@@ -126,10 +125,10 @@ async def test_events_fail_fast_cancellation() -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
     with pytest.raises(RuntimeError, match="Upstream event fetch failure"):
-        await events(2026, game_type="regular", context=ctx, concurrency_limit=2)
+        await client.retrosheet.events(2026, game_type="regular", concurrency_limit=2)
 
     assert cancelled is True
 
@@ -162,10 +161,10 @@ async def test_events_bounded_concurrency_admission() -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext(http=mock_http)
+    client = BaseballClient(http=mock_http)
 
     limit = 2
-    result = await events(2026, game_type="regular", context=ctx, concurrency_limit=limit)
+    result = await client.retrosheet.events(2026, game_type="regular", concurrency_limit=limit)
 
-    assert isinstance(result, pl.LazyFrame)
+    assert isinstance(result, pl.DataFrame)
     assert peak <= limit

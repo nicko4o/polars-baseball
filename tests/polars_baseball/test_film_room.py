@@ -1,8 +1,8 @@
 import polars as pl
 import pytest
 
-from polars_baseball.apis.mlb.film_room import FilmRoomQueryBuilder, film_room_cache_key, film_room_search
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
+from polars_baseball.mlb import FilmRoomQueryBuilder, film_room_cache_key
 from polars_baseball.parsers.film_room import FILM_ROOM_SCHEMA, parse_film_room_search
 
 
@@ -163,38 +163,42 @@ def test_parse_film_room_search_no_playbacks() -> None:
 
 @pytest.mark.asyncio
 async def test_film_room_search_parameter_validation() -> None:
+    from polars_baseball.client import BaseballClient
+
+    client = BaseballClient()
+
     with pytest.raises(InvalidParameterError, match="limit must be greater than 0"):
-        await film_room_search(limit=0)
+        await client.mlb.film_room_search(limit=0)
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty sequence"):
-        await film_room_search(player_ids=[])
+        await client.mlb.film_room_search(player_ids=[])
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty sequence"):
-        await film_room_search(event_types=[])
+        await client.mlb.film_room_search(event_types=[])
 
     with pytest.raises(InvalidParameterError, match="date_range must be a tuple"):
-        await film_room_search(date_range=("2024-01-01",))  # type: ignore[arg-type]
+        await client.mlb.film_room_search(date_range=("2024-01-01",))  # type: ignore[arg-type]
 
     with pytest.raises(InvalidParameterError, match="YYYY-MM-DD"):
-        await film_room_search(date_range=("invalid", "2024-01-02"))
+        await client.mlb.film_room_search(date_range=("invalid", "2024-01-02"))
 
     with pytest.raises(InvalidParameterError, match="cannot be after end_date"):
-        await film_room_search(date_range=("2024-05-01", "2024-04-01"))
+        await client.mlb.film_room_search(date_range=("2024-05-01", "2024-04-01"))
 
     with pytest.raises(InvalidParameterError, match="min_exit_velocity .* cannot exceed"):
-        await film_room_search(min_exit_velocity=115.0, max_exit_velocity=100.0)
+        await client.mlb.film_room_search(min_exit_velocity=115.0, max_exit_velocity=100.0)
 
     with pytest.raises(InvalidParameterError, match="min_distance .* cannot exceed"):
-        await film_room_search(min_distance=450, max_distance=400)
+        await client.mlb.film_room_search(min_distance=450, max_distance=400)
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty string"):
-        await film_room_search(event_types="")
+        await client.mlb.film_room_search(event_types="")
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty string"):
-        await film_room_search(pitch_types="   ")
+        await client.mlb.film_room_search(pitch_types="   ")
 
     with pytest.raises(InvalidParameterError, match="cannot be an empty string"):
-        await film_room_search(query="")
+        await client.mlb.film_room_search(query="")
 
 
 def test_parse_film_room_search_forge_cdn_fallback() -> None:
@@ -254,7 +258,7 @@ async def test_film_room_gateway_pagination_early_break() -> None:
     from unittest.mock import AsyncMock
 
     from polars_baseball._client import HttpClient
-    from polars_baseball.context import BaseballContext
+    from polars_baseball.client import BaseballClient
     from polars_baseball.gateways.film_room import FilmRoomGateway
 
     mock_http = AsyncMock(spec=HttpClient)
@@ -298,7 +302,7 @@ async def test_film_room_gateway_pagination_early_break() -> None:
             json.dumps(page_2_data),
         ]
     )
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
     gateway = FilmRoomGateway(ctx)
 
     # Request limit=100 (which would be 5 pages with PAGE_SIZE=20)

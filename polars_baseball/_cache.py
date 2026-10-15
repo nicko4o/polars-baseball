@@ -1,24 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import hashlib
-import inspect
 import json
 import logging
-import os
 import threading
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import ParamSpec, Protocol, TypeVar, cast
+from typing import ParamSpec, Protocol, TypeVar
 
 import polars as pl
 from polars.exceptions import ComputeError
 
-from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR, _resolve_default_cache_dir
+from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR
 from polars_baseball._storage_primitives import atomic_write_bytes, atomic_write_parquet
 from polars_baseball.exceptions import CacheClearError
 
@@ -312,109 +309,3 @@ class NullCacheAdapter(CacheAdapter):
 
     def clear(self) -> None:
         return None
-
-
-class GlobalCache(CacheAdapter):
-    """Cache adapter routing to the dynamically configured cache directory."""
-
-    def __init__(self, cache_dir: Path | None = None, *, use_null_default: bool = False) -> None:
-        self._lock = threading.Lock()
-        if use_null_default and cache_dir is None:
-            self._explicit_adapter: CacheAdapter | None = NullCacheAdapter()
-        elif cache_dir is not None:
-            self._explicit_adapter = FileCacheAdapter(cache_dir)
-        else:
-            self._explicit_adapter = None
-
-    @property
-    def cache_dir(self) -> Path:
-        adapter = self._get_adapter()
-        if isinstance(adapter, NullCacheAdapter):
-            raise RuntimeError("Global cache is not configured with a file-backed cache directory.")
-        assert adapter.cache_dir is not None
-        return adapter.cache_dir
-
-    def _get_adapter(self) -> CacheAdapter:
-        if self._explicit_adapter is not None:
-            return self._explicit_adapter
-        with self._lock:
-            if self._explicit_adapter is None:
-                self._explicit_adapter = FileCacheAdapter(_resolve_default_cache_dir())
-            return self._explicit_adapter
-
-    def configure(self, cache_dir: Path) -> None:
-        with self._lock:
-            self._explicit_adapter = FileCacheAdapter(cache_dir)
-            os.environ["POLARS_BASEBALL_CACHE_DIR"] = str(cache_dir)
-
-    def reset(self) -> None:
-        """Reset explicit adapter back to dynamic environment-driven default."""
-        with self._lock:
-            self._explicit_adapter = None
-
-    def get(self, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
-        return self._get_adapter().get(key, max_age)
-
-    def set(self, key: str, value: pl.DataFrame) -> None:
-        self._get_adapter().set(key, value)
-
-    def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
-        return self._get_adapter().get_raw(key, max_age)
-
-    def set_raw(self, key: str, value: bytes | str) -> None:
-        self._get_adapter().set_raw(key, value)
-
-    def clear(self) -> None:
-        self._get_adapter().clear()
-
-
-global_cache = GlobalCache()
-
-
-def configure_cache(cache_dir: Path) -> None:
-    """Configure the file cache directory."""
-    global_cache.configure(cache_dir)
-
-
-def cached(
-    key: str | Callable[..., str],
-    max_age: timedelta | None = None,
-) -> Callable[[Callable[P, Awaitable[pl.DataFrame]]], Callable[P, Awaitable[pl.DataFrame]]]:
-    """Cache a single DataFrame result, keyed by decorated function arguments."""
-
-    def decorator(fn: Callable[P, Awaitable[pl.DataFrame]]) -> Callable[P, Awaitable[pl.DataFrame]]:
-        sig = inspect.signature(fn)
-
-        @functools.wraps(fn)
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> pl.DataFrame:
-            bound = sig.bind_partial(*args, **kwargs)
-            bound.apply_defaults()
-            call_kw = bound.arguments
-
-            cache_key = key if isinstance(key, str) else key(**call_kw)
-            effective_max_age = cast(timedelta | None, call_kw.get("cache_max_age", max_age))
-            force_update = bool(call_kw.get("force_update", False))
-
-            ctx_arg = call_kw.get("context")
-            if ctx_arg is not None and hasattr(ctx_arg, "cache"):
-                cache = cast(CacheAdapter, ctx_arg.cache)
-            else:
-                cache = global_cache
-
-            if not force_update:
-                cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
-                if cached_val is not None:
-                    return cached_val
-
-            async with _in_flight_lock_for(cache, cache_key):
-                if not force_update:
-                    cached_val = await asyncio.to_thread(cache.get, cache_key, max_age=effective_max_age)
-                    if cached_val is not None:
-                        return cached_val
-                val = await fn(*args, **kwargs)
-                await asyncio.to_thread(cache.set, cache_key, val)
-                return val
-
-        return wrapper
-
-    return decorator

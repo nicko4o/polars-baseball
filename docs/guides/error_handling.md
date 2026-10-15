@@ -51,7 +51,7 @@ Use standard Python `try...except` blocks to handle caller errors vs. transient 
 
 ```python
 import asyncio
-from polars_baseball.savant import statcast
+from polars_baseball import BaseballClient
 from polars_baseball.exceptions import (
     ClientError,
     PolarsBaseballHttpError,
@@ -60,8 +60,9 @@ from polars_baseball.exceptions import (
 )
 
 async def fetch_data() -> None:
+    client = BaseballClient()
     try:
-        df = await statcast(start_date="2026-06-01", end_date="2026-06-02")
+        df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-02")
         print(f"Retrieved {df.height} rows.")
     except ClientError as err:
         print(f"Invalid caller request: {err}")
@@ -122,8 +123,9 @@ async def retry_async(
     raise RuntimeError("Unreachable")
 
 async def main() -> None:
+    client = BaseballClient()
     df = await retry_async(
-        lambda: pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
+        lambda: client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
     )
     print("Success, rows:", df.height)
 
@@ -135,7 +137,7 @@ if __name__ == "__main__":
 
 ## Managing Session Resources in Web Applications
 
-In long-running web services (e.g. FastAPI, Starlette), wrap calls with `BaseballContext` to share connection pools, manage timeouts, and cleanly handle resource cleanup on shutdown.
+In long-running web services (e.g. FastAPI, Starlette), wrap calls with `BaseballClient` to share connection pools, manage timeouts, and cleanly handle resource cleanup on shutdown.
 
 ```python
 from contextlib import asynccontextmanager
@@ -145,8 +147,8 @@ from polars_baseball.exceptions import ClientError, ServerError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with pb.BaseballContext() as context:
-        app.state.pb_context = context
+    async with pb.BaseballClient() as client:
+        app.state.pb_client = client
         yield
 
 app = FastAPI(lifespan=lifespan)
@@ -156,7 +158,7 @@ async def get_schedule(date: str):
     try:
         df = await pb.mlb.schedule(
             date=date,
-            context=app.state.pb_context
+            client=app.state.pb_client
         )
         return {"count": df.height, "data": df.to_dicts()}
     except ClientError as err:

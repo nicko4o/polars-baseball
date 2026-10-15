@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import polars as pl
 
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
 
@@ -13,7 +13,7 @@ from polars_baseball.parsers.fangraphs import FangraphsHTMLParser
 class FanGraphsGateway(BaseGateway):
     """Fetch, cache, and parse FanGraphs leaderboard responses."""
 
-    def __init__(self, context: BaseballContext, *, parser: FangraphsHTMLParser | None = None) -> None:
+    def __init__(self, context: BaseballClient, *, parser: FangraphsHTMLParser | None = None) -> None:
         super().__init__(context)
         self._parser = parser or FangraphsHTMLParser()
 

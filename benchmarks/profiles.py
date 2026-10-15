@@ -5,12 +5,14 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from polars_baseball import lahman, mlb, savant
+from polars_baseball import BaseballClient
 
 from .models import BenchmarkDimensions
 
 DEFAULT_START = "2024-04-01"
 DEFAULT_END = "2024-04-07"
+
+_client = BaseballClient()
 
 
 @dataclass(frozen=True)
@@ -34,7 +36,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="cold",
         ),
-        fn=savant.statcast,
+        fn=_client.savant.statcast,
         kwargs={
             "start_date": "2024-04-01",
             "end_date": "2024-04-01",
@@ -51,7 +53,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="cold",
         ),
-        fn=savant.statcast,
+        fn=_client.savant.statcast,
         kwargs={
             "start_date": DEFAULT_START,
             "end_date": DEFAULT_END,
@@ -68,7 +70,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             parallel=True,
             cache_state="warm",
         ),
-        fn=savant.statcast,
+        fn=_client.savant.statcast,
         kwargs={
             "start_date": DEFAULT_START,
             "end_date": DEFAULT_END,
@@ -84,7 +86,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=lahman.batting,
+        fn=_client.lahman.batting,
         kwargs={},
     ),
     "lahman_pitching": BenchmarkProfile(
@@ -95,7 +97,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=lahman.pitching,
+        fn=_client.lahman.pitching,
         kwargs={},
     ),
     "lahman_people": BenchmarkProfile(
@@ -106,7 +108,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="all",
             cache_state="cold",
         ),
-        fn=lahman.people,
+        fn=_client.lahman.people,
         kwargs={},
     ),
     "standings_2024": BenchmarkProfile(
@@ -117,7 +119,7 @@ PROFILES: dict[str, BenchmarkProfile] = {
             end_date="2024",
             cache_state="cold",
         ),
-        fn=mlb.standings,
+        fn=_client.mlb.standings,
         kwargs={"season": 2024},
     ),
 }

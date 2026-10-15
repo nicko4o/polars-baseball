@@ -7,7 +7,7 @@ from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 
 from polars_baseball._cache import FileCacheAdapter
 from polars_baseball._client import HttpClient
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import (
     ClientError,
     InvalidParameterError,
@@ -146,8 +146,6 @@ def test_all_domain_errors_catchable_as_base() -> None:
 async def test_statcast_error_row_raises_upstream_parse_error() -> None:
     from datetime import date
 
-    from polars_baseball.apis.statcast import _small_request
-
     async def _get_or_fetch(key: str, fetcher: object, **kwargs: object) -> pl.DataFrame:
         return await fetcher()  # type: ignore[misc]
 
@@ -157,10 +155,10 @@ async def test_statcast_error_row_raises_upstream_parse_error() -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "error\nsome upstream error message\n"
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    client = BaseballClient(http=mock_http, cache=mock_cache)
 
     with pytest.raises(UpstreamParseError):
-        await _small_request(date(2024, 4, 1), date(2024, 4, 7), context=ctx)
+        await client.savant._small_request(date(2024, 4, 1), date(2024, 4, 7))
 
 
 # ── Savant leaderboard error-row raises UpstreamParseError ───────────────────
@@ -179,10 +177,10 @@ async def test_savant_leaderboard_error_row_raises_upstream_parse_error() -> Non
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "error\nsome leaderboard error\n"
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    client = BaseballClient(http=mock_http, cache=mock_cache)
 
     with pytest.raises(UpstreamParseError):
-        await SavantGateway(ctx).get_leaderboard("http://dummy")
+        await SavantGateway(client).get_leaderboard("http://dummy")
 
 
 @pytest.mark.asyncio
@@ -202,8 +200,8 @@ async def test_savant_gateway_recovers_from_corrupt_cache_file(tmp_path: Path) -
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "game_date,game_pk\n2026-06-01,123\n"
 
-    ctx = BaseballContext(http=mock_http, cache=cache)
-    gateway = SavantGateway(ctx)
+    client = BaseballClient(http=mock_http, cache=cache)
+    gateway = SavantGateway(client)
 
     df = await gateway.get_dataset(url, params=params)
 

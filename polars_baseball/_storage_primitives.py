@@ -14,14 +14,14 @@ import polars as pl
 from polars_baseball.exceptions import UpstreamDataCorruptedError
 
 if TYPE_CHECKING:
-    from polars_baseball.context import BaseballContext
+    from polars_baseball.client import BaseballClient
 
 from polars_baseball._concurrency import LoopBoundLockRegistry
 
 _FILE_LOCKS = LoopBoundLockRegistry()
 
 
-def resolve_cache_dir(context: BaseballContext) -> Path | None:
+def resolve_cache_dir(context: BaseballClient) -> Path | None:
     """Extract cache_dir from context if file-backed."""
     return context.cache.cache_dir
 

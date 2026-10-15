@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._player_lookup import PlayerLookupService
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient, BaseballContext
 from polars_baseball.enums.player import KeyType
 
 
@@ -177,16 +177,12 @@ async def test_player_lookup_service_reset() -> None:
     assert loader.await_count == 2
 
 
-def test_reset_lookup_table_clears_module_singleton() -> None:
-    from polars_baseball.apis.playerid import _module_client, reset_lookup_table
+def test_lookup_client_reset_clears_table() -> None:
 
-    original_table = _module_client.table
-    _module_client.table = _player_table()
-    try:
-        reset_lookup_table()
-        assert _module_client.table is None
-    finally:
-        _module_client.table = original_table
+    client = BaseballClient()
+    client.lookup._service.table = _player_table()
+    client.lookup.reset()
+    assert client.lookup._service.table is None
 
 
 def test_player_lookup_service_cross_event_loops() -> None:

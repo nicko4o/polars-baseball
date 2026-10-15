@@ -17,7 +17,8 @@ def _parse_args() -> argparse.Namespace:
 
 async def _main() -> None:
     args = _parse_args()
-    df = await pb.mlb.schedule(date=args.date, team_id=args.team_id)
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.schedule(date=args.date, team_id=args.team_id)
     print(df)
 
 

@@ -13,7 +13,7 @@ from polars_baseball._config import (
     BREF_SPLITS_URL_TEMPLATE,
 )
 from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.bref import BRefGameLogParser, BRefSplitsParser, parse_bref_dataset
 
@@ -21,7 +21,7 @@ from polars_baseball.parsers.bref import BRefGameLogParser, BRefSplitsParser, pa
 class BRefGateway(BaseGateway):
     """Gateway for querying and caching raw data from Baseball Reference."""
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         super().__init__(context)
 
     async def get_dataset(

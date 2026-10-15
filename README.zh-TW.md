@@ -82,13 +82,13 @@ pip install "polars-baseball[plot]"
 ```python
 import asyncio
 
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 
 async def main() -> None:
-    lf = await pb.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
-    df = lf.collect()
-    print(df.head(5))
+    async with BaseballClient() as client:
+        df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
+        print(df.head(5))
 
 
 if __name__ == "__main__":
@@ -101,22 +101,22 @@ if __name__ == "__main__":
 import asyncio
 
 import polars as pl
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 
 async def main() -> None:
-    lf = await pb.savant.pitcher(
-        start_date="2026-06-01",
-        end_date="2026-06-01",
-        # 不知道 ID？用 pb.lookup.playerid_lookup("Judge", "Aaron") 查詢
-        player_id=506433,
-    )
-    df = lf.collect()
-    summary = df.group_by("pitch_type").agg(
-        pl.col("release_speed").mean().alias("mean_speed"),
-        pl.len().alias("pitch_count"),
-    )
-    print(summary.sort("pitch_count", descending=True))
+    async with BaseballClient() as client:
+        df = await client.savant.pitcher(
+            start_date="2026-06-01",
+            end_date="2026-06-01",
+            # 不知道 ID？用 await client.lookup.playerid_lookup("Judge", "Aaron") 查詢
+            player_id=506433,
+        )
+        summary = df.group_by("pitch_type").agg(
+            pl.col("release_speed").mean().alias("mean_speed"),
+            pl.len().alias("pitch_count"),
+        )
+        print(summary.sort("pitch_count", descending=True))
 
 
 if __name__ == "__main__":
@@ -128,17 +128,18 @@ if __name__ == "__main__":
 ```python
 import asyncio
 
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 
 async def main() -> None:
-    df = await pb.fangraphs.batting(
-        start_season=2026,
-        end_season=2026,
-        qual=100,
-        max_results=20,
-    )
-    print(df.head(10))
+    async with BaseballClient() as client:
+        df = await client.fangraphs.batting(
+            start_season=2026,
+            end_season=2026,
+            qual=100,
+            max_results=20,
+        )
+        print(df.head(10))
 
 
 if __name__ == "__main__":
@@ -212,12 +213,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/statcast")
 async def get_statcast() -> dict[str, int]:
-    lf = await pb.savant.statcast(
+    client: pb.BaseballClient = app.state.pb_client
+    df = await client.savant.statcast(
         start_date="2026-06-01",
         end_date="2026-06-02",
-        context=app.state.pb_client,
     )
-    df = lf.collect()
     return {"rows": df.height}
 ```
 

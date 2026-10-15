@@ -27,7 +27,7 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 
 ## 1. Player Bios (`mlb.people`)
 
-`mlb.people(person_ids: list[int] | int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.people(person_ids: list[int] | int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves biographical information for one or more players.
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 ## 2. Roster (`mlb.roster`)
 
-`mlb.roster(team_id: int, season: int | None = None, roster_type: str | MlbRosterType = "active", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.roster(team_id: int, season: int | None = None, roster_type: str | MlbRosterType = "active", force_update: bool = False) -> pl.DataFrame`
 
 Retrieves the roster for a team-season. `roster_type` accepts an `MlbRosterType` enum or a case-insensitive string (e.g. `"active"`, `"40Man"`).
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
 ## 3. Schedule (`mlb.schedule`)
 
-`mlb.schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.schedule(season: int | None = None, date: str | None = None, team_id: int | None = None, hydrate: str | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves MLB game schedules filtered by season, date, or team. Provide either `season` or `date`, not both.
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 ## 4. Player Stats (`mlb.player_stats`)
 
-`mlb.player_stats(person_id: int, group: str | MlbStatsGroup, stats_type: str = "season", season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.player_stats(person_id: int, group: str | MlbStatsGroup, stats_type: str = "season", season: int | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves hitting, pitching, or fielding statistics for a player. `group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
 
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
 ## 5. Game Boxscore (`mlb.game_boxscore`)
 
-`mlb.game_boxscore(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_boxscore(game_pk: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves player boxscore rows for a single game.
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
 ## 6. Teams (`mlb.teams`)
 
-`mlb.teams(season: int | None = None, league_id: int | None = None, sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.teams(season: int | None = None, league_id: int | None = None, sport_id: int = 1, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves official MLB team metadata.
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
 ## 7. Team Stats (`mlb.team_stats`)
 
-`mlb.team_stats(team_id: int, season: int | None = None, group: str | MlbStatsGroup = "hitting", stats_type: str = "season", force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.team_stats(team_id: int, season: int | None = None, group: str | MlbStatsGroup = "hitting", stats_type: str = "season", force_update: bool = False) -> pl.DataFrame`
 
 Retrieves team-level hitting, pitching, or fielding statistics. `group` accepts an `MlbStatsGroup` enum or a string.
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
 ## 8. Stat Leaders (`mlb.stat_leaders`)
 
-`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | MlbStatsGroup | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | MlbStatsGroup | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves league leaders for one or more stat categories. `stat_group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 
 ## 9. Postseason Schedule (`mlb.postseason_schedule`)
 
-`mlb.postseason_schedule(season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.postseason_schedule(season: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves postseason games for a season.
 
@@ -182,7 +182,7 @@ Current live checks return an empty DataFrame for recent completed seasons, so t
 
 ## 10. Game Boxscore Stats (`mlb.game_boxscore_stats`)
 
-`mlb.game_boxscore_stats(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_boxscore_stats(game_pk: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves flattened batting, pitching, and fielding stats from a single game boxscore.
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
 
 ## 11. Play-by-Play (`mlb.game_play_by_play`)
 
-`mlb.game_play_by_play(game_pk: int, win_probability: bool = False, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_play_by_play(game_pk: int, win_probability: bool = False, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves play-level data for a single game. Set `win_probability=True` to use the win probability endpoint.
 
@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
 ## 12. Win Probability (`mlb.game_win_probability`)
 
-`mlb.game_win_probability(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_win_probability(game_pk: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves per-play win probability, WPA, leverage, and drama index fields for a single game. Convenience wrapper for `mlb.game_play_by_play(win_probability=True)`.
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 
 ## 13. Draft (`mlb.draft`)
 
-`mlb.draft(year: int, draft_round: int | None = None, team_id: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.draft(year: int, draft_round: int | None = None, team_id: int | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves amateur draft details for a specific year, with optional round and team filtering.
 
@@ -254,7 +254,7 @@ if __name__ == "__main__":
 
 ## 14. Pitch Arsenal (`mlb.pitch_arsenal`)
 
-`mlb.pitch_arsenal(person_id: int, season: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.pitch_arsenal(person_id: int, season: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves a player's pitch arsenal stats (average speed, percentage, etc.) for a season.
 
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
 ## 15. Transactions (`mlb.transactions`)
 
-`mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves transaction records for a specific date or date range. Provide either `date` or the `start_date`/`end_date` range, not both.
 
@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
 ## 16. Venues (`mlb.venues`)
 
-`mlb.venues(venue_ids: int | list[int] | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.venues(venue_ids: int | list[int] | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves stadium and venue metadata.
 
@@ -308,7 +308,7 @@ if __name__ == "__main__":
 
 ## 17. Game Feed Live (`mlb.game_feed_live`)
 
-`mlb.game_feed_live(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_feed_live(game_pk: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves granular, real-time live feed events and pitch Statcast measurements for a game.
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
 ## 18. Game Linescore (`mlb.game_linescore`)
 
-`mlb.game_linescore(game_pk: int, force_update: bool = False, cache_max_age: timedelta | None = timedelta(seconds=10), context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_linescore(game_pk: int, force_update: bool = False, cache_max_age: timedelta | None = timedelta(seconds=10)) -> pl.DataFrame`
 
 Retrieves inning-by-inning linescore data (runs, hits, errors) for a game.
 Use `cache_max_age` to tune freshness for polling or completed games; `force_update=True` bypasses the cache.
@@ -345,7 +345,7 @@ if __name__ == "__main__":
 
 ## 19. Game Highlights (`mlb.game_highlights`)
 
-`mlb.game_highlights(game_pk: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.game_highlights(game_pk: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves video highlight metadata and MP4 playback URLs for a single game. Selects the highest available bitrate MP4 video URL per highlight item.
 
@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
 ## 20. Film Room Search (`mlb.film_room_search`)
 
-`mlb.film_room_search(player_ids: list[int] | int | None = None, team_ids: list[int] | int | None = None, seasons: list[int] | int | None = None, date_range: tuple[str, str] | None = None, event_types: list[str] | str | None = None, pitch_types: list[str] | str | None = None, min_exit_velocity: float | None = None, max_exit_velocity: float | None = None, min_distance: int | None = None, max_distance: int | None = None, limit: int = 100, query: str | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.film_room_search(player_ids: list[int] | int | None = None, team_ids: list[int] | int | None = None, seasons: list[int] | int | None = None, date_range: tuple[str, str] | None = None, event_types: list[str] | str | None = None, pitch_types: list[str] | str | None = None, min_exit_velocity: float | None = None, max_exit_velocity: float | None = None, min_distance: int | None = None, max_distance: int | None = None, limit: int = 100, query: str | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Searches MLB Film Room video clips across players, teams, seasons, date ranges, pitch types, hit results, and Statcast metrics (exit velocity, hit distance).
 
@@ -386,7 +386,7 @@ if __name__ == "__main__":
 
 ## 21. Divisions (`mlb.divisions`)
 
-`mlb.divisions(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.divisions(sport_id: int = 1, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves official division dimension metadata.
 
@@ -404,7 +404,7 @@ if __name__ == "__main__":
 
 ## 22. Leagues (`mlb.leagues`)
 
-`mlb.leagues(sport_id: int = 1, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.leagues(sport_id: int = 1, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves official league dimension metadata.
 
@@ -422,7 +422,7 @@ if __name__ == "__main__":
 
 ## 23. People Awards (`mlb.people_awards`)
 
-`mlb.people_awards(person_id: int, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.people_awards(person_id: int, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves official person-centric MLB award timeline rows. This does not replace Lahman award or award vote-share tables.
 
@@ -440,7 +440,7 @@ if __name__ == "__main__":
 
 ## 24. Standings (`mlb.standings`)
 
-`mlb.standings(season: int | None = None, force_update: bool = False, context: BaseballContext | None = None) -> pl.DataFrame`
+`mlb.standings(season: int | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves one MLB standings table for a season, with division metadata columns.
 

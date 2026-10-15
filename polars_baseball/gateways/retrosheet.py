@@ -11,7 +11,7 @@ from polars_baseball._config import (
     RETROSHEET_SCHEDULE_URL,
     RETROSHEET_SEASON_GAMELOG_URL,
 )
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.retrosheet import parse_season_contents
 
@@ -19,7 +19,7 @@ from polars_baseball.parsers.retrosheet import parse_season_contents
 class RetrosheetGateway(BaseGateway):
     """Gateway for querying and caching raw data from Retrosheet."""
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         super().__init__(context)
 
     async def get_season_contents(self, season: int, *, use_cache: bool = True) -> list[str]:

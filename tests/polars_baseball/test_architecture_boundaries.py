@@ -4,14 +4,14 @@ import ast
 from pathlib import Path
 
 from polars_baseball._cache import generate_cache_key
-from polars_baseball.apis.mlb._contracts import venues_cache_key, venues_url
+from polars_baseball._mlb_contracts import venues_cache_key, venues_url
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = PROJECT_ROOT / "polars_baseball"
 PARSERS_ROOT = PACKAGE_ROOT / "parsers"
-MLB_API_ROOT = PACKAGE_ROOT / "apis" / "mlb"
-RETROSHEET_API = PACKAGE_ROOT / "apis" / "retrosheet.py"
-STANDINGS_API = PACKAGE_ROOT / "apis" / "standings.py"
+MLB_MODULE = PACKAGE_ROOT / "mlb.py"
+RETROSHEET_MODULE = PACKAGE_ROOT / "retrosheet.py"
+ALLOWED_MLB_CONTRACT_MODULE = PACKAGE_ROOT / "_mlb_contracts.py"
 
 MLB_SHARED_ENDPOINT_CONSTANTS = {
     "_BOXSCORE_URL_TEMPLATE",
@@ -28,8 +28,6 @@ MLB_SHARED_ENDPOINT_CONSTANTS = {
     "_TEAMS_URL",
 }
 
-ALLOWED_MLB_CONTRACT_MODULE = MLB_API_ROOT / "_contracts.py"
-
 
 def _python_files(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*.py") if path.name != "__init__.py")
@@ -37,37 +35,34 @@ def _python_files(root: Path) -> list[Path]:
 
 def test_mlb_endpoint_constants_have_single_contract_module() -> None:
     offenders: list[str] = []
-    for path in _python_files(MLB_API_ROOT):
-        if path == ALLOWED_MLB_CONTRACT_MODULE:
+    tree = ast.parse(MLB_MODULE.read_text())
+    for node in tree.body:
+        if not isinstance(node, ast.AnnAssign | ast.Assign):
             continue
-        tree = ast.parse(path.read_text())
-        for node in tree.body:
-            if not isinstance(node, ast.AnnAssign | ast.Assign):
-                continue
-            targets = [node.target] if isinstance(node, ast.AnnAssign) else list(node.targets)
-            names = [target.id for target in targets if isinstance(target, ast.Name)]
-            duplicate_names = sorted(MLB_SHARED_ENDPOINT_CONSTANTS.intersection(names))
-            if duplicate_names:
-                offenders.append(f"{path.relative_to(PROJECT_ROOT)}: {', '.join(duplicate_names)}")
+        targets = [node.target] if isinstance(node, ast.AnnAssign) else list(node.targets)
+        names = [target.id for target in targets if isinstance(target, ast.Name)]
+        duplicate_names = sorted(MLB_SHARED_ENDPOINT_CONSTANTS.intersection(names))
+        if duplicate_names:
+            offenders.append(f"{MLB_MODULE.relative_to(PROJECT_ROOT)}: {', '.join(duplicate_names)}")
 
     assert offenders == []
 
 
-def test_cache_module_does_not_depend_on_context_module() -> None:
+def test_cache_module_does_not_depend_on_client_module() -> None:
     path = PACKAGE_ROOT / "_cache.py"
     source = path.read_text()
     tree = ast.parse(source)
     forbidden_imports: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball.context":
+        if isinstance(node, ast.ImportFrom) and node.module in {"polars_baseball.client", "polars_baseball.context"}:
             forbidden_imports.append(f"line {node.lineno}: from {node.module} import ...")
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "polars_baseball.context":
+                if alias.name in {"polars_baseball.client", "polars_baseball.context"}:
                     forbidden_imports.append(f"line {node.lineno}: import {alias.name}")
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "import_module":
             for arg in node.args:
-                if isinstance(arg, ast.Constant) and "context" in str(arg.value):
+                if isinstance(arg, ast.Constant) and any(pkg in str(arg.value) for pkg in ("client", "context")):
                     forbidden_imports.append(f"line {node.lineno}: dynamic import of {arg.value}")
 
     assert forbidden_imports == []
@@ -97,23 +92,20 @@ def test_venue_list_cache_key_matches_fetch_contract() -> None:
 
 def test_mlb_api_layer_does_not_own_parser_schema_casting() -> None:
     offenders: list[str] = []
-    for path in _python_files(MLB_API_ROOT):
-        if path == ALLOWED_MLB_CONTRACT_MODULE:
-            continue
-        tree = ast.parse(path.read_text())
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball._schema_utils":
-                imported_names = {alias.name for alias in node.names}
-                if "validate_and_cast_schema" in imported_names:
-                    offenders.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} imports schema casting")
-            if isinstance(node, ast.FunctionDef) and node.name.startswith("_parse_mlb"):
-                offenders.append(f"{path.relative_to(PROJECT_ROOT)}:{node.lineno} defines {node.name}")
+    tree = ast.parse(MLB_MODULE.read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball._schema_utils":
+            imported_names = {alias.name for alias in node.names}
+            if "validate_and_cast_schema" in imported_names:
+                offenders.append(f"{MLB_MODULE.relative_to(PROJECT_ROOT)}:{node.lineno} imports schema casting")
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("_parse_mlb"):
+            offenders.append(f"{MLB_MODULE.relative_to(PROJECT_ROOT)}:{node.lineno} defines {node.name}")
 
     assert offenders == []
 
 
 def test_retrosheet_api_layer_does_not_own_csv_or_json_parsing() -> None:
-    tree = ast.parse(RETROSHEET_API.read_text())
+    tree = ast.parse(RETROSHEET_MODULE.read_text())
     offenders: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -133,12 +125,11 @@ def test_retrosheet_api_layer_does_not_own_csv_or_json_parsing() -> None:
 
 def test_mlb_api_uses_mlb_gateway() -> None:
     direct_http_calls: list[str] = []
-    for path in [*_python_files(MLB_API_ROOT), STANDINGS_API]:
-        tree = ast.parse(path.read_text())
-        direct_http_calls.extend(
-            f"{path.relative_to(PROJECT_ROOT)}:{node.lineno}"
-            for node in ast.walk(tree)
-            if isinstance(node, ast.Attribute) and node.attr == "http"
-        )
+    tree = ast.parse(MLB_MODULE.read_text())
+    direct_http_calls.extend(
+        f"{MLB_MODULE.relative_to(PROJECT_ROOT)}:{node.lineno}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute) and node.attr == "http"
+    )
 
     assert direct_http_calls == []

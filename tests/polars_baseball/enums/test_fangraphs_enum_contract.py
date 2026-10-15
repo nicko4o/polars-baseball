@@ -40,7 +40,7 @@ class TestLiveFetchAndValidate:
     def _fetch_and_check(
         self, fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]], critical: set[str], **kwargs: int
     ) -> pl.DataFrame:
-        from polars_baseball.context import BaseballContext
+        from polars_baseball.client import BaseballContext
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
         async def run() -> pl.DataFrame:
@@ -114,7 +114,7 @@ class TestLiveCodeToNameMapping:
         fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]],
         enum_class: type[FangraphsStatsBase],
     ) -> None:
-        from polars_baseball.context import BaseballContext
+        from polars_baseball.client import BaseballContext
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
         async def run() -> pl.DataFrame:

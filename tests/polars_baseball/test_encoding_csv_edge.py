@@ -8,7 +8,7 @@ from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 from polars_baseball._client import HttpClient
 from polars_baseball._encoding import ensure_str
 from polars_baseball._season import sanitize_date_range, statcast_date_range, validate_datestring
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballContext
 from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.parsers.savant import SavantCSVParser
 
@@ -104,11 +104,10 @@ async def test_cffi_429_is_wrapped() -> None:
 
 
 @pytest.mark.asyncio
-async def test_default_context_concurrent_tasks() -> None:
-    async def get_default() -> BaseballContext:
-        return BaseballContext.default()
+async def test_client_concurrent_tasks() -> None:
+    async def create_client() -> BaseballContext:
+        return BaseballContext()
 
-    results = await asyncio.gather(*[get_default() for _ in range(10)])
+    results = await asyncio.gather(*[create_client() for _ in range(10)])
     assert all(isinstance(r, BaseballContext) for r in results)
-    # Ensure instances share the thread-safe singleton
-    assert len({id(r) for r in results}) == 1
+    assert len({id(r) for r in results}) == 10

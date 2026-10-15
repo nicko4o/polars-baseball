@@ -218,9 +218,9 @@ class HttpClient:
         msg = f"{label} HTTP request failed: {error}"
         if response.status_code == 403:
             if label in ("BRef", "FanGraphs"):
-                msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers or use cached data)"
+                msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballClient extra_headers or use cached data)"
             else:
-                msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballContext extra_headers)"
+                msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballClient extra_headers)"
         return cls._create_http_error(
             msg,
             status_code=response.status_code,

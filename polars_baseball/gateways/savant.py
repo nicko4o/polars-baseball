@@ -6,7 +6,7 @@ import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._encoding import ensure_str
-from polars_baseball.context import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.savant import SavantCSVParser, check_savant_error_row, parse_savant_leaderboard
@@ -21,7 +21,7 @@ GamefeedParser = Callable[[int, JsonObject], pl.DataFrame]
 class SavantGateway(BaseGateway):
     """Gateway for querying and caching raw data from Baseball Savant."""
 
-    def __init__(self, context: BaseballContext) -> None:
+    def __init__(self, context: BaseballClient) -> None:
         super().__init__(context)
         self._csv_parser = SavantCSVParser()
 
