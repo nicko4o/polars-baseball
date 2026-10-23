@@ -164,13 +164,16 @@ def get_bref_column_type(col: str) -> pl.DataType | type[pl.DataType] | None:
     return suffix_type
 
 
+_BREF_NULL_LIST: Final[list[str]] = sorted(BREF_NULL_VALUES)
+
+
 def sanitize_bref_nulls(df: pl.DataFrame) -> pl.DataFrame:
     """Replace common BRef null tokens with null values in String columns."""
     if df.is_empty():
         return df
 
     null_exprs = [
-        pl.when(pl.col(col).is_in(list(BREF_NULL_VALUES))).then(None).otherwise(pl.col(col)).alias(col)
+        pl.when(pl.col(col).is_in(_BREF_NULL_LIST)).then(None).otherwise(pl.col(col)).alias(col)
         for col, dtype in df.schema.items()
         if dtype == pl.String
     ]

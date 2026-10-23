@@ -24,6 +24,7 @@ class BRefClient:
 
     def __init__(self, client: BaseballClient) -> None:
         self._client = client
+        self._gateway = BRefGateway(client)
 
     async def _bwar_generic(
         self,
@@ -32,7 +33,7 @@ class BRefClient:
         col_types: dict[str, pl.DataType | type[pl.DataType]],
         all_columns: bool = False,
     ) -> pl.DataFrame:
-        return await BRefGateway(self._client).get_bwar(stat_type, required_cols, col_types, all_columns=all_columns)
+        return await self._gateway.get_bwar(stat_type, required_cols, col_types, all_columns=all_columns)
 
     async def bwar_bat(self, all_columns: bool = False) -> pl.DataFrame:
         """Fetch batting WAR from Baseball Reference."""
@@ -53,7 +54,7 @@ class BRefClient:
             raise InvalidParameterError("player_id must not be empty.")
         if log_type not in ("batting", "pitching"):
             raise InvalidParameterError("log_type must be either 'batting' or 'pitching'.")
-        return await BRefGateway(self._client).get_game_logs(player_id, year, log_type)
+        return await self._gateway.get_game_logs(player_id, year, log_type)
 
     async def splits(
         self,
@@ -64,7 +65,7 @@ class BRefClient:
         """Fetch Baseball Reference platoon/situational splits for a player."""
         if not player_id:
             raise InvalidParameterError("player_id must not be empty.")
-        df_main, player_info, df_level = await BRefGateway(self._client).get_splits(player_id, year, pitching)
+        df_main, player_info, df_level = await self._gateway.get_splits(player_id, year, pitching)
         df_info = pl.DataFrame(
             {
                 "Position": [player_info.get("Position", "")],
@@ -73,16 +74,6 @@ class BRefClient:
             }
         )
         return [df_main, df_info, df_level]
-
-    bref_game_logs = game_logs
-    bref_splits = splits
-
-
-def __getattr__(name: str) -> None:
-    raise AttributeError(
-        f"Top-level function 'polars_baseball.bref.{name}' was removed. "
-        f"Use BaseballClient: `client = BaseballClient(); await client.bref.{name}(...)`."
-    )
 
 
 __all__ = ["BRefClient"]

@@ -8,7 +8,7 @@ from polars_baseball.exceptions import InvalidParameterError
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.mlb.most_recent_season", return_value=2026)
+@patch("polars_baseball._mlb._taxonomy.most_recent_season", return_value=2026)
 async def test_resolve_team_id_matches_normalized_name(
     mock_most_recent_season: MagicMock,
 ) -> None:

@@ -223,7 +223,7 @@ async def test_statcast_parallel_uses_bounded_gather() -> None:
     from datetime import date
 
     date_range = [(date(2026, 4, 1), date(2026, 4, 7)), (date(2026, 4, 8), date(2026, 4, 14))]
-    with patch("polars_baseball.savant.bounded_gather", new_callable=AsyncMock) as mock_bg:
+    with patch("polars_baseball._savant._statcast.bounded_gather", new_callable=AsyncMock) as mock_bg:
         mock_bg.return_value = [pl.DataFrame(), pl.DataFrame()]
         client = BaseballClient()
         await client.savant._run_statcast_parallel(date_range, team=None, verbose=False, concurrency_limit=2)

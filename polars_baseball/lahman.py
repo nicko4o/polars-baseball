@@ -61,14 +61,15 @@ class LahmanClient:
 
     def __init__(self, client: BaseballClient) -> None:
         self._client = client
+        self._gateway = CompiledDatasetGateway(client)
 
     async def _get_lahman_file(self, filepath: str, quote_char: str = '"') -> pl.DataFrame:
         table = _lahman_table(filepath, quote_char)
-        return await CompiledDatasetGateway(self._client).read_table(table)
+        return await self._gateway.read_table(table)
 
     async def download_lahman(self) -> None:
         """Download the full Lahman baseball database archive if not already cached locally."""
-        await CompiledDatasetGateway(self._client).ensure_archive(LAHMAN_DATASET, LAHMAN_ARCHIVE_URL)
+        await self._gateway.ensure_archive(LAHMAN_DATASET, LAHMAN_ARCHIVE_URL)
 
     async def parks(self) -> pl.DataFrame:
         """Fetch Lahman Parks table. Includes ballpark names, locations, and dimensions."""
@@ -181,13 +182,6 @@ class LahmanClient:
     async def teams_half(self) -> pl.DataFrame:
         """Fetch Lahman TeamsHalf table. Includes split-season team records."""
         return await self._get_lahman_file("core/TeamsHalf.csv")
-
-
-def __getattr__(name: str) -> None:
-    raise AttributeError(
-        f"Top-level function 'polars_baseball.lahman.{name}' was removed. "
-        f"Use BaseballClient: `client = BaseballClient(); await client.lahman.{name}(...)`."
-    )
 
 
 __all__ = ["LahmanClient"]

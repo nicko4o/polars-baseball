@@ -33,7 +33,7 @@ async def test_extra_headers_passed_to_request() -> None:
     mock_session.get = AsyncMock(return_value=mock_response)
 
     # 1. Test requests with no local headers
-    with patch.object(client, "_cffi_session", mock_session):
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
         await client.get_text("https://baseballsavant.mlb.com/api")
 
     mock_session.get.assert_called_once_with(
@@ -44,7 +44,7 @@ async def test_extra_headers_passed_to_request() -> None:
     mock_session.get.reset_mock()
 
     # 2. Test requests with local headers merging and overriding
-    with patch.object(client, "_cffi_session", mock_session):
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
         await client.get_text(
             "https://baseballsavant.mlb.com/api",
             headers={"X-Test-Local": "local_val", "X-Test-Global": "overridden"},
@@ -70,7 +70,7 @@ async def test_extra_headers_passed_to_cffi() -> None:
     mock_session.get = AsyncMock(return_value=mock_resp)
 
     # 1. Test requests with no local headers
-    with patch.object(client, "_cffi_session", mock_session):
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
         await client.get_text("https://www.fangraphs.com/leaders")
 
     mock_session.get.assert_called_once_with(
@@ -81,7 +81,7 @@ async def test_extra_headers_passed_to_cffi() -> None:
     mock_session.get.reset_mock()
 
     # 2. Test requests with local headers merging and overriding
-    with patch.object(client, "_cffi_session", mock_session):
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
         await client.get_text(
             "https://www.fangraphs.com/leaders",
             headers={"Cookie": "cf_clearance=custom", "User-Agent": "test-agent"},

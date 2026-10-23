@@ -38,7 +38,8 @@ import polars_baseball as bp
 
 
 async def main() -> None:
-    df = await bp.statcast(start_date="2026-06-01", end_date="2026-06-01")
+    async with bp.BaseballClient() as client:
+        df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
     batted_df = df.filter(df["hc_x"].is_not_null() & df["hc_y"].is_not_null())
     chart = batted_df.plot.scatter(
         x="hc_x",
@@ -63,11 +64,12 @@ import polars_baseball as bp
 
 
 async def main() -> None:
-    df = await bp.statcast_pitcher(
-        start_date="2026-06-01",
-        end_date="2026-06-01",
-        player_id=506433,
-    )
+    async with bp.BaseballClient() as client:
+        df = await client.savant.pitcher(
+            start_date="2026-06-01",
+            end_date="2026-06-01",
+            player_id=506433,
+        )
     pitch_df = df.filter(df["plate_x"].is_not_null() & df["plate_z"].is_not_null())
 
     scatter_chart = alt.Chart(pitch_df).mark_circle(size=80).encode(

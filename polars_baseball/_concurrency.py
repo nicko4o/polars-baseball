@@ -37,6 +37,14 @@ class LoopBoundLockRegistry:
                 loop_dict[key] = lock
             return lock
 
+    def _active_keys(self) -> list[str]:
+        """Return all active lock keys across all alive loops (internal diagnostic helper)."""
+        with self._guard:
+            keys: list[str] = []
+            for loop_dict in list(self._loop_locks.values()):
+                keys.extend(loop_dict.keys())
+            return keys
+
 
 async def bounded_gather(
     tasks: Sequence[Callable[[], Awaitable[T]]],

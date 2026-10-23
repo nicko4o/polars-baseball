@@ -21,7 +21,11 @@ def validate_and_cast_schema(
     if missing_cols:
         raise InvalidSchemaError(f"Missing required columns from upstream data: {missing_cols}")
 
-    cast_exprs = [pl.col(col).cast(type_mapping[col]) for col in type_mapping if col in df.columns]
+    cast_exprs = [
+        pl.col(col).cast(target_type)
+        for col, target_type in type_mapping.items()
+        if col in df.columns and df.schema[col] != target_type
+    ]
     if not cast_exprs:
         return df
 

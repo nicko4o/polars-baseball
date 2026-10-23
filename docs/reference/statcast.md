@@ -13,10 +13,10 @@ Retrieve detailed pitch-level Statcast database rows.
 
 ### Functions
 
-- `statcast()` — pitch-level data for a date range (also available as `savant.statcast`)
-- `statcast_single_game()` — pitch data for a single game (also available as `savant.single_game`)
-- `statcast_batter()` — pitch data for a specific batter
-- `statcast_pitcher()` — pitch data for a specific pitcher
+- `statcast()` — pitch-level data for a date range (accessible via `client.savant.statcast`)
+- `single_game()` — pitch data for a single game (accessible via `client.savant.single_game`)
+- `batter()` — pitch data for a specific batter (accessible via `client.savant.batter`)
+- `pitcher()` — pitch data for a specific pitcher (accessible via `client.savant.pitcher`)
 
 ### Arguments
 
@@ -27,11 +27,11 @@ Retrieve detailed pitch-level Statcast database rows.
 - `game_pk`: MLBAM game identifier.
 - `player_id`: MLBAM player identifier.
   > [!TIP]
-  > Don't know the player ID? Use `pb.playerid_lookup("Judge", "Aaron")` or `pb.player_name_suggestions("jud")` to find the `key_mlbam` for any player.
+  > Don't know the player ID? Use `client.lookup.playerid_lookup("Judge", "Aaron")` or `client.lookup.player_name_suggestions("jud")` to find the `key_mlbam` for any player.
 
 ### Output DataFrame Schema
 
-Pitch-level functions (`statcast`, `statcast_single_game`, `statcast_batter`, `statcast_pitcher`) return a `pl.DataFrame` containing up to 92 Statcast tracking fields.
+Pitch-level functions (`statcast`, `single_game`, `batter`, `pitcher`) return a `pl.DataFrame` containing up to 92 Statcast tracking fields.
 
 | Column Name | Polars Type | Description |
 | --- | --- | --- |
@@ -271,28 +271,30 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
+    client = pb.BaseballClient()
+
     # 1. Pitch-level queries
-    game_df = await pb.statcast_single_game(529429)
+    game_df = await client.savant.single_game(529429)
     print("Single Game:", game_df.head(2))
 
     # 2. Leaderboards
-    expected = await pb.savant.expected_stats(2026, player_type="batter", min_pa=100)
-    arsenal = await pb.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
+    expected = await client.savant.expected_stats(2026, player_type="batter", min_pa=100)
+    arsenal = await client.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
     print("Expected Stats:", expected.head(2))
     print("Pitcher Arsenal:", arsenal.head(2))
 
     # 3. Fielding & Running
-    oaa = await pb.savant.outs_above_average(2026, pos="CF", min_att="q")
-    speed = await pb.savant.sprint_speed(2019, min_opp=50)
+    oaa = await client.savant.outs_above_average(2026, pos="CF", min_att="q")
+    speed = await client.savant.sprint_speed(2019, min_opp=50)
     print("OAACF:", oaa.head(2))
     print("Sprint Speed:", speed.head(2))
 
     # 4. Gamefeed
-    exit_velocity = await pb.savant.gamefeed_exit_velocity(745585)
+    exit_velocity = await client.savant.gamefeed_exit_velocity(745585)
     print("Gamefeed EV:", exit_velocity.head(2))
 
     # 5. Prospect Rankings
-    prospects = await pb.prospect_rankings("top100")
+    prospects = await client.mlb.prospect_rankings("top100")
     print("Prospects:", prospects.head(2))
 
 if __name__ == "__main__":

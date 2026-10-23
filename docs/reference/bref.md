@@ -49,7 +49,7 @@ Retrieves Baseball Reference single-season game logs for a player.
 
 ### Functions
 
-- `bref_game_logs(player_id: str, year: int, log_type: Literal["batting", "pitching"] = "batting") -> pl.DataFrame`
+- `game_logs(player_id: str, year: int, log_type: Literal["batting", "pitching"] = "batting") -> pl.DataFrame`
 
 ### Arguments
 
@@ -65,7 +65,7 @@ Retrieves Baseball Reference platoon and situational splits for a player.
 
 ### Functions
 
-- `bref_splits(player_id: str, year: int | None = None, pitching: bool = False) -> list[pl.DataFrame]`
+- `splits(player_id: str, year: int | None = None, pitching: bool = False) -> list[pl.DataFrame]`
 
 ### Arguments
 
