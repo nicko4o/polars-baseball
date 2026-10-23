@@ -109,6 +109,7 @@ class LookupClient:
 
     def __init__(self, client: BaseballClient) -> None:
         self._client = client
+        self._gateway = CompiledDatasetGateway(client)
         self._service = PlayerLookupService(lambda _ctx: self.get_lookup_table(save=True))
 
     def reset(self) -> None:
@@ -118,7 +119,7 @@ class LookupClient:
     async def chadwick_register(self, save: bool = True) -> pl.DataFrame:
         """Fetch the raw Chadwick Baseball Register dataset."""
         logger.info("Gathering player lookup table from Chadwick register gateway.")
-        raw = await CompiledDatasetGateway(self._client).read_table(_chadwick_people_table(), use_cache=save)
+        raw = await self._gateway.read_table(_chadwick_people_table(), use_cache=save)
         return _normalize_chadwick_register(raw)
 
     async def get_lookup_table(self, save: bool = True) -> pl.DataFrame:
@@ -175,13 +176,6 @@ class LookupClient:
     def team_ids(self, season: int | None = None, league: str = "ALL") -> pl.DataFrame:
         """Fetch team identifiers from bundled FanGraphs team data."""
         return _read_team_ids(season=season, league=league)
-
-
-def __getattr__(name: str) -> None:
-    raise AttributeError(
-        f"Top-level function 'polars_baseball.lookup.{name}' was removed. "
-        f"Use BaseballClient: `client = BaseballClient(); await client.lookup.{name}(...)`."
-    )
 
 
 __all__ = ["LookupClient"]

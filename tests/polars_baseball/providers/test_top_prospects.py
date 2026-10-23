@@ -154,7 +154,7 @@ async def test_top_prospects_pitchers_missing_table_raises() -> None:
 
 
 @pytest.mark.asyncio
-@patch("polars_baseball.mlb.most_recent_season", return_value=2028)
+@patch("polars_baseball._mlb._draft_transactions.most_recent_season", return_value=2028)
 async def test_prospect_rankings_dynamic_max_year(_mock_season: MagicMock) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="")

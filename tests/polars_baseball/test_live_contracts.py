@@ -26,7 +26,7 @@ def test_live_savant_statcast_single_game() -> None:
     # Fetch a single real game from 2024 (game_pk=747046)
     async def run() -> pl.DataFrame:
         async with BaseballClient() as client:
-            return await client.savant.statcast_single_game(game_pk=747046)
+            return await client.savant.single_game(game_pk=747046)
 
     df = run_async(run())
     assert isinstance(df, pl.DataFrame)

@@ -98,9 +98,8 @@ def test_client_subclients_methods_are_async() -> None:
         (pb.lookup, "playerid_lookup"),
     ],
 )
-def test_removed_toplevel_functions_raise_actionable_attribute_error(module: object, func_name: str) -> None:
-    mod_name = getattr(module, "__name__", "")
-    with pytest.raises(AttributeError, match=f"Top-level function '{mod_name}.{func_name}' was removed"):
+def test_removed_toplevel_functions_raise_attribute_error(module: object, func_name: str) -> None:
+    with pytest.raises(AttributeError):
         getattr(module, func_name)
 
 

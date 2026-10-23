@@ -9,7 +9,8 @@ Do not wrap notebook cells with `asyncio.run()`. That is for standalone Python s
 ```python
 import polars_baseball as pb
 
-df = await pb.statcast(start_date="2026-06-01", end_date="2026-06-01")
+client = pb.BaseballClient()
+df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
 df.head()
 ```
 
@@ -18,7 +19,8 @@ df.head()
 ```python
 import polars_baseball as pb
 
-pitches = await pb.statcast_pitcher(
+client = pb.BaseballClient()
+pitches = await client.savant.pitcher(
     start_date="2026-06-01",
     end_date="2026-06-01",
     player_id=506433,
@@ -34,7 +36,8 @@ Notebook cells can return a `polars.DataFrame` as the last expression. Use `.hea
 import polars as pl
 import polars_baseball as pb
 
-pitches = await pb.statcast_pitcher(
+client = pb.BaseballClient()
+pitches = await client.savant.pitcher(
     start_date="2026-06-01",
     end_date="2026-06-01",
     player_id=506433,

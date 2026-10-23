@@ -15,29 +15,21 @@ from typing import ParamSpec, Protocol, TypeVar
 import polars as pl
 from polars.exceptions import ComputeError
 
+from polars_baseball._concurrency import LoopBoundLockRegistry
 from polars_baseball._config import CACHE_SCHEMA_VERSION, DEFAULT_CACHE_DIR
 from polars_baseball._storage_primitives import atomic_write_bytes, atomic_write_parquet
 from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
 
-_WARNED_LEGACY_CACHE: bool = False
-
 P = ParamSpec("P")
 R = TypeVar("R")
 
-_IN_FLIGHT_LOCKS: weakref.WeakValueDictionary[tuple[object, int, str], asyncio.Lock] = weakref.WeakValueDictionary()
-_IN_FLIGHT_LOCKS_GUARD = threading.Lock()
+_IN_FLIGHT_REGISTRY = LoopBoundLockRegistry()
 
 
 def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
-    composite_key = (asyncio.get_running_loop(), id(cache), key)
-    with _IN_FLIGHT_LOCKS_GUARD:
-        lock = _IN_FLIGHT_LOCKS.get(composite_key)
-        if lock is None:
-            lock = asyncio.Lock()
-            _IN_FLIGHT_LOCKS[composite_key] = lock
-        return lock
+    return _IN_FLIGHT_REGISTRY.get_lock(f"{id(cache)}:{key}")
 
 
 class CacheContext(Protocol):
@@ -214,7 +206,6 @@ class FileCacheAdapter(CacheAdapter):
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         self._cache_dir = cache_dir or DEFAULT_CACHE_DIR
-        self._check_legacy_cache()
         self._disabled = False
         try:
             self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -228,20 +219,6 @@ class FileCacheAdapter(CacheAdapter):
     @property
     def cache_dir(self) -> Path:
         return self._cache_dir
-
-    def _check_legacy_cache(self) -> None:
-        global _WARNED_LEGACY_CACHE
-        if _WARNED_LEGACY_CACHE or self._cache_dir != DEFAULT_CACHE_DIR:
-            return
-        legacy_dir = Path.home() / ".polars_baseball"
-        if legacy_dir.exists():
-            logger.info(
-                "Legacy cache directory detected at %s. New cache location is %s. "
-                "You can safely delete the legacy directory.",
-                legacy_dir,
-                self._cache_dir,
-            )
-            _WARNED_LEGACY_CACHE = True
 
     def _get_path(self, key: str) -> Path:
         safe_key = "".join(c if c.isalnum() else "_" for c in key)

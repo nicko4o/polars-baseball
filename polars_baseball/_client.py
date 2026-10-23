@@ -1,13 +1,17 @@
 import asyncio
+import logging
 import os
 import ssl
+import threading
 import time
+import weakref
 from collections.abc import Awaitable, Callable, Mapping
-from typing import TypeVar, cast
+from typing import Final, TypeVar, cast
 
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
+from polars_baseball._concurrency import LoopBoundLockRegistry
 from polars_baseball._config import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT
 from polars_baseball._http_policy import resolve_request_policy
 from polars_baseball.exceptions import (
@@ -16,6 +20,8 @@ from polars_baseball.exceptions import (
     PolarsBaseballHttpServerError,
     PolarsBaseballTransportError,
 )
+
+logger = logging.getLogger(__name__)
 
 _BROWSER_HEADERS: Mapping[str, str] = {
     "User-Agent": (
@@ -27,6 +33,7 @@ SECONDS_PER_MINUTE = 60.0
 DEFAULT_RETRY_BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_MULTIPLIER = 2.0
 TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_BREF_RATE_LIMIT_LOCK_KEY: Final[str] = "bref_rate_limit"
 
 _T = TypeVar("_T")
 
@@ -54,8 +61,9 @@ class HttpClient:
             )
         if timeout <= 0:
             raise ValueError(f"timeout must be greater than 0, got {timeout}")
-        self._cffi_session: AsyncSession | None = None
-        self._lock = asyncio.Lock()
+        self._sessions: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, AsyncSession] = weakref.WeakKeyDictionary()
+        self._session_guard = threading.Lock()
+        self._locks = LoopBoundLockRegistry()
         self._bref_last_request = 0.0
         self._bref_delay = (
             SECONDS_PER_MINUTE / bref_requests_per_minute if bref_requests_per_minute is not None else None
@@ -96,20 +104,31 @@ class HttpClient:
             resolved.update(extra_headers)
         return resolved
 
+    def _create_session(self) -> AsyncSession:
+        if self._impersonate is not None:
+            return AsyncSession(timeout=self._timeout, impersonate=self._impersonate)  # type: ignore[arg-type]
+        return AsyncSession(timeout=self._timeout)
+
     def get_cffi_session(self) -> AsyncSession:
-        if self._cffi_session is None:
-            if self._impersonate is not None:
-                self._cffi_session = AsyncSession(timeout=self._timeout, impersonate=self._impersonate)  # type: ignore[arg-type]  # curl_cffi stubs use Literal type
-            else:
-                self._cffi_session = AsyncSession(timeout=self._timeout)
-        return self._cffi_session
+        loop = asyncio.get_running_loop()
+        with self._session_guard:
+            session = self._sessions.get(loop)
+            if session is None:
+                session = self._create_session()
+                self._sessions[loop] = session
+            return session
 
     async def close(self) -> None:
-        if self._cffi_session is not None:
+        to_close: list[AsyncSession] = []
+        with self._session_guard:
+            to_close.extend(self._sessions.values())
+            self._sessions.clear()
+
+        for session in to_close:
             try:
-                await self._cffi_session.close()
-            finally:
-                self._cffi_session = None
+                await session.close()
+            except (CurlRequestException, RuntimeError, OSError) as exc:
+                logger.debug("Failed to close HTTP session cleanly: %s", exc)
 
     @staticmethod
     def _str_params(params: Mapping[str, object] | None) -> dict[str, str] | None:
@@ -118,7 +137,7 @@ class HttpClient:
         return {k: str(v) for k, v in params.items()}
 
     async def _rate_limit(self) -> None:
-        async with self._lock:
+        async with self._locks.get_lock(_BREF_RATE_LIMIT_LOCK_KEY):
             if self._bref_delay is None:
                 return
             now = time.monotonic()

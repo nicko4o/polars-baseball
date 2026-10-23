@@ -5,7 +5,7 @@ from polars_baseball.client import BaseballClient
 from polars_baseball.enums import KeyType
 from polars_baseball.enums.position import Position
 
-__version__ = "0.26.0"
+__version__ = "0.27.0"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 

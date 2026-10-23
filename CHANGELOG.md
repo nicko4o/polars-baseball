@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.27.0] - 2026-10-24
+
+### Removed
+
+- **[Breaking]** Eradicated redundant stuttering method aliases across client namespaces (e.g., `client.mlb.mlb_schedule()`, `client.savant.statcast_batter()`, `client.bref.bref_game_logs()`); use canonical method names (`client.mlb.schedule()`, `client.savant.batter()`, `client.bref.game_logs()`).
+- **[Breaking]** Removed deprecated module-level `__getattr__` migration tombstones from provider modules (`polars_baseball.mlb`, `polars_baseball.savant`, etc.); unexported attribute lookups now raise standard `AttributeError`.
+
+### Fixed
+
+- Resolved `RuntimeError` when reusing a single `BaseballClient` across multiple `asyncio` event loops.
 
 ## [0.26.0] - 2026-10-14
 

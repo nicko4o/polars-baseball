@@ -257,6 +257,7 @@ class FanGraphsClient:
 
     def __init__(self, client: BaseballClient) -> None:
         self._client = client
+        self._gateway = FanGraphsGateway(client)
 
     async def _execute_fg_query(
         self,
@@ -319,7 +320,7 @@ class FanGraphsClient:
         )
 
         effective_max_age = _resolve_fg_cache_max_age(resolved_end_season, cache_max_age)
-        df = await FanGraphsGateway(self._client).get_leaderboard(
+        df = await self._gateway.get_leaderboard(
             FG_LEADERS_URL,
             options,
             max_age=effective_max_age,
@@ -727,13 +728,6 @@ class FanGraphsClient:
             max_results=max_results,
         )
         return await self._dispatch_fg(FangraphsStatsCategory.RELIEVERS, True, params, force_update, cache_max_age)
-
-
-def __getattr__(name: str) -> None:
-    raise AttributeError(
-        f"Top-level function 'polars_baseball.fangraphs.{name}' was removed. "
-        f"Use BaseballClient: `client = BaseballClient(); await client.fangraphs.{name}(...)`."
-    )
 
 
 __all__ = [

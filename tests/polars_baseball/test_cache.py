@@ -14,7 +14,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._cache import (
-    _IN_FLIGHT_LOCKS,
+    _IN_FLIGHT_REGISTRY,
     FileCacheAdapter,
     NullCacheAdapter,
     _in_flight_lock_for,
@@ -82,25 +82,6 @@ def test_resolve_default_cache_dir_windows(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setattr(sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(local_appdata))
     assert _resolve_default_cache_dir() == local_appdata / "polars_baseball"
-
-
-def test_legacy_cache_directory_logged(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    import polars_baseball._cache as cache_mod
-
-    legacy_dir = tmp_path / ".polars_baseball"
-    legacy_dir.mkdir(parents=True, exist_ok=True)
-    new_cache_dir = tmp_path / ".cache" / "polars_baseball"
-
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(cache_mod, "DEFAULT_CACHE_DIR", new_cache_dir)
-    monkeypatch.setattr(cache_mod, "_WARNED_LEGACY_CACHE", False)
-
-    with caplog.at_level("INFO"):
-        adapter = FileCacheAdapter(cache_dir=new_cache_dir)
-        assert adapter.cache_dir == new_cache_dir
-        assert any("Legacy cache directory detected" in record.message for record in caplog.records)
 
 
 def test_cache_key_includes_schema_version() -> None:
@@ -214,7 +195,7 @@ async def test_in_flight_lock_registry_releases_unused_lock() -> None:
     del lock
     gc.collect()
 
-    assert all(key not in composite_key for composite_key in _IN_FLIGHT_LOCKS)
+    assert all(key not in composite_key for composite_key in _IN_FLIGHT_REGISTRY._active_keys())
 
 
 @pytest.mark.asyncio

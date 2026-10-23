@@ -95,7 +95,7 @@ async def test_cffi_429_is_wrapped() -> None:
 
     from polars_baseball.exceptions import PolarsBaseballHttpError
 
-    with patch.object(client, "_cffi_session", mock_session):
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
         with pytest.raises(PolarsBaseballHttpError) as exc_info:
             await client.get_text("https://baseballsavant.mlb.com/api")
 
