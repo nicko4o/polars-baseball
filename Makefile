@@ -1,4 +1,4 @@
-.PHONY: help install mypy vulture test validate-cache test-github-actions
+.PHONY: help install mypy vulture audit test validate-cache test-github-actions check
 
 # ------------------------------------------------------------------------------
 # Configuration & Variables
@@ -37,6 +37,8 @@ help:
 	@echo "  install              Install dependencies via uv"
 	@echo "  mypy                 Run static type check (supports ONLY_MODIFIED=1)"
 	@echo "  vulture              Run dead code detection"
+	@echo "  audit                Audit dependencies for known vulnerabilities via uv"
+	@echo "  check                Run full suite of static analysis and audit checks"
 	@echo "  test                 Run pytest with coverage and parallel workers"
 	@echo "  validate-cache       Validate cache structure (runs install first)"
 	@echo "  test-github-actions  Run GitHub Actions workflows locally via act"
@@ -49,6 +51,12 @@ mypy:
 
 vulture:
 	uv run vulture polars_baseball tests --config pyproject.toml
+
+audit:
+	uv audit
+
+check: mypy vulture audit
+
 
 test:
 	uv run pytest $(TEST_RUN_AGAINST) $(TEST_FLAGS) --doctest-modules --cov=polars_baseball --cov-report term-missing --cov-fail-under=80

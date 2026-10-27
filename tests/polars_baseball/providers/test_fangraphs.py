@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import polars as pl
@@ -13,6 +14,11 @@ from polars_baseball.fangraphs import (
     FanGraphsFilterOp,
     _serialize_filters,
 )
+
+
+def _load_mock_fg_schedule() -> str:
+    path = Path(__file__).parent.parent / "data" / "fangraphs_schedule_sample.json"
+    return path.read_text(encoding="utf-8")
 
 
 def _make_mock_fg_html() -> str:
@@ -424,3 +430,69 @@ class TestConvenienceFunctionsWithFilters:
         _, kwargs_pitch = mock_cache.get_or_fetch.call_args
         assert kwargs_pitch["force_update"] is True
         assert kwargs_pitch["max_age"] == timedelta(minutes=45)
+
+    @pytest.mark.asyncio
+    async def test_fangraphs_season_schedule(self) -> None:
+        mock_http = AsyncMock(spec=HttpClient)
+        mock_http.get_text = AsyncMock(return_value=_load_mock_fg_schedule())
+        client = BaseballClient(http=mock_http)
+        df = await client.fangraphs.season_schedule(team="yankees", season=2024)
+        assert isinstance(df, pl.DataFrame)
+        assert not df.is_empty()
+        assert "team_win_prob" in df.columns
+        assert "home_win_prob" in df.columns
+        # Verify null conversion for -99.0 (the 4th item in mock json)
+        assert df["team_win_prob"][-1] is None
+        assert df["home_win_prob"][-1] is None
+        assert df["team_win_prob"][0] == 0.3947
+        assert df["home_win_prob"][0] == 0.6053
+
+    @pytest.mark.asyncio
+    async def test_fangraphs_season_schedule_team_resolution(self) -> None:
+        mock_gateway = MagicMock()
+        mock_gateway.get_season_schedule = AsyncMock(return_value=pl.DataFrame({"game_id": [1]}))
+        client = BaseballClient()
+        client.fangraphs._gateway = mock_gateway
+
+        # Test abbreviations, slugs, integer ids
+        for t in ("NYY", "yankees", "new york yankees", 9, "9"):
+            await client.fangraphs.season_schedule(team=t, season=2024)
+            mock_gateway.get_season_schedule.assert_awaited_with(
+                2024,
+                9,
+                max_age=None,
+                force_update=False,
+            )
+
+        # Red Sox (teamid 3)
+        await client.fangraphs.season_schedule(team="BOS", season=2024)
+        mock_gateway.get_season_schedule.assert_awaited_with(
+            2024,
+            3,
+            max_age=None,
+            force_update=False,
+        )
+
+        # Invalid team
+        with pytest.raises(InvalidParameterError, match="Unknown team identifier"):
+            await client.fangraphs.season_schedule(team="INVALID_TEAM", season=2024)
+
+        # Invalid season (< 2002)
+        with pytest.raises(InvalidParameterError, match="Minimum available season"):
+            await client.fangraphs.season_schedule(team="NYY", season=2000)
+
+    @pytest.mark.asyncio
+    async def test_fangraphs_season_schedule_cache_controls(self) -> None:
+        mock_cache = MagicMock()
+        mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame({"game_id": [1]}))
+        client = BaseballClient(cache=mock_cache)
+
+        await client.fangraphs.season_schedule(
+            team="NYY",
+            season=2024,
+            force_update=True,
+            cache_max_age=timedelta(hours=1),
+        )
+        _, kwargs = mock_cache.get_or_fetch.call_args
+        assert kwargs["force_update"] is True
+        assert kwargs["max_age"] == timedelta(hours=1)

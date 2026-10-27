@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added `client.fangraphs.season_schedule()` to retrieve team season game-by-game schedules, boxscore scores, starting pitchers, and win probabilities (`team_win_prob` and `home_win_prob`). Supports team abbreviations (e.g. `'NYY'`), full slugs (e.g. `'yankees'`), and FanGraphs team IDs (1-30).
+
 ## [0.27.0] - 2026-10-24
 
 ### Removed

@@ -236,3 +236,27 @@ def test_bref_coercion_fail_fast() -> None:
     parser = BRefGameLogParser("batting")
     with pytest.raises(UpstreamParseError, match="failed strict cast"):
         parser.parse(html)
+
+
+def test_parse_fangraphs_season_schedule_empty() -> None:
+    from polars_baseball.parsers.fangraphs import parse_fangraphs_season_schedule
+
+    df = parse_fangraphs_season_schedule({"teamId": 9, "schedule": []})
+    assert isinstance(df, pl.DataFrame)
+    assert df.is_empty()
+    assert "game_id" in df.columns
+    assert "team_win_prob" in df.columns
+
+
+def test_parse_fangraphs_season_schedule_invalid_format() -> None:
+    from polars_baseball.exceptions import UpstreamStructureChangedError
+    from polars_baseball.parsers.fangraphs import parse_fangraphs_season_schedule
+
+    with pytest.raises(UpstreamStructureChangedError, match="Failed to decode"):
+        parse_fangraphs_season_schedule("invalid json")
+
+    with pytest.raises(UpstreamStructureChangedError, match="Missing 'schedule' key"):
+        parse_fangraphs_season_schedule({"teamId": 9})
+
+    with pytest.raises(UpstreamStructureChangedError, match="'schedule' in FanGraphs response must be a list"):
+        parse_fangraphs_season_schedule({"schedule": "not a list"})

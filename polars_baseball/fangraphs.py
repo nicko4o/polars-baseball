@@ -10,7 +10,11 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from polars_baseball._config import FG_ACTIVE_SEASON_CACHE_TTL, FG_LEADERS_URL, FG_MAX_RESULTS
+from polars_baseball._config import (
+    FG_ACTIVE_SEASON_CACHE_TTL,
+    FG_LEADERS_URL,
+    FG_MAX_RESULTS,
+)
 from polars_baseball._season import most_recent_season
 from polars_baseball.enums.fangraphs import (
     FangraphsLeague,
@@ -43,6 +47,138 @@ OPERATOR_MAP: dict[str, str] = {
     "!=": "ne",
     "ne": "ne",
 }
+
+
+FG_MIN_SCHEDULE_SEASON = 2002
+
+_FG_TEAM_SLUGS: dict[int, tuple[str, ...]] = {
+    1: ("angels", "anaheim-angels", "los-angeles-angels"),
+    2: ("orioles", "baltimore-orioles"),
+    3: ("red-sox", "boston-red-sox"),
+    4: ("white-sox", "chicago-white-sox"),
+    5: ("guardians", "indians", "cleveland-guardians", "cleveland-indians"),
+    6: ("tigers", "detroit-tigers"),
+    7: ("royals", "kansas-city-royals"),
+    8: ("twins", "minnesota-twins"),
+    9: ("yankees", "new-york-yankees"),
+    10: ("athletics", "oakland-athletics", "as"),
+    11: ("mariners", "seattle-mariners"),
+    12: ("rays", "tampa-bay-rays", "devil-rays"),
+    13: ("rangers", "texas-rangers"),
+    14: ("blue-jays", "toronto-blue-jays"),
+    15: ("diamondbacks", "dbacks", "arizona-diamondbacks"),
+    16: ("braves", "atlanta-braves"),
+    17: ("cubs", "chicago-cubs"),
+    18: ("reds", "cincinnati-reds"),
+    19: ("rockies", "colorado-rockies"),
+    20: ("marlins", "miami-marlins", "florida-marlins"),
+    21: ("astros", "houston-astros"),
+    22: ("dodgers", "los-angeles-dodgers"),
+    23: ("brewers", "milwaukee-brewers"),
+    24: ("nationals", "washington-nationals", "expos"),
+    25: ("mets", "new-york-mets"),
+    26: ("phillies", "philadelphia-phillies"),
+    27: ("pirates", "pittsburgh-pirates"),
+    28: ("cardinals", "st-louis-cardinals"),
+    29: ("padres", "san-diego-padres"),
+    30: ("giants", "san-francisco-giants"),
+}
+
+_FG_TEAM_ABBRS: dict[str, int] = {
+    "ANA": 1,
+    "ARI": 15,
+    "ATL": 16,
+    "BAL": 2,
+    "BOS": 3,
+    "CAL": 1,
+    "CHA": 4,
+    "CHC": 17,
+    "CHN": 17,
+    "CHW": 4,
+    "CIN": 18,
+    "CLE": 5,
+    "COL": 19,
+    "DET": 6,
+    "FLA": 20,
+    "FLO": 20,
+    "HOU": 21,
+    "KCA": 7,
+    "KCR": 7,
+    "LAA": 1,
+    "LAD": 22,
+    "LAN": 22,
+    "MIA": 20,
+    "MIL": 23,
+    "MIN": 8,
+    "ML4": 23,
+    "MON": 24,
+    "NYA": 9,
+    "NYM": 25,
+    "NYN": 25,
+    "NYY": 9,
+    "OAK": 10,
+    "PHI": 26,
+    "PIT": 27,
+    "SDN": 29,
+    "SDP": 29,
+    "SEA": 11,
+    "SFG": 30,
+    "SFN": 30,
+    "SLN": 28,
+    "STL": 28,
+    "TBA": 12,
+    "TBD": 12,
+    "TBR": 12,
+    "TEX": 13,
+    "TOR": 14,
+    "WAS": 24,
+    "WS2": 13,
+    "WSA": 13,
+    "WSN": 24,
+}
+
+
+def _build_team_lookup() -> dict[str, int]:
+    lookup: dict[str, int] = {}
+    for abbr, tid in _FG_TEAM_ABBRS.items():
+        lookup[abbr.lower()] = tid
+    for tid, slugs in _FG_TEAM_SLUGS.items():
+        for slug in slugs:
+            lookup[slug] = tid
+            lookup[slug.replace("-", "")] = tid
+            lookup[slug.replace("-", " ")] = tid
+    return lookup
+
+
+_FG_TEAM_LOOKUP: dict[str, int] = _build_team_lookup()
+
+
+def resolve_fangraphs_team_id(team: str | int) -> int:
+    """Resolve team name, slug, abbreviation, or numeric id to FanGraphs team ID."""
+    if isinstance(team, int):
+        if 1 <= team <= 30:
+            return team
+        raise InvalidParameterError(f"Invalid FanGraphs team id '{team}'. Expected integer between 1 and 30.")
+
+    clean = str(team).strip().lower().replace("_", "-").replace(".", "")
+    if clean.isdigit():
+        return resolve_fangraphs_team_id(int(clean))
+
+    if clean in _FG_TEAM_LOOKUP:
+        return _FG_TEAM_LOOKUP[clean]
+
+    clean_space = clean.replace("-", " ")
+    if clean_space in _FG_TEAM_LOOKUP:
+        return _FG_TEAM_LOOKUP[clean_space]
+
+    clean_nospace = clean.replace("-", "")
+    if clean_nospace in _FG_TEAM_LOOKUP:
+        return _FG_TEAM_LOOKUP[clean_nospace]
+
+    raise InvalidParameterError(
+        f"Unknown team identifier '{team}'. Provide a valid team slug (e.g. 'yankees'), "
+        f"abbreviation (e.g. 'NYY'), or FanGraphs team id (e.g. 9)."
+    )
 
 
 class FanGraphsFilterOp(enum.StrEnum):
@@ -729,10 +865,49 @@ class FanGraphsClient:
         )
         return await self._dispatch_fg(FangraphsStatsCategory.RELIEVERS, True, params, force_update, cache_max_age)
 
+    async def season_schedule(
+        self,
+        team: str | int,
+        season: int | None = None,
+        *,
+        force_update: bool = False,
+        cache_max_age: timedelta | None = None,
+    ) -> pl.DataFrame:
+        """Fetch game-by-game season schedule and results for a team from FanGraphs.
+
+        Args:
+            team: Team identifier as a name/slug (e.g. 'yankees', 'red-sox'),
+                abbreviation (e.g. 'NYY', 'BOS'), or integer FanGraphs team id (1-30).
+            season: Target season year (>= 2002). If None, defaults to the most recent season.
+            force_update: If True, bypass cached responses and fetch fresh data.
+            cache_max_age: Optional explicit cache lifetime. Defaults to 24h for active season.
+
+        Returns:
+            A Polars DataFrame containing game dates, opponents, final scores,
+            and home/team win probabilities.
+        """
+        team_id = resolve_fangraphs_team_id(team)
+        target_season = season if season is not None else most_recent_season()
+        if target_season < FG_MIN_SCHEDULE_SEASON:
+            raise InvalidParameterError(
+                f"FanGraphs schedule is not available for season {target_season}. "
+                f"Minimum available season is {FG_MIN_SCHEDULE_SEASON}."
+            )
+
+        effective_max_age = _resolve_fg_cache_max_age(target_season, cache_max_age)
+        return await self._gateway.get_season_schedule(
+            target_season,
+            team_id,
+            max_age=effective_max_age,
+            force_update=force_update,
+        )
+
 
 __all__ = [
+    "FG_MIN_SCHEDULE_SEASON",
     "FanGraphsClient",
     "FanGraphsFilter",
     "FanGraphsFilterInput",
     "FanGraphsFilterOp",
+    "resolve_fangraphs_team_id",
 ]
