@@ -58,7 +58,7 @@ docs = [
 ]
 test = [
     "pytest>=7.4",
-    "mypy>=1.8,<1.15",
+    "mypy>=1.8,<2.5",
     "pytest-cov>=2.10.1",
     "pytest-xdist>=2.1.0",
     "ruff>=0.1.0",
