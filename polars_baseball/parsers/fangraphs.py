@@ -6,6 +6,12 @@ from typing import cast
 import polars as pl
 
 from polars_baseball._json_utils import child_mapping
+from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball._schemas.fangraphs import (
+    FANGRAPHS_SCHEDULE_COLUMN_MAP,
+    FANGRAPHS_SCHEDULE_REQUIRED,
+    FANGRAPHS_SCHEDULE_TYPES,
+)
 from polars_baseball._validation import validate_next_data_structure
 from polars_baseball.exceptions import UpstreamStructureChangedError
 from polars_baseball.parsers.base import BaseParser
@@ -84,3 +90,53 @@ class FangraphsHTMLParser(BaseParser):
     def _is_target_query(query: Mapping[str, object]) -> bool:
         query_key = query.get("queryKey")
         return isinstance(query_key, list) and _TARGET_QUERY_KEY in query_key
+
+
+def parse_fangraphs_season_schedule(raw: str | bytes | Mapping[str, object]) -> pl.DataFrame:
+    """Parse FanGraphs season schedule JSON into a DataFrame.
+
+    Converts schedule items into a structured DataFrame with snake_case columns,
+    normalizes -99.0 win probability values to null, and validates against
+    FANGRAPHS_SCHEDULE_TYPES schema.
+    """
+    if isinstance(raw, (str, bytes)):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise UpstreamStructureChangedError("Failed to decode FanGraphs schedule JSON response.") from e
+    elif isinstance(raw, Mapping):
+        data = raw
+    else:
+        raise UpstreamStructureChangedError("FanGraphs schedule payload must be str, bytes, or mapping.")
+
+    if not isinstance(data, Mapping):
+        raise UpstreamStructureChangedError("FanGraphs schedule root payload must be a JSON object.")
+
+    schedule_rows = data.get("schedule")
+    if schedule_rows is None:
+        raise UpstreamStructureChangedError("Missing 'schedule' key in FanGraphs schedule response.")
+    if not isinstance(schedule_rows, list):
+        raise UpstreamStructureChangedError("'schedule' in FanGraphs response must be a list.")
+
+    if not schedule_rows:
+        empty_data: dict[str, list[object]] = {col: [] for col in FANGRAPHS_SCHEDULE_TYPES}
+        return pl.DataFrame(empty_data, schema=FANGRAPHS_SCHEDULE_TYPES)
+
+    if not all(isinstance(r, Mapping) for r in schedule_rows):
+        raise UpstreamStructureChangedError("Items in FanGraphs 'schedule' list must be JSON objects.")
+
+    df = pl.DataFrame(schedule_rows, infer_schema_length=None)
+    rename_map = {k: v for k, v in FANGRAPHS_SCHEDULE_COLUMN_MAP.items() if k in df.columns}
+    df = df.rename(rename_map)
+
+    # Coerce win probabilities: -99.0 indicates missing probability data -> convert to null
+    for prob_col in ("team_win_prob", "home_win_prob"):
+        if prob_col in df.columns:
+            df = df.with_columns(
+                pl.when(pl.col(prob_col).cast(pl.Float64, strict=False) == -99.0)
+                .then(None)
+                .otherwise(pl.col(prob_col).cast(pl.Float64, strict=False))
+                .alias(prob_col)
+            )
+
+    return validate_and_cast_schema(df, FANGRAPHS_SCHEDULE_REQUIRED, FANGRAPHS_SCHEDULE_TYPES)
