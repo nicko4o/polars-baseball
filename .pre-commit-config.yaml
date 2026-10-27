@@ -14,4 +14,13 @@ repos:
     hooks:
       - id: markdownlint-cli2
         args: ["--fix"]
+  - repo: local
+    hooks:
+      - id: uv-audit
+        name: uv audit
+        entry: uv audit
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
 
