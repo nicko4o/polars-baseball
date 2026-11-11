@@ -6,12 +6,13 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from polars_baseball._config import MLB_FIRST_YEAR, STATS_API_ROOT
+from polars_baseball._config import MLB_FIRST_YEAR
 from polars_baseball._mlb_contracts import (
     MLB_CACHE_MAX_AGE,
     MLB_DEFAULT_SPORT_ID,
     divisions_url,
     leagues_url,
+    standings_url,
     teams_url,
     venue_url,
     venues_url,
@@ -30,7 +31,6 @@ if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
     from polars_baseball.gateways.mlb import MlbStatsGateway
 
-_STANDINGS_URL = f"{STATS_API_ROOT}/standings"
 _PRE_DEAD_BALL_START = MLB_FIRST_YEAR
 
 
@@ -144,7 +144,7 @@ class MlbTaxonomyMixin:
                 f"This query currently only returns standings until the {_PRE_DEAD_BALL_START} season."
             )
         return await self._gateway.fetch(
-            _STANDINGS_URL,
+            standings_url(),
             params={"leagueId": "103,104", "season": season},
             error_msg="Failed to fetch or parse standings from MLB Stats API",
             parser=lambda payload: parse_standings_payload(payload, season),

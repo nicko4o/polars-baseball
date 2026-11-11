@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from polars_baseball._config import SAVANT_ROOT
-from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.savant import SavantGateway
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 @dataclass(frozen=True)

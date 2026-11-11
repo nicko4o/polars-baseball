@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from polars_baseball._config import (
     RETROSHEET_CONTENTS_URL_TEMPLATE,
     RETROSHEET_EVENT_URL,
@@ -11,9 +13,11 @@ from polars_baseball._config import (
     RETROSHEET_SCHEDULE_URL,
     RETROSHEET_SEASON_GAMELOG_URL,
 )
-from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.retrosheet import parse_season_contents
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 class RetrosheetGateway(BaseGateway):

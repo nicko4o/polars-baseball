@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import timedelta
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 
@@ -13,9 +13,11 @@ from polars_baseball._config import (
     BREF_SPLITS_URL_TEMPLATE,
 )
 from polars_baseball._schema_utils import validate_and_cast_schema
-from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.bref import BRefGameLogParser, BRefSplitsParser, parse_bref_dataset
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 class BRefGateway(BaseGateway):

@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Callable, Mapping
 from datetime import timedelta
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._json_utils import JsonObject
-from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import PolarsBaseballHttpError, UpstreamParseError
 from polars_baseball.gateways.base import BaseGateway
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 class MlbStatsGateway(BaseGateway):
@@ -30,25 +34,20 @@ class MlbStatsGateway(BaseGateway):
         force_update: bool = False,
         cache_key: str | None = None,
     ) -> pl.DataFrame:
-        key = cache_key or generate_cache_key(url, params)
-
-        async def _fetch_and_parse() -> pl.DataFrame:
-            result = await self._fetch_json(url, params, error_msg)
+        def _dict_parser(result: object) -> pl.DataFrame:
             if not isinstance(result, dict):
                 raise UpstreamParseError(f"Expected dict from API response, got {type(result)}")
-            try:
-                return parser(cast(JsonObject, result))
-            except (KeyError, TypeError, ValueError, pl.exceptions.PolarsError) as exc:
-                raise UpstreamParseError(f"{error_msg}: {exc}") from exc
+            return parser(cast(JsonObject, result))
 
-        if not use_cache:
-            return await _fetch_and_parse()
-
-        return await self._context.cache.get_or_fetch(
-            key,
-            _fetch_and_parse,
+        return await self.fetch_payload(
+            url,
+            params,
+            error_msg,
+            _dict_parser,
+            use_cache=use_cache,
             max_age=max_age,
             force_update=force_update,
+            cache_key=cache_key,
         )
 
     async def fetch_payload(

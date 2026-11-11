@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from polars_baseball._savant import (
     SavantGamefeedMixin,
     SavantParkFactorsMixin,
     SavantProfilesMixin,
     SavantStatcastMixin,
 )
-from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.savant import SavantGateway
 from polars_baseball.gateways.statcast_dataset import StatcastDatasetGateway
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 class SavantClient(

@@ -35,6 +35,7 @@ _GAME_CONTENT_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/game/{{}}/content"
 _TRANSACTIONS_URL: Final[str] = f"{STATS_API_ROOT}/transactions"
 _VENUES_URL: Final[str] = f"{STATS_API_ROOT}/venues"
 _VENUE_URL_TEMPLATE: Final[str] = f"{STATS_API_ROOT}/venues/{{}}"
+_STANDINGS_URL: Final[str] = f"{STATS_API_ROOT}/standings"
 
 
 def people_url() -> str:
@@ -115,6 +116,10 @@ def venues_url() -> str:
 
 def venue_url(venue_ids: str) -> str:
     return _VENUE_URL_TEMPLATE.format(venue_ids)
+
+
+def standings_url() -> str:
+    return _STANDINGS_URL
 
 
 def people_cache_key(**kw: object) -> str:

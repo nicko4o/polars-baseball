@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from polars_baseball._config import FG_SEASON_SCHEDULE_URL
-from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.fangraphs import FangraphsHTMLParser, parse_fangraphs_season_schedule
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 
 class FanGraphsGateway(BaseGateway):

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import io
 import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import polars as pl
 
@@ -17,12 +19,14 @@ from polars_baseball._storage_primitives import (
     validate_safe_path_component,
     validate_zip_archive,
 )
-from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import (
     ClientError,
     UpstreamDataCorruptedError,
     UpstreamStructureChangedError,
 )
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 COMPILED_DATASETS_DIR: Final[str] = "compiled-datasets"
 ARCHIVES_DIR: Final[str] = "_archives"

@@ -2,20 +2,17 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter
 from polars_baseball._client import HttpClient
 from polars_baseball._config import _resolve_default_cache_dir
-
-if TYPE_CHECKING:
-    from polars_baseball.bref import BRefClient
-    from polars_baseball.fangraphs import FanGraphsClient
-    from polars_baseball.lahman import LahmanClient
-    from polars_baseball.lookup import LookupClient
-    from polars_baseball.mlb import MlbClient
-    from polars_baseball.retrosheet import RetrosheetClient
-    from polars_baseball.savant import SavantClient
+from polars_baseball.bref import BRefClient
+from polars_baseball.fangraphs import FanGraphsClient
+from polars_baseball.lahman import LahmanClient
+from polars_baseball.lookup import LookupClient
+from polars_baseball.mlb import MlbClient
+from polars_baseball.retrosheet import RetrosheetClient
+from polars_baseball.savant import SavantClient
 
 logger = logging.getLogger("polars_baseball")
 
@@ -39,14 +36,6 @@ class BaseballClient:
         else:
             self.cache = FileCacheAdapter(_resolve_default_cache_dir())
         self.github_token: str | None = github_token
-
-        from polars_baseball.bref import BRefClient
-        from polars_baseball.fangraphs import FanGraphsClient
-        from polars_baseball.lahman import LahmanClient
-        from polars_baseball.lookup import LookupClient
-        from polars_baseball.mlb import MlbClient
-        from polars_baseball.retrosheet import RetrosheetClient
-        from polars_baseball.savant import SavantClient
 
         self.savant: SavantClient = SavantClient(self)
         self.mlb: MlbClient = MlbClient(self)
