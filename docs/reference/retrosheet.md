@@ -39,15 +39,16 @@ Retrosheet schemas and column definitions are defined in [`polars_baseball/_sche
 
 ```python
 import asyncio
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    roster_df = await pb.retrosheet.rosters(2019)
-    schedule_df = await pb.retrosheet.schedules(2019)
-    parks_df = await pb.retrosheet.park_codes()
-    print(roster_df.head())
-    print(schedule_df.head())
-    print(parks_df.head())
+    async with BaseballClient() as client:
+        roster_df = await client.retrosheet.rosters(2019)
+        schedule_df = await client.retrosheet.schedules(2019)
+        parks_df = await client.retrosheet.park_codes()
+        print(roster_df.head())
+        print(schedule_df.head())
+        print(parks_df.head())
 
 if __name__ == "__main__":
     asyncio.run(main())

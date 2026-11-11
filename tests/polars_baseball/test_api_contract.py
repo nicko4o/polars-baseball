@@ -1,8 +1,22 @@
 import inspect
+import re
+from pathlib import Path
 
 import pytest
 
 import polars_baseball as pb
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+PROVIDER_DOCS_MAP = {
+    "savant": "docs/reference/statcast.md",
+    "mlb": "docs/reference/mlb_api.md",
+    "fangraphs": "docs/reference/fangraphs.md",
+    "bref": "docs/reference/bref.md",
+    "retrosheet": "docs/reference/retrosheet.md",
+    "lahman": "docs/reference/lahman.md",
+    "lookup": "docs/reference/lookups.md",
+}
 
 ROOT_PUBLIC_API = {
     "BaseballClient",
@@ -122,3 +136,86 @@ def test_root_public_api_docstrings_do_not_use_numpy_sections() -> None:
             numpy_style_docstrings.append(name)
 
     assert not numpy_style_docstrings, f"Root public API docstrings use NumPy-style sections: {numpy_style_docstrings}"
+
+
+def test_all_client_subclient_methods_are_documented() -> None:
+    client = pb.BaseballClient()
+    missing_docs: list[str] = []
+    for subclient_name, doc_rel in PROVIDER_DOCS_MAP.items():
+        doc_path = _PROJECT_ROOT / doc_rel
+        doc_text = doc_path.read_text(encoding="utf-8")
+        subclient = getattr(client, subclient_name)
+        public_methods = {m for m in dir(subclient) if not m.startswith("_") and callable(getattr(subclient, m))}
+        for method in public_methods:
+            if method not in doc_text:
+                missing_docs.append(f"{subclient_name}.{method} not documented in {doc_rel}")
+
+    assert not missing_docs, "Client methods missing from reference docs: " + ", ".join(missing_docs)
+
+
+def test_reference_docs_do_not_document_ghost_client_methods() -> None:
+    client = pb.BaseballClient()
+    ghost_methods: list[str] = []
+    func_pattern = re.compile(r"`(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\(")
+
+    COMMON_EXCLUSIONS = {
+        "print",
+        "main",
+        "select",
+        "head",
+        "filter",
+        "group_by",
+        "agg",
+        "sort",
+        "alias",
+        "len",
+        "col",
+        "atan2",
+        "pi",
+        "run",
+        "with_file_cache",
+        "close",
+        "with_null_cache",
+        "show",
+        "items",
+        "keys",
+        "values",
+        "read_csv",
+        "cast",
+        "lit",
+        "str",
+        "int",
+        "float",
+        "bool",
+        "dict",
+        "list",
+        "tuple",
+        "set",
+        "BaseballClient",
+        "BaseballContext",
+    }
+
+    for subclient_name, doc_rel in PROVIDER_DOCS_MAP.items():
+        doc_path = _PROJECT_ROOT / doc_rel
+        doc_text = doc_path.read_text(encoding="utf-8")
+        subclient = getattr(client, subclient_name)
+        subclient_methods = {m for m in dir(subclient) if not m.startswith("_") and callable(getattr(subclient, m))}
+        submodule = getattr(pb, subclient_name)
+        submodule_callables = {m for m in dir(submodule) if not m.startswith("_") and callable(getattr(submodule, m))}
+        allowed = subclient_methods | submodule_callables | COMMON_EXCLUSIONS
+
+        # Extract function names documented in inline code: `func(...)` or `sub.func(...)`
+        matches = func_pattern.findall(doc_text)
+        for func_name in set(matches):
+            if func_name.startswith("_") or func_name in allowed:
+                continue
+            # Check if this method exists on any client subclient
+            exists_anywhere = any(hasattr(getattr(client, other_sub), func_name) for other_sub in PROVIDER_DOCS_MAP)
+            if exists_anywhere:
+                ghost_methods.append(
+                    f"{doc_rel}: `{func_name}(...)` is documented in {subclient_name} doc, but belongs to another subclient"
+                )
+            else:
+                ghost_methods.append(f"{doc_rel}: `{func_name}(...)` does not exist on {subclient_name}")
+
+    assert not ghost_methods, "Ghost/misplaced methods documented: " + ", ".join(ghost_methods)

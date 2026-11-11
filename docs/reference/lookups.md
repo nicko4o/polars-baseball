@@ -117,37 +117,38 @@ The following example shows how to perform player searches, reverse ID lookups, 
 ```python
 import asyncio
 import polars as pl
-from polars_baseball import KeyType, fangraphs, lookup
+from polars_baseball import BaseballClient, KeyType
 
 async def main() -> None:
-    # 1. Player search and batch search
-    jones = await lookup.playerid_lookup("jones")
-    judge = await lookup.playerid_lookup("judge", "aaron")
-    players = await lookup.player_search_list([("judge", "aaron")])
-    print("Player Search:", judge.head())
+    async with BaseballClient() as client:
+        # 1. Player search and batch search
+        jones = await client.lookup.playerid_lookup("jones")
+        judge = await client.lookup.playerid_lookup("judge", "aaron")
+        players = await client.lookup.player_search_list([("judge", "aaron")])
+        print("Player Search:", judge.head())
 
-    # 2. Reverse lookup
-    reversed_df = await lookup.playerid_reverse_lookup([592450], key_type=KeyType.MLBAM)
-    print("Reverse Lookup:", reversed_df.head())
+        # 2. Reverse lookup
+        reversed_df = await client.lookup.playerid_reverse_lookup([592450], key_type=KeyType.MLBAM)
+        print("Reverse Lookup:", reversed_df.head())
 
-    # 3. Synchronous Team ID mapping joined with FanGraphs data
-    teams_df = lookup.team_ids(2019)
-    batting_df = await fangraphs.team_batting(start_season=2019)
-    batting_df = batting_df.select([
-        pl.col(column).alias(f"batting.{column}")
-        for column in batting_df.columns
-    ])
-    joined_df = teams_df.join(
-        batting_df,
-        left_on=["yearID", "teamIDfg"],
-        right_on=["batting.Season", "batting.teamid"],
-        how="inner",
-    )
-    print("Joined Teams:", joined_df.head(2))
+        # 3. Synchronous Team ID mapping joined with FanGraphs data
+        teams_df = client.lookup.team_ids(2019)
+        batting_df = await client.fangraphs.team_batting(start_season=2019)
+        batting_df = batting_df.select([
+            pl.col(column).alias(f"batting.{column}")
+            for column in batting_df.columns
+        ])
+        joined_df = teams_df.join(
+            batting_df,
+            left_on=["yearID", "teamIDfg"],
+            right_on=["batting.Season", "batting.teamid"],
+            how="inner",
+        )
+        print("Joined Teams:", joined_df.head(2))
 
-    # 4. Chadwick Register
-    register = await lookup.chadwick_register(save=True)
-    print("Chadwick Register:", register.head(2))
+        # 4. Chadwick Register
+        register = await client.lookup.chadwick_register(save=True)
+        print("Chadwick Register:", register.head(2))
 
 if __name__ == "__main__":
     asyncio.run(main())

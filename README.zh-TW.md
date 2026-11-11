@@ -53,7 +53,7 @@ polars-baseball -> Polars -> analysis
 - **多資料來源**：Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、
   Retrosheet、MLB Stats API 與 player ID workflow。
 - **Built-in cache**：重複網路請求會以 Parquet 快取，適合大量查詢。
-- **Service-ready client**：`BaseballClient`（亦稱 `BaseballContext`）讓長駐服務明確控制 HTTP 與 cache 資源。
+- **Service-ready client**：`BaseballClient` 讓長駐服務明確控制 HTTP 與 cache 資源。
 
 ## 安裝
 
@@ -191,7 +191,7 @@ Runner 會回報 wall time、CPU time、peak Python memory（透過 `tracemalloc
 
 ## Web 服務與高並行
 
-長駐高並行服務應該自己管理 `BaseballClient`（或 `BaseballContext`），並把它傳給每次 API 呼叫，達到明確連線池與資源管理：
+長駐高並行服務應該自己管理 `BaseballClient`，並把它傳給每次 API 呼叫，達到明確連線池與資源管理：
 
 ```python
 from contextlib import asynccontextmanager
@@ -223,7 +223,7 @@ async def get_statcast() -> dict[str, int]:
 
 ## API 命名空間政策
 
-套件根目錄（`import polars_baseball as pb`）公開 7 大 Provider 命名空間（`pb.savant`、`pb.fangraphs`、`pb.bref`、`pb.mlb`、`pb.retrosheet`、`pb.lahman`、`pb.lookup`）、Client 類別（`pb.BaseballClient`、`pb.BaseballContext`）與核心 Enum（`Position`、`KeyType`）。
+套件根目錄（`import polars_baseball as pb`）公開 7 大 Provider 命名空間（`pb.savant`、`pb.fangraphs`、`pb.bref`、`pb.mlb`、`pb.retrosheet`、`pb.lahman`、`pb.lookup`）、Client 類別（`pb.BaseballClient`）與核心 Enum（`Position`、`KeyType`）。
 
 各資料源專屬函式與 Enum 均收斂於各自命名空間中（例如 `pb.fangraphs.*`、`pb.mlb.*`）。以 `_` 開頭的模組，包括 `_schemas`，都是內部實作細節，不屬於相容性承諾。
 

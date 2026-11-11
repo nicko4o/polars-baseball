@@ -155,11 +155,9 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/api/schedule")
 async def get_schedule(date: str):
+    client: pb.BaseballClient = app.state.pb_client
     try:
-        df = await pb.mlb.schedule(
-            date=date,
-            client=app.state.pb_client
-        )
+        df = await client.mlb.schedule(date=date)
         return {"count": df.height, "data": df.to_dicts()}
     except ClientError as err:
         raise HTTPException(status_code=400, detail=str(err))

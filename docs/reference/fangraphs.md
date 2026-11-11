@@ -9,7 +9,7 @@ Documentation and API reference for retrieving player and team leaderboards from
 
 ## Namespace Helpers
 
-For common queries, use helper functions under the `fangraphs` namespace (e.g. `pb.fangraphs.batting(...)`).
+For common queries, use helper functions under the `fangraphs` namespace (e.g. `client.fangraphs.batting(...)`).
 
 ### Functions
 
@@ -23,6 +23,8 @@ For common queries, use helper functions under the `fangraphs` namespace (e.g. `
 | `fangraphs.team_fielding(start_season, ...)` | Team fielding leaderboard. |
 | `fangraphs.team_starters(start_season, ...)` | Team starting pitcher leaderboard (`stats=sta`). |
 | `fangraphs.team_relievers(start_season, ...)` | Team relief pitcher leaderboard (`stats=rel`). |
+| `fangraphs.season_schedule(team, season, ...)` | Team game-by-game season schedule and results. |
+| `fangraphs.fg_data(start_season, ...)` | Direct custom leaderboard query endpoint. |
 
 ### Arguments
 
@@ -32,7 +34,7 @@ The namespace helpers accept the following keyword arguments:
 | --- | --- | --- | --- |
 | `start_season` | `int` | required | First season to retrieve. |
 | `end_season` | `int \| None` | `start_season` | Final season to retrieve. |
-| `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch (for `fg_data`). |
+| `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch . |
 | `league` | `FangraphsLeague \| str` | `ALL` | League filter (e.g. `"AL"`, `"NL"`). |
 | `month` | `FangraphsMonth \| str` | `ALL` | Month or split filter. |
 | `position` | `FangraphsPositions \| str` | `ALL` | Position filter. |
@@ -50,7 +52,7 @@ The namespace helpers accept the following keyword arguments:
 
 ## Leaderboard Filtering (`filters`)
 
-FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of tuples or `FanGraphsFilter` objects via the `filters` argument in `pb.fangraphs.*` helpers.
+FanGraphs leaderboards support custom stat-level conditions (e.g. `HR > 40`, `AVG >= 0.300`). Pass a list of tuples or `FanGraphsFilter` objects via the `filters` argument in `client.fangraphs.*` helpers.
 
 ### Supported Syntax Options
 
@@ -90,7 +92,7 @@ filters_enum = [pb.fangraphs.FanGraphsFilter("HR", pb.fangraphs.FanGraphsFilterO
 
 ## Output DataFrame Schema
 
-FanGraphs functions (`batting`, `pitching`, `fielding`, `fg_data`) return a `pl.DataFrame` with dynamic or requested stat columns.
+FanGraphs functions (`batting`, `pitching`, `fielding`, `season_schedule`) return a `pl.DataFrame` with dynamic or requested stat columns.
 
 ### Standard Batting Leaderboard Fields
 
@@ -129,32 +131,35 @@ The following example shows how to use both the quick namespace helpers and cust
 ```python
 import asyncio
 
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    # 1. Using quick namespace helpers
-    batting = await pb.fangraphs.batting(start_season=2019)
-    pitching = await pb.fangraphs.pitching(start_season=2019)
-    team_batting = await pb.fangraphs.team_batting(start_season=2019)
-    team_pitching = await pb.fangraphs.team_pitching(start_season=2019)
-    team_fielding = await pb.fangraphs.team_fielding(start_season=2019)
-    team_starters = await pb.fangraphs.team_starters(start_season=2024, team="NYY")
-    team_relievers = await pb.fangraphs.team_relievers(start_season=2024, team="LAD")
-    team_batting_1b = await pb.fangraphs.team_batting(start_season=2024, position="1B")
-    print("Namespace Batting:", batting.head(2))
+    async with BaseballClient() as client:
+        # 1. Using client namespace helpers
+        batting = await client.fangraphs.batting(start_season=2019)
+        pitching = await client.fangraphs.pitching(start_season=2019)
+        team_batting = await client.fangraphs.team_batting(start_season=2019)
+        team_pitching = await client.fangraphs.team_pitching(start_season=2019)
+        team_fielding = await client.fangraphs.team_fielding(start_season=2019)
+        team_starters = await client.fangraphs.team_starters(start_season=2024, team="NYY")
+        team_relievers = await client.fangraphs.team_relievers(start_season=2024, team="LAD")
+        team_batting_1b = await client.fangraphs.team_batting(start_season=2024, position="1B")
+        print("Namespace Batting:", batting.head(2))
 
-    # 2. Using quick namespace helpers with tuple filters
-    filtered_batting = await pb.fangraphs.batting(
-        start_season=2024,
-        filters=[("HR", ">", 40), ("AVG", ">=", 0.300)],
-    )
-    print("Filtered Batting (HR > 40, AVG >= .300):", filtered_batting.head(2))
+        # 2. Using client namespace helpers with tuple filters
+        filtered_batting = await client.fangraphs.batting(
+            start_season=2024,
+            filters=[("HR", ">", 40), ("AVG", ">=", 0.300)],
+        )
+        print("Filtered Batting (HR > 40, AVG >= .300):", filtered_batting.head(2))
 
-    # 3. Using fg_data directly for custom queries
-    season_df = await pb.fangraphs.fg_data(start_season=2026)
-    qualified_df = await pb.fangraphs.fg_data(start_season=2023, qual=50)
-    split_df = await pb.fangraphs.fg_data(start_season=2022, end_season=2026, split_seasons=True)
-    print("Direct Query:", season_df.head(2))
+        # 3. Using season_schedule for team results
+        schedule = await client.fangraphs.season_schedule("NYY", 2024)
+        print("Season Schedule:", schedule.head(2))
+
+        # 4. Using fg_data directly for custom queries
+        custom_df = await client.fangraphs.fg_data(start_season=2024, qual=50)
+        print("Direct Query:", custom_df.head(2))
 
 if __name__ == "__main__":
     asyncio.run(main())

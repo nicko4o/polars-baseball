@@ -62,8 +62,8 @@ them lazily with Polars predicate and projection pushdown.
 
 ### Functions
 
-- `scan_statcast(seasons=None, *, auto_download=False, context=None)` — lazily scan local partitions (also available as `savant.scan_statcast`)
-- `sync_statcast(seasons, *, force_update=False, verbose=True, concurrency_limit=3, context=None)` — scrape full seasons into partitions (also available as `savant.sync_statcast`)
+- `client.savant.scan_statcast(seasons=None, *, auto_download=False)` — lazily scan local partitions
+- `client.savant.sync_statcast(seasons, *, force_update=False, verbose=True, concurrency_limit=3)` — scrape full seasons into partitions
 
 ### Arguments
 
@@ -77,18 +77,19 @@ them lazily with Polars predicate and projection pushdown.
 ```python
 import asyncio
 import polars as pl
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    # 1. Scrape and persist 2023 + 2024 full seasons
-    await pb.sync_statcast([2023, 2024])
+    async with BaseballClient() as client:
+        # 1. Scrape and persist 2023 + 2024 full seasons
+        await client.savant.sync_statcast([2023, 2024])
 
-    # 2. Query locally with predicate pushdown
-    lf = await pb.scan_statcast(seasons=[2024])
-    mean_velo = lf.filter(pl.col("pitch_type") == "FF").group_by("player_name").agg(
-        pl.col("release_speed").mean().alias("mean_velo")
-    ).collect()
-    print(mean_velo)
+        # 2. Query locally with predicate pushdown
+        lf = await client.savant.scan_statcast(seasons=[2024])
+        mean_velo = lf.filter(pl.col("pitch_type") == "FF").group_by("player_name").agg(
+            pl.col("release_speed").mean().alias("mean_velo")
+        ).collect()
+        print(mean_velo)
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -217,23 +218,6 @@ Retrieve JSON datasets for single or batch games, parsed directly into dataframe
 
 ---
 
-## Prospect Rankings
-
-Retrieve prospect rankings and pipeline data.
-
-### Functions
-
-- `prospect_rankings(list_type: str = "top100", year: int | None = None) -> pl.DataFrame`
-- `top_prospects(team_name: str | None = None, player_type: str | None = None) -> pl.DataFrame`
-
-### Arguments
-
-- `list_type`: Type of list to query (e.g. `"top100"`, `"draft"`, `"international"`, or position/team names).
-- `team_name`: Target team name (e.g. `"bluejays"`, `"yankees"`).
-- `player_type`: `"pitchers"` or `"batters"`.
-
----
-
 ## Spray Angle Utilities
 
 The legacy `add_spray_angle` pandas utility was removed in a prior version. Derived spray angles should be calculated directly with Polars expressions or Python math:
@@ -268,34 +252,29 @@ async with BaseballClient() as client:
 
 ```python
 import asyncio
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    client = pb.BaseballClient()
+    async with BaseballClient() as client:
+        # 1. Pitch-level queries
+        game_df = await client.savant.single_game(529429)
+        print("Single Game:", game_df.head(2))
 
-    # 1. Pitch-level queries
-    game_df = await client.savant.single_game(529429)
-    print("Single Game:", game_df.head(2))
+        # 2. Leaderboards
+        expected = await client.savant.expected_stats(2026, player_type="batter", min_pa=100)
+        arsenal = await client.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
+        print("Expected Stats:", expected.head(2))
+        print("Pitcher Arsenal:", arsenal.head(2))
 
-    # 2. Leaderboards
-    expected = await client.savant.expected_stats(2026, player_type="batter", min_pa=100)
-    arsenal = await client.savant.pitcher_pitch_arsenal(2026, min_pitches=250)
-    print("Expected Stats:", expected.head(2))
-    print("Pitcher Arsenal:", arsenal.head(2))
+        # 3. Fielding & Running
+        oaa = await client.savant.outs_above_average(2026, pos="CF", min_att="q")
+        speed = await client.savant.sprint_speed(2019, min_opp=50)
+        print("OAACF:", oaa.head(2))
+        print("Sprint Speed:", speed.head(2))
 
-    # 3. Fielding & Running
-    oaa = await client.savant.outs_above_average(2026, pos="CF", min_att="q")
-    speed = await client.savant.sprint_speed(2019, min_opp=50)
-    print("OAACF:", oaa.head(2))
-    print("Sprint Speed:", speed.head(2))
-
-    # 4. Gamefeed
-    exit_velocity = await client.savant.gamefeed_exit_velocity(745585)
-    print("Gamefeed EV:", exit_velocity.head(2))
-
-    # 5. Prospect Rankings
-    prospects = await client.mlb.prospect_rankings("top100")
-    print("Prospects:", prospects.head(2))
+        # 4. Gamefeed
+        exit_velocity = await client.savant.gamefeed_exit_velocity(745585)
+        print("Gamefeed EV:", exit_velocity.head(2))
 
 if __name__ == "__main__":
     asyncio.run(main())

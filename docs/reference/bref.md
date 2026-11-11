@@ -96,22 +96,23 @@ Retrieves Baseball Reference platoon and situational splits for a player.
 
 ```python
 import asyncio
-import polars_baseball as pb
+from polars_baseball import BaseballClient
 
 async def main() -> None:
-    # Fetch standard daily batting WAR (may raise HTTP 403 in live environments)
-    try:
-        batting_war = await pb.bref.bwar_bat(all_columns=False)
-        print("Batting WAR:", batting_war.head())
-    except Exception as e:
-        print("Could not retrieve Batting WAR:", e)
+    async with BaseballClient() as client:
+        # Fetch standard daily batting WAR (may raise HTTP 403 in live environments)
+        try:
+            batting_war = await client.bref.bwar_bat(all_columns=False)
+            print("Batting WAR:", batting_war.head())
+        except Exception as e:
+            print("Could not retrieve Batting WAR:", e)
 
-    # Fetch standard daily pitching WAR
-    try:
-        pitching_war = await pb.bref.bwar_pitch(all_columns=False)
-        print("Pitching WAR:", pitching_war.head())
-    except Exception as e:
-        print("Could not retrieve Pitching WAR:", e)
+        # Fetch standard daily pitching WAR
+        try:
+            pitching_war = await client.bref.bwar_pitch(all_columns=False)
+            print("Pitching WAR:", pitching_war.head())
+        except Exception as e:
+            print("Could not retrieve Pitching WAR:", e)
 
 if __name__ == "__main__":
     asyncio.run(main())
