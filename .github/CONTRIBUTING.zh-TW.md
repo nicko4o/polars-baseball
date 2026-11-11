@@ -35,8 +35,8 @@
 
 ### 1. Polars 與 async-first 架構
 * **Polars 優先**：公開資料 API 應預設回傳原生 `polars.DataFrame`（特別說明的例外如 `standings()` 除外）。禁止引入 Pandas。
-* **Async 優先**：資料擷取 API 必須是非同步函式（`async def`），且支援自訂 `BaseballContext` 注入以實現資源隔離。
-* **明確 Schema 契約**：每個回傳的 DataFrame 都必須在所屬解析器或 API 模組內，定義明確的 Polars schema contract（例如 `BWAR_BAT_SCHEMA`）。
+* **Async 優先**：資料擷取 API 必須是非同步函式（`async def`），且透過 `BaseballClient` 子命名空間存取以實現資源隔離。
+* **明確 Schema 契約**：每個回傳的 DataFrame 都必須在所屬解析器或 schema 模組內，定義明確的 Polars schema contract（例如 `BWAR_BAT_SCHEMA`）。
 * **公開匯出契約**：新增的公開 entry points 必須宣告在 `polars_baseball.__all__` 中，並由 API contract tests 覆蓋。
 
 ### 2. 型別安全與程式碼品質
@@ -57,10 +57,12 @@
 
 ## 專案配置 (Project Layout)
 
-- `polars_baseball/apis/`：穩定且面向使用者公開的 API 端點。
+- `polars_baseball/client.py`：主要客戶端入口點（`BaseballClient`）。
 - `polars_baseball/gateways/`：網路邊界、外部 HTTP 用戶端設定與資料擷取層。
 - `polars_baseball/parsers/`：純解析器，採用策略模式轉換原始資料。
-- `polars_baseball/schemas/`：宣告式 schema 結構與驗證契約。
+- `polars_baseball/_schemas/`：宣告式 schema 結構與驗證契約。
+- `polars_baseball/_mlb/`：解構之 MLB 領域 mixins。
+- `polars_baseball/_savant/`：解構之 Savant 領域 mixins。
 - `polars_baseball/enums/`：集中定義的領域相關 enum 與常數表。
 - `polars_baseball/data/`：靜態參考資料集（如球隊 ID 映射表）。
 

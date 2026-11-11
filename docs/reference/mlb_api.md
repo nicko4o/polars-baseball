@@ -9,7 +9,7 @@ Output grain: endpoint-specific rows such as games, people, roster entries, play
 Source: MLB Stats API.
 
 Provides access to official MLB Stats API endpoints (`statsapi.mlb.com`) for player bios, schedules, teams, rosters, game data, and leaderboards.
-New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.schedule(...)`.
+Access through `client.mlb` on `BaseballClient`, such as `client.mlb.schedule(...)`.
 
 ## API Groups
 
@@ -23,7 +23,7 @@ New code can call the shorter `polars_baseball.mlb` namespace, such as `pb.mlb.s
 
 > [!TIP]
 > Functions below require numeric `person_id` or `person_ids` (MLBAM ID).
-> Don't know the ID? Use `pb.playerid_lookup("Ohtani", "Shohei")` or `pb.player_name_suggestions("oht")` to find the `key_mlbam`.
+> Don't know the ID? Use `client.lookup.playerid_lookup("Ohtani", "Shohei")` or `client.lookup.player_name_suggestions("oht")` to find the `key_mlbam`.
 
 ## 1. Player Bios (`mlb.people`)
 
@@ -37,9 +37,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.people(450314)
-    print(df.select(["id", "fullName", "currentAge", "mlbDebutDate"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.people(450314)
+        print(df.select(["id", "fullName", "currentAge", "mlbDebutDate"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -56,9 +56,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.roster(121, season=2026)
-    print(df.select(["personId", "fullName", "jerseyNumber", "positionName"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.roster(121, season=2026)
+        print(df.select(["personId", "fullName", "jerseyNumber", "positionName"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -75,9 +75,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.schedule(date="2026-06-01")
-    print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.schedule(date="2026-06-01")
+        print(df.select(["gamePk", "gameDate", "awayTeamName", "homeTeamName"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -93,9 +93,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.player_stats(660271, group="hitting", stats_type="gameLog", season=2026)
-    print(df.select(["season", "group", "statType", "gamesPlayed", "homeRuns"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.player_stats(660271, group="hitting", stats_type="gameLog", season=2026)
+        print(df.select(["season", "group", "statType", "gamesPlayed", "homeRuns"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -111,9 +111,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_boxscore(745585)
-    print(df.select(["gamePk", "teamId", "personId", "fullName"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_boxscore(745585)
+        print(df.select(["gamePk", "teamId", "personId", "fullName"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -129,9 +129,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.teams(season=2026)
-    print(df.select(["id", "name", "abbreviation", "leagueId"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.teams(season=2026)
+        print(df.select(["id", "name", "abbreviation", "leagueId"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -147,9 +147,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.team_stats(121, season=2026, group="hitting")
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.team_stats(121, season=2026, group="hitting")
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -165,9 +165,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.stat_leaders(2026, ["homeRuns"], stat_group="hitting")
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.stat_leaders(2026, ["homeRuns"], stat_group="hitting")
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -191,9 +191,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_boxscore_stats(745585)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_boxscore_stats(745585)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -209,9 +209,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_play_by_play(745585)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_play_by_play(745585)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -227,9 +227,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_win_probability(745585)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_win_probability(745585)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -245,9 +245,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.draft(year=2026)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.draft(year=2026)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -263,9 +263,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.pitch_arsenal(person_id=545361, season=2026)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.pitch_arsenal(person_id=545361, season=2026)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -281,9 +281,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.transactions(date="2026-06-01")
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.transactions(date="2026-06-01")
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -299,9 +299,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.venues(venue_ids=[10, 20])
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.venues(venue_ids=[10, 20])
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -317,9 +317,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_feed_live(game_pk=745585)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_feed_live(game_pk=745585)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -336,9 +336,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_linescore(game_pk=745585)
-    print(df.head())
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_linescore(game_pk=745585)
+        print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -354,9 +354,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.game_highlights(game_pk=745585)
-    print(df.select(["title", "playId", "url"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.game_highlights(game_pk=745585)
+        print(df.select(["title", "playId", "url"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -372,14 +372,14 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.film_room_search(
-        player_ids=660271,
-        event_types="Home Run",
-        min_exit_velocity=110.0,
-        limit=20,
-    )
-    print(df.select(["date", "title", "exit_velocity", "hit_distance", "best_mp4_url"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.film_room_search(
+            player_ids=660271,
+            event_types="Home Run",
+            min_exit_velocity=110.0,
+            limit=20,
+        )
+        print(df.select(["date", "title", "exit_velocity", "hit_distance", "best_mp4_url"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -395,9 +395,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.divisions()
-    print(df.select(["id", "name", "leagueId", "active"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.divisions()
+        print(df.select(["id", "name", "leagueId", "active"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -413,9 +413,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.leagues()
-    print(df.select(["id", "name", "abbreviation", "active"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.leagues()
+        print(df.select(["id", "name", "abbreviation", "active"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -431,9 +431,9 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.people_awards(person_id=660271)
-    print(df.select(["personId", "awardId", "awardName", "season"]))
-
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.people_awards(person_id=660271)
+        print(df.select(["personId", "awardId", "awardName", "season"]))
 if __name__ == "__main__":
     asyncio.run(main())
 ```
@@ -453,8 +453,67 @@ import asyncio
 import polars_baseball as pb
 
 async def main() -> None:
-    df = await pb.mlb.standings(2019)
-    print(df.head())
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.standings(2019)
+        print(df.head())
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
+## 25. Prospect Rankings (`mlb.prospect_rankings`)
+
+`mlb.prospect_rankings(list_type: str = "top100", year: int | None = None, force_update: bool = False) -> pl.DataFrame`
+
+Retrieves prospect rankings from the official MLB pipeline.
+
+```python
+import asyncio
+import polars_baseball as pb
+
+async def main() -> None:
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.prospect_rankings(list_type="top100")
+        print(df.head())
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 26. Top Prospects (`mlb.top_prospects`)
+
+`mlb.top_prospects(team_name: str | None = None, player_type: str | None = None, force_update: bool = False) -> pl.DataFrame`
+
+Retrieves top prospect lists filtered by team or player type.
+
+```python
+import asyncio
+import polars_baseball as pb
+
+async def main() -> None:
+    async with pb.BaseballClient() as client:
+        df = await client.mlb.top_prospects(team_name="yankees")
+        print(df.head())
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 27. Resolve Team ID (`mlb.resolve_team_id`)
+
+`mlb.resolve_team_id(team_name: str) -> int`
+
+Asynchronously resolves a team name or abbreviation to its canonical MLB team ID.
+
+```python
+import asyncio
+import polars_baseball as pb
+
+async def main() -> None:
+    async with pb.BaseballClient() as client:
+        team_id = await client.mlb.resolve_team_id("NYY")
+        print("Team ID:", team_id)
 
 if __name__ == "__main__":
     asyncio.run(main())

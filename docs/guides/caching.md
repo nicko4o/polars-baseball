@@ -12,7 +12,7 @@
 
 ### Programmatic Configuration
 
-For explicit lifecycle control, create a file-backed `BaseballClient` (or `BaseballContext`):
+For explicit lifecycle control, create a file-backed `BaseballClient`:
 
 ```python
 from pathlib import Path

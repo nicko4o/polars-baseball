@@ -36,3 +36,24 @@ def test_version_in_pyproject_matches_package_init() -> None:
         f"polars_baseball.__version__ ({polars_baseball.__version__}) "
         f"does not match pyproject.toml bumpversion ({bump_version})"
     )
+
+
+def test_version_in_citation_cff_matches_package_init() -> None:
+    citation_path = _PROJECT_ROOT / "CITATION.cff"
+    citation_text = citation_path.read_text(encoding="utf-8")
+    version_line = next((line for line in citation_text.splitlines() if line.startswith("version:")), None)
+    assert version_line is not None, "CITATION.cff missing version line"
+    citation_version = version_line.split(":", 1)[1].strip()
+    assert polars_baseball.__version__ == citation_version, (
+        f"polars_baseball.__version__ ({polars_baseball.__version__}) "
+        f"does not match CITATION.cff version ({citation_version})"
+    )
+
+
+def test_bumpversion_tracks_citation_cff() -> None:
+    pyproject_path = _PROJECT_ROOT / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        config = tomllib.load(f)
+
+    files = [item.get("filename") for item in config.get("tool", {}).get("bumpversion", {}).get("files", [])]
+    assert "CITATION.cff" in files, "CITATION.cff is not tracked in tool.bumpversion.files in pyproject.toml"

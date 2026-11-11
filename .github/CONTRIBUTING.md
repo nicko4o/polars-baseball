@@ -35,8 +35,8 @@ Our engineering philosophy favors:
 
 ### 1. Polars & Async-First Architecture
 * **Polars-First**: Public data APIs should return native `polars.DataFrame` objects (except documented exceptions like `standings()`). Never use Pandas.
-* **Async-First**: Data-fetching APIs must be asynchronous (`async def`) and support custom `BaseballContext` injection for resource isolation.
-* **Explicit Schemas**: Every returned DataFrame must be backed by an explicit Polars schema contract (e.g., `BWAR_BAT_SCHEMA`) defined within its parser or api module.
+* **Async-First**: Data-fetching APIs must be asynchronous (`async def`) and exposed through `BaseballClient` subclients for resource isolation.
+* **Explicit Schemas**: Every returned DataFrame must be backed by an explicit Polars schema contract (e.g., `BWAR_BAT_SCHEMA`) defined within its parser or schema module.
 * **Public Exports**: New public entry points must be declared in `polars_baseball.__all__` and covered by contract tests.
 
 ### 2. Type Safety & Code Quality
@@ -57,10 +57,12 @@ Our engineering philosophy favors:
 
 ## Project Layout
 
-- `polars_baseball/apis/`: Stable, user-facing public API endpoints.
+- `polars_baseball/client.py`: Primary client entry point (`BaseballClient`).
 - `polars_baseball/gateways/`: Network boundaries, external HTTP client configurations, and data retrieval layers.
 - `polars_baseball/parsers/`: Pure parsers utilizing the degradation/strategy pattern to transform raw data.
-- `polars_baseball/schemas/`: Declarative schema structures and validation contracts.
+- `polars_baseball/_schemas/`: Declarative schema structures and validation contracts.
+- `polars_baseball/_mlb/`: Deconstructed MLB domain mixins.
+- `polars_baseball/_savant/`: Deconstructed Savant domain mixins.
 - `polars_baseball/enums/`: Centralized domain-specific enums and constant tables.
 - `polars_baseball/data/`: Static reference datasets (e.g., team ID mapping).
 

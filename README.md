@@ -57,7 +57,7 @@ polars-baseball -> Polars -> analysis
 - **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
   Retrosheet, MLB Stats API, and player ID workflows.
 - **Opt-in file cache**: Large workflows can cache repeated network requests as Parquet files.
-- **Service-ready client**: `BaseballClient` (or `BaseballContext`) lets long-running apps control HTTP and cache
+- **Service-ready client**: `BaseballClient` lets long-running apps control HTTP and cache
   resources explicitly.
 - **Explicit HTTP policy**: `HttpClient` exposes timeout, retry, and BRef rate-limit settings.
 
@@ -198,7 +198,7 @@ against pandas-first workflows.
 
 ## Web Services & Concurrency
 
-Long-running concurrent services should manage their own `BaseballClient` (or `BaseballContext`) and pass it into API calls for explicit resource and connection pool management:
+Long-running concurrent services should manage their own `BaseballClient` and pass it into API calls for explicit resource and connection pool management:
 
 ```python
 from contextlib import asynccontextmanager
@@ -230,7 +230,7 @@ async def get_statcast() -> dict[str, int]:
 
 ## API Namespace Policy
 
-The package root (`import polars_baseball as pb`) exposes provider namespaces (`pb.savant`, `pb.fangraphs`, `pb.bref`, `pb.mlb`, `pb.retrosheet`, `pb.lahman`, `pb.lookup`), client classes (`pb.BaseballClient`, `pb.BaseballContext`), and universal enums (`Position`, `KeyType`).
+The package root (`import polars_baseball as pb`) exposes provider namespaces (`pb.savant`, `pb.fangraphs`, `pb.bref`, `pb.mlb`, `pb.retrosheet`, `pb.lahman`, `pb.lookup`), the client class (`pb.BaseballClient`), and universal enums (`Position`, `KeyType`).
 
 Provider-specific workflows and enums live in their dedicated namespaces (e.g. `pb.fangraphs.*`, `pb.mlb.*`). Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part of the compatibility contract.
 

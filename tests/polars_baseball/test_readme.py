@@ -122,27 +122,58 @@ def test_markdown_polars_baseball_imports_resolve() -> None:
     assert not failures, "Broken documented imports: " + ", ".join(failures)
 
 
+def _find_package_aliases(tree: ast.AST) -> set[str]:
+    return {
+        alias.asname or alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == "polars_baseball"
+    }
+
+
+def _find_direct_imports(tree: ast.AST) -> dict[str, object]:
+    imports: dict[str, object] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "polars_baseball":
+            for alias in node.names:
+                if hasattr(pb, alias.name):
+                    imports[alias.asname or alias.name] = getattr(pb, alias.name)
+    return imports
+
+
+def _check_attr_failure(
+    node: ast.AST,
+    package_aliases: set[str],
+    direct_imports: dict[str, object],
+    rel_path: str,
+) -> str | None:
+    if not isinstance(node, ast.Attribute):
+        return None
+    path_parts = _attribute_path(node)
+    if path_parts is None:
+        return None
+
+    root, parts = path_parts[0], list(path_parts[1:])
+    if root in package_aliases and _resolve_parts(pb, parts) is None:
+        return f"{rel_path}: {'.'.join(path_parts)}"
+    if root in direct_imports and _resolve_parts(direct_imports[root], parts) is None:
+        return f"{rel_path}: {'.'.join(path_parts)}"
+    return None
+
+
 def test_markdown_package_alias_attributes_resolve() -> None:
     failures: list[str] = []
     for path in _markdown_files():
+        rel_path = str(path.relative_to(_PROJECT_ROOT))
         for example in _python_examples(path):
             tree = ast.parse(example)
-            aliases = {
-                alias.asname or alias.name
-                for node in ast.walk(tree)
-                if isinstance(node, ast.Import)
-                for alias in node.names
-                if alias.name == "polars_baseball"
-            }
+            package_aliases = _find_package_aliases(tree)
+            direct_imports = _find_direct_imports(tree)
             for node in ast.walk(tree):
-                if not isinstance(node, ast.Attribute):
-                    continue
-                path_parts = _attribute_path(node)
-                if path_parts is None or path_parts[0] not in aliases:
-                    continue
-                documented_path = ".".join(path_parts[1:])
-                if _documented_symbol(documented_path) is None:
-                    failures.append(f"{path.relative_to(_PROJECT_ROOT)}: {'.'.join(path_parts)}")
+                err = _check_attr_failure(node, package_aliases, direct_imports, rel_path)
+                if err:
+                    failures.append(err)
 
     assert not failures, "Broken documented package attributes: " + ", ".join(failures)
 
