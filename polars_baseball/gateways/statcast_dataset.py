@@ -1,7 +1,10 @@
 """Compiled dataset storage gateway for Hive-partitioned Statcast parquet datasets."""
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -11,9 +14,11 @@ from polars_baseball._storage_primitives import (
     get_file_lock,
     resolve_cache_dir,
 )
-from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import ClientError
 from polars_baseball.gateways.compiled import COMPILED_DATASETS_DIR
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 _DATASET_DIR = "statcast"
 _PARTITION_FILE = "statcast.parquet"

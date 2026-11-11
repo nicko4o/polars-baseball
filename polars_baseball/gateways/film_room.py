@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Callable
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import FILM_ROOM_GRAPHQL_URL, FILM_ROOM_SEARCH_URL, MLB_ROOT
-from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 PAGE_SIZE = 20
 

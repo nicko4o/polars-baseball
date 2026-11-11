@@ -2,7 +2,7 @@ from typing import NamedTuple, cast
 
 import polars as pl
 
-from polars_baseball._json_utils import JsonObject
+from polars_baseball._json_utils import JsonObject, safe_child_dict, to_int, to_str
 from polars_baseball._schema_utils import validate_and_cast_schema
 from polars_baseball._schemas.mlb import MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
 from polars_baseball.parsers.mlb.types import GameDict
@@ -17,22 +17,16 @@ class TeamInfo(NamedTuple):
 
 
 def _team_info(game_data: JsonObject, team_type: str) -> TeamInfo:
-    teams = game_data.get("teams")
-    if not isinstance(teams, dict):
-        return TeamInfo(None, None, None, None, None)
-    team_side = teams.get(team_type)
-    if not isinstance(team_side, dict):
-        return TeamInfo(None, None, None, None, None)
-    team = team_side.get("team")
-    team = team if isinstance(team, dict) else {}
-    pitcher = team_side.get("probablePitcher")
-    pitcher = pitcher if isinstance(pitcher, dict) else {}
+    teams = safe_child_dict(game_data, "teams")
+    team_side = safe_child_dict(teams, team_type)
+    team = safe_child_dict(team_side, "team")
+    pitcher = safe_child_dict(team_side, "probablePitcher")
     return TeamInfo(
-        team_id=team.get("id"),
-        team_name=team.get("name"),
-        score=team_side.get("score"),
-        probable_pitcher_id=pitcher.get("id"),
-        probable_pitcher_name=pitcher.get("fullName"),
+        team_id=to_int(team.get("id")),
+        team_name=to_str(team.get("name")),
+        score=to_int(team_side.get("score")),
+        probable_pitcher_id=to_int(pitcher.get("id")),
+        probable_pitcher_name=to_str(pitcher.get("fullName")),
     )
 
 
@@ -47,39 +41,27 @@ class DecisionPitcher(NamedTuple):
 
 
 def _line_score(game_data: JsonObject, team_type: str) -> LineScore:
-    linescore = game_data.get("linescore")
-    if not isinstance(linescore, dict):
-        return LineScore(None, None)
-    linescore_teams = linescore.get("teams")
-    if not isinstance(linescore_teams, dict):
-        return LineScore(None, None)
-    team_line = linescore_teams.get(team_type)
-    if not isinstance(team_line, dict):
-        return LineScore(None, None)
+    linescore = safe_child_dict(game_data, "linescore")
+    linescore_teams = safe_child_dict(linescore, "teams")
+    team_line = safe_child_dict(linescore_teams, team_type)
     return LineScore(
-        hits=team_line.get("hits"),
-        errors=team_line.get("errors"),
+        hits=to_int(team_line.get("hits")),
+        errors=to_int(team_line.get("errors")),
     )
 
 
 def _decision_pitcher(game_data: JsonObject, decision_type: str) -> DecisionPitcher:
-    decisions = game_data.get("decisions")
-    if not isinstance(decisions, dict):
-        return DecisionPitcher(None, None)
-    pitcher = decisions.get(decision_type)
-    if not isinstance(pitcher, dict):
-        return DecisionPitcher(None, None)
+    decisions = safe_child_dict(game_data, "decisions")
+    pitcher = safe_child_dict(decisions, decision_type)
     return DecisionPitcher(
-        pitcher_id=pitcher.get("id"),
-        pitcher_name=pitcher.get("fullName"),
+        pitcher_id=to_int(pitcher.get("id")),
+        pitcher_name=to_str(pitcher.get("fullName")),
     )
 
 
 def _game_metadata(game_data: JsonObject) -> JsonObject:
-    status_val = game_data.get("status")
-    status = status_val if isinstance(status_val, dict) else {}
-    venue_val = game_data.get("venue")
-    venue = venue_val if isinstance(venue_val, dict) else {}
+    status = safe_child_dict(game_data, "status")
+    venue = safe_child_dict(game_data, "venue")
     return {
         "gamePk": game_data.get("gamePk"),
         "gameType": game_data.get("gameType"),
@@ -149,15 +131,20 @@ def parse_mlb_schedule(data: JsonObject) -> pl.DataFrame:
     pitchers, hits, errors, and venue/status metadata.
     """
     dates = data.get("dates", [])
+    if not isinstance(dates, list) or not dates:
+        return pl.DataFrame(schema=MLB_SCHEDULE_TYPES)
+
     rows: list[GameDict] = []
-    if isinstance(dates, list):
-        for schedule_date in dates:
-            if isinstance(schedule_date, dict):
-                games = schedule_date.get("games", [])
-                if isinstance(games, list):
-                    for game in games:
-                        if isinstance(game, dict):
-                            rows.append(parse_game(cast(JsonObject, game)))
+    for schedule_date in dates:
+        if not isinstance(schedule_date, dict):
+            continue
+        games = schedule_date.get("games", [])
+        if not isinstance(games, list):
+            continue
+        for game in games:
+            if isinstance(game, dict):
+                rows.append(parse_game(cast(JsonObject, game)))
+
     return validate_and_cast_schema(
         pl.DataFrame(rows, schema=MLB_SCHEDULE_TYPES), MLB_SCHEDULE_REQUIRED, MLB_SCHEDULE_TYPES
     )

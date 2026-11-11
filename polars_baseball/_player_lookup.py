@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import threading
 import unicodedata
 from collections.abc import Awaitable, Callable
 from difflib import get_close_matches
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -14,11 +17,13 @@ from polars_baseball._config import (
     FUZZY_MIN_SIZE_FOR_FILTER,
     FUZZY_NAME_LENGTH_TOLERANCE,
 )
-from polars_baseball.client import BaseballClient
 from polars_baseball.enums.player import KeyType
 from polars_baseball.exceptions import InvalidParameterError
 
-LookupTableLoader = Callable[[BaseballClient | None], Awaitable[pl.DataFrame]]
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
+
+LookupTableLoader = Callable[["BaseballClient | None"], Awaitable[pl.DataFrame]]
 PlayerId = int | str
 _NORMALIZED_LAST_COLUMN = "name_last_normalized"
 _NORMALIZED_FIRST_COLUMN = "name_first_normalized"

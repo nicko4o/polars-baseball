@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 import polars as pl
 
 from polars_baseball._config import (
+    SAVANT_INVALID_PLAYER_IDS,
     SAVANT_ROOT,
 )
 from polars_baseball._leaderboard_registry import fetch_leaderboard
@@ -31,7 +32,6 @@ PATH_SPIN_COMP = "/leaderboard/spin-direction-comparison"
 SAVANT_CSV_PARAM = "true"
 SAVANT_MIN_QUALIFYING = "q"
 SAVANT_DEFAULT_PITCH_TEMPO_MIN = 250
-SAVANT_INVALID_PLAYER_ID = 0
 _ACTIVE_SPIN_TYPE_ORDER = ("release", "observed")
 _OAA_AGGREGATE_CODES = frozenset({"IF", "OF", "ALL", ""})
 
@@ -60,7 +60,7 @@ class SavantLeaderboardMixin:
             if "player_name" in df.columns:
                 df = df.filter(pl.col("player_name").is_not_null() & (pl.col("player_name").str.strip_chars() != ""))
             if "player_id" in df.columns:
-                df = df.filter(pl.col("player_id") != SAVANT_INVALID_PLAYER_ID)
+                df = df.filter(~pl.col("player_id").is_in(SAVANT_INVALID_PLAYER_IDS))
         return df
 
     async def batter_percentile_ranks(self, year: int) -> pl.DataFrame:

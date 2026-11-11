@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import asyncio
 import json
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._encoding import ensure_str
-from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.savant import SavantCSVParser, check_savant_error_row, parse_savant_leaderboard
 from polars_baseball.parsers.savant_gamefeed import JsonObject
+
+if TYPE_CHECKING:
+    from polars_baseball.client import BaseballClient
 
 _GAMEFEED_DATASET_PARAM = "__dataset__"
 _ERROR_SCAN_LIMIT = 200

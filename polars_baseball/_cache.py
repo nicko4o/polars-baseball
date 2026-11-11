@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import ParamSpec, Protocol, TypeVar
 
 import polars as pl
 from polars.exceptions import ComputeError
@@ -22,18 +21,11 @@ from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
 
-P = ParamSpec("P")
-R = TypeVar("R")
-
 _IN_FLIGHT_REGISTRY = LoopBoundLockRegistry()
 
 
 def _in_flight_lock_for(cache: object, key: str) -> asyncio.Lock:
     return _IN_FLIGHT_REGISTRY.get_lock(f"{id(cache)}:{key}")
-
-
-class CacheContext(Protocol):
-    cache: CacheAdapter
 
 
 def generate_cache_key(

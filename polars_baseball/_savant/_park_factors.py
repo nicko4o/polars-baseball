@@ -31,7 +31,7 @@ def _normalize_bat_side(bat_side: str) -> str:
     raise InvalidParameterError("bat_side must be one of 'all', 'L', or 'R'.")
 
 
-def _resolve_year_range(
+def _normalize_year_input(
     year: int | list[int] | tuple[int, int] | None,
     start_year: int | None,
     end_year: int | None,
@@ -41,24 +41,35 @@ def _resolve_year_range(
             raise InvalidParameterError("Both start_year and end_year must be integers provided together.")
         if start_year > end_year:
             raise InvalidParameterError("start_year cannot be greater than end_year.")
-        years = list(range(start_year, end_year + 1))
-    elif isinstance(year, tuple):
+        return list(range(start_year, end_year + 1))
+
+    if isinstance(year, tuple):
         if len(year) != 2 or not isinstance(year[0], int) or not isinstance(year[1], int) or year[0] > year[1]:
             raise InvalidParameterError(
                 "year tuple must be (start_year, end_year) with integer start_year <= end_year."
             )
-        years = list(range(year[0], year[1] + 1))
-    elif isinstance(year, list):
+        return list(range(year[0], year[1] + 1))
+
+    if isinstance(year, list):
         if not year:
             raise InvalidParameterError("year list cannot be empty.")
-        years = list(year)
-    elif isinstance(year, int):
-        years = [year]
-    elif year is None:
-        years = [most_recent_season()]
-    else:
-        raise InvalidParameterError(f"Invalid year specification: {year}")
+        return list(year)
 
+    if isinstance(year, int):
+        return [year]
+
+    if year is None:
+        return [most_recent_season()]
+
+    raise InvalidParameterError(f"Invalid year specification: {year}")
+
+
+def _resolve_year_range(
+    year: int | list[int] | tuple[int, int] | None,
+    start_year: int | None,
+    end_year: int | None,
+) -> list[int]:
+    years = _normalize_year_input(year, start_year, end_year)
     for yr in years:
         if not isinstance(yr, int) or yr < STATCAST_PARK_FACTORS_START_YEAR:
             raise InvalidParameterError(f"Year must be an integer >= {STATCAST_PARK_FACTORS_START_YEAR}.")
