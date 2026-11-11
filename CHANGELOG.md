@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.1] - 2026-11-11
+
+### Fixed
+
+- Hardened MLB Stats API parsers against malformed payloads and missing nested objects, preventing `AttributeError` and type conversion failures during boxscore, schedule, draft, and transaction parsing (#168).
+
 ## [0.28.0] - 2026-10-27
 
 ### Added
