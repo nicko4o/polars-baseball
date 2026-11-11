@@ -116,7 +116,12 @@ class FilmRoomGateway:
             "Referer": FILM_ROOM_SEARCH_URL,
         }
 
-        raw_text = await self._context.http.post_json(FILM_ROOM_GRAPHQL_URL, json_data=payload, headers=headers)
+        raw_text = await self._context.http.post_json(
+            FILM_ROOM_GRAPHQL_URL,
+            json_data=payload,
+            headers=headers,
+            retry_non_idempotent=True,
+        )
 
         try:
             return json.loads(raw_text)

@@ -8,12 +8,28 @@ from polars_baseball._config import BREF_ROOT, FG_ROOT
 class RequestPolicy:
     provider_label: str
     rate_limited: bool = False
+    is_cloudflare_protected: bool = False
+    rate_limit_lock_key: str | None = None
 
 
 _DEFAULT_POLICY = RequestPolicy("HTTP")
 _PROVIDER_POLICIES: tuple[tuple[str, RequestPolicy], ...] = (
-    (BREF_ROOT, RequestPolicy("BRef", rate_limited=True)),
-    (FG_ROOT, RequestPolicy("FanGraphs")),
+    (
+        BREF_ROOT,
+        RequestPolicy(
+            "BRef",
+            rate_limited=True,
+            is_cloudflare_protected=True,
+            rate_limit_lock_key="bref_rate_limit",
+        ),
+    ),
+    (
+        FG_ROOT,
+        RequestPolicy(
+            "FanGraphs",
+            is_cloudflare_protected=True,
+        ),
+    ),
 )
 
 

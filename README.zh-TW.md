@@ -258,6 +258,10 @@ async def get_statcast() -> dict[str, int]:
 - **FanGraphs & Baseball Reference**：資料由 FanGraphs 與 Baseball Reference 授權提供，請遵循上游服務條款與請求頻率限制。
 - **Lahman**: Lahman's Baseball Database by Sean Lahman.
 
+> [!IMPORTANT]
+> **FanGraphs 與 Baseball Reference「盡力而為（Best-Effort）」與防爬蟲聲明**：
+> 有別於官方或封裝歸檔來源（MLB Stats API、Savant、Retrosheet、Lahman），FanGraphs 與 Baseball Reference 仰賴網頁擷取（Web Scraping），且受 Cloudflare Turnstile 與嚴格頻率限制保護。存取此二來源屬於**盡力而為（Best-Effort）**。請設定合理的請求頻率（`bref_requests_per_minute`）、於受挑戰時透過 `extra_headers` 傳入通行 Cookie（`CF_CLEARANCE`, `CF_COOKIE`），或善用本地 Parquet 快取。
+
 ## 學術與研究引用 (Citation)
 
 若您在學術研究、棒球分析論文或軟體專案中使用 `polars-baseball`，請參考 [`CITATION.cff`](CITATION.cff) 進行引用。

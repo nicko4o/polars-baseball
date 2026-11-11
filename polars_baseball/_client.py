@@ -1,11 +1,13 @@
 import asyncio
 import logging
 import os
+import random
 import ssl
 import threading
 import time
 import weakref
 from collections.abc import Awaitable, Callable, Mapping
+from email.utils import parsedate_to_datetime
 from typing import Final, TypeVar, cast
 
 from curl_cffi.requests import AsyncSession
@@ -33,6 +35,8 @@ SECONDS_PER_MINUTE = 60.0
 DEFAULT_RETRY_BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_MULTIPLIER = 2.0
 TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+IDEMPOTENT_HTTP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+MAX_RETRY_AFTER_SECONDS: Final[float] = 60.0
 _BREF_RATE_LIMIT_LOCK_KEY: Final[str] = "bref_rate_limit"
 
 _T = TypeVar("_T")
@@ -64,10 +68,10 @@ class HttpClient:
         self._sessions: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, AsyncSession] = weakref.WeakKeyDictionary()
         self._session_guard = threading.Lock()
         self._locks = LoopBoundLockRegistry()
-        self._bref_last_request = 0.0
-        self._bref_delay = (
-            SECONDS_PER_MINUTE / bref_requests_per_minute if bref_requests_per_minute is not None else None
-        )
+        self._rate_limits: dict[str, float] = {}
+        self._rate_limit_last_request: dict[str, float] = {}
+        if bref_requests_per_minute is not None:
+            self._rate_limits[_BREF_RATE_LIMIT_LOCK_KEY] = SECONDS_PER_MINUTE / bref_requests_per_minute
         self._extra_headers: dict[str, str] = self._resolve_extra_headers(extra_headers)
         self._max_retries = max_retries
         self._retry_backoff_base_seconds = retry_backoff_base_seconds
@@ -77,6 +81,25 @@ class HttpClient:
             self._default_headers: dict[str, str] = dict(default_headers)
         else:
             self._default_headers = dict(_BROWSER_HEADERS) if impersonate is not None else {}
+
+    @property
+    def _bref_delay(self) -> float | None:
+        return self._rate_limits.get(_BREF_RATE_LIMIT_LOCK_KEY)
+
+    @_bref_delay.setter
+    def _bref_delay(self, value: float | None) -> None:
+        if value is None:
+            self._rate_limits.pop(_BREF_RATE_LIMIT_LOCK_KEY, None)
+        else:
+            self._rate_limits[_BREF_RATE_LIMIT_LOCK_KEY] = value
+
+    @property
+    def _bref_last_request(self) -> float:
+        return self._rate_limit_last_request.get(_BREF_RATE_LIMIT_LOCK_KEY, 0.0)
+
+    @_bref_last_request.setter
+    def _bref_last_request(self, value: float) -> None:
+        self._rate_limit_last_request[_BREF_RATE_LIMIT_LOCK_KEY] = value
 
     @property
     def extra_headers(self) -> dict[str, str]:
@@ -136,23 +159,28 @@ class HttpClient:
             return None
         return {k: str(v) for k, v in params.items()}
 
-    async def _rate_limit(self) -> None:
-        async with self._locks.get_lock(_BREF_RATE_LIMIT_LOCK_KEY):
-            if self._bref_delay is None:
-                return
+    async def _rate_limit(self, lock_key: str = _BREF_RATE_LIMIT_LOCK_KEY) -> None:
+        delay = self._rate_limits.get(lock_key)
+        if delay is None:
+            return
+        async with self._locks.get_lock(lock_key):
             now = time.monotonic()
-            elapsed = now - self._bref_last_request
-            sleep_time = self._bref_delay - elapsed
+            last = self._rate_limit_last_request.get(lock_key, 0.0)
+            elapsed = now - last
+            sleep_time = delay - elapsed
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-            self._bref_last_request = time.monotonic()
+            self._rate_limit_last_request[lock_key] = time.monotonic()
 
     @staticmethod
     def _is_transient_status(status_code: int) -> bool:
         return status_code in TRANSIENT_HTTP_STATUS_CODES
 
     def _retry_delay(self, attempt: int) -> float:
-        return self._retry_backoff_base_seconds * (BACKOFF_MULTIPLIER**attempt)
+        base_delay = self._retry_backoff_base_seconds * (BACKOFF_MULTIPLIER**attempt)
+        if base_delay <= 0:
+            return 0.0
+        return random.uniform(0.5 * base_delay, 1.5 * base_delay)
 
     @staticmethod
     def _is_ssl_error(exc: BaseException) -> bool:
@@ -174,9 +202,42 @@ class HttpClient:
                 ) or self._is_transient_status(status_code)
                 if attempt == self._max_retries or not should_retry:
                     raise
-                await asyncio.sleep(self._retry_delay(attempt))
+                retry_after = getattr(exc, "retry_after", None)
+                if retry_after is not None and retry_after > 0:
+                    delay = retry_after
+                else:
+                    delay = self._retry_delay(attempt)
+                await asyncio.sleep(delay)
 
         raise RuntimeError("retry loop exited without returning or raising")
+
+    @staticmethod
+    def _parse_retry_after(headers: Mapping[str, str] | None) -> float | None:
+        if not headers:
+            return None
+        raw_val: str | None = None
+        for k, v in headers.items():
+            if k.lower() == "retry-after":
+                raw_val = v
+                break
+        if raw_val is None:
+            return None
+        raw_str = raw_val.strip()
+        if not raw_str:
+            return None
+        try:
+            seconds = float(raw_str)
+            if seconds >= 0:
+                return min(seconds, MAX_RETRY_AFTER_SECONDS)
+        except ValueError:
+            try:
+                dt = parsedate_to_datetime(raw_str)
+                seconds = dt.timestamp() - time.time()
+                if seconds > 0:
+                    return min(seconds, MAX_RETRY_AFTER_SECONDS)
+            except Exception:
+                pass
+        return None
 
     async def _request(
         self,
@@ -188,10 +249,13 @@ class HttpClient:
         json_data: Mapping[str, object] | None = None,
         as_text: bool = True,
         rate_limited: bool = False,
+        retry_non_idempotent: bool = False,
     ) -> str | bytes:
         session = self.get_cffi_session()
-        if rate_limited and self._bref_delay is not None:
-            await self._rate_limit()
+        policy = resolve_request_policy(url)
+        lock_key = policy.rate_limit_lock_key or _BREF_RATE_LIMIT_LOCK_KEY
+        if (rate_limited or policy.rate_limited) and lock_key in self._rate_limits:
+            await self._rate_limit(lock_key)
         str_params = self._str_params(params)
         merged_headers: dict[str, str] = {}
         if self._impersonate is None:
@@ -218,31 +282,37 @@ class HttpClient:
             except CurlRequestException as e:
                 raise self._wrap_cffi_error(url, e) from e
 
-        return await self._with_retries(request_once)
+        is_idempotent = method.upper() in IDEMPOTENT_HTTP_METHODS
+        if is_idempotent or retry_non_idempotent:
+            return await self._with_retries(request_once)
+        return await request_once()
 
     @staticmethod
-    def _create_http_error(msg: str, status_code: int) -> PolarsBaseballHttpError:
+    def _create_http_error(msg: str, status_code: int, retry_after: float | None = None) -> PolarsBaseballHttpError:
         if 400 <= status_code < 500:
-            return PolarsBaseballHttpClientError(msg, status_code=status_code)
-        return PolarsBaseballHttpServerError(msg, status_code=status_code)
+            return PolarsBaseballHttpClientError(msg, status_code=status_code, retry_after=retry_after)
+        return PolarsBaseballHttpServerError(msg, status_code=status_code, retry_after=retry_after)
 
     @classmethod
     def _wrap_cffi_error(
         cls, url: str, error: CurlRequestException
     ) -> PolarsBaseballHttpError | PolarsBaseballTransportError:
         response = getattr(error, "response", None)
-        label = resolve_request_policy(url).provider_label
+        policy = resolve_request_policy(url)
+        label = policy.provider_label
         if response is None:
             return PolarsBaseballTransportError(f"{label} network request failed: {error}")
         msg = f"{label} HTTP request failed: {error}"
         if response.status_code == 403:
-            if label in ("BRef", "FanGraphs"):
+            if policy.is_cloudflare_protected:
                 msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballClient extra_headers or use cached data)"
             else:
                 msg += " (Access forbidden; if this provider is Cloudflare protected, pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballClient extra_headers)"
+        retry_after = cls._parse_retry_after(getattr(response, "headers", None))
         return cls._create_http_error(
             msg,
             status_code=response.status_code,
+            retry_after=retry_after,
         )
 
     async def get_text(
@@ -291,6 +361,7 @@ class HttpClient:
         json_data: Mapping[str, object],
         *,
         headers: Mapping[str, str] | None = None,
+        retry_non_idempotent: bool = False,
     ) -> str:
         policy = resolve_request_policy(url)
         return cast(
@@ -302,5 +373,6 @@ class HttpClient:
                 json_data=json_data,
                 as_text=True,
                 rate_limited=policy.rate_limited,
+                retry_non_idempotent=retry_non_idempotent,
             ),
         )

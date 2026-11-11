@@ -13,9 +13,10 @@ class ServerError(PolarsBaseballError):
 class PolarsBaseballHttpError(ServerError):
     """Exception raised when an HTTP request fails."""
 
-    def __init__(self, message: str, status_code: int = 500) -> None:
+    def __init__(self, message: str, status_code: int = 500, retry_after: float | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.retry_after = retry_after
 
 
 class PolarsBaseballHttpClientError(ClientError, PolarsBaseballHttpError):

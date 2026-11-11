@@ -216,7 +216,7 @@ async def test_file_cache_checks_cache_before_lock(tmp_path: Path) -> None:
 
 
 def test_file_cache_adapter_set_os_error_cleanup(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """When FileCacheAdapter.set encounters an OSError, it should clean up tmp files, log warning, and disable cache."""
+    """When FileCacheAdapter.set encounters an OSError, it should clean up tmp files and log warning without permanently disabling the cache."""
     adapter = FileCacheAdapter(cache_dir=tmp_path)
     assert not adapter._disabled
     key = "failing-key"
@@ -225,14 +225,16 @@ def test_file_cache_adapter_set_os_error_cleanup(tmp_path: Path, caplog: pytest.
     with patch.object(pl.DataFrame, "write_parquet", side_effect=OSError("Disk full")):
         adapter.set(key, df)
 
-    assert adapter._disabled
+    # Fail-open: single write failure does not permanently disable the adapter
+    assert not adapter._disabled
     tmp_files = list(tmp_path.glob("*.tmp"))
     assert len(tmp_files) == 0
     assert not adapter._get_path(key).exists()
     assert "Failed to write cache entry" in caplog.text
 
+    # Subsequent writes succeed when disk recovers
     adapter.set("another-key", df)
-    assert adapter.get("another-key") is None
+    assert adapter.get("another-key") is not None
 
 
 def test_file_cache_clear_waits_for_concurrent_write(tmp_path: Path) -> None:
@@ -334,7 +336,8 @@ def test_file_cache_adapter_raw_max_age_expiration(tmp_path: Path) -> None:
 
     assert adapter.get_raw(key, max_age=timedelta(days=1)) == b"short lived"
     assert adapter.get_raw(key, max_age=timedelta(seconds=-1)) is None
-    assert adapter.get_raw(key) is None  # file should be deleted on expiry miss
+    # Expired read should not delete the file to avoid evicting for callers with longer TTL
+    assert adapter.get_raw(key, max_age=timedelta(days=1)) == b"short lived"
 
 
 @pytest.mark.asyncio

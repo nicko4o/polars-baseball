@@ -265,6 +265,10 @@ We welcome contributions! Please review our repository policies before submittin
 - **FanGraphs & Baseball Reference**: Data provided courtesy of FanGraphs and Baseball Reference. Please respect upstream terms of service and rate limits.
 - **Lahman**: Lahman's Baseball Database by Sean Lahman.
 
+> [!IMPORTANT]
+> **Best-Effort Notice for FanGraphs and Baseball Reference**:
+> Unlike official or archival feeds (MLB Stats API, Savant, Retrosheet, Lahman), FanGraphs and Baseball Reference rely on web scraping and are protected by Cloudflare Turnstile anti-bot gates and strict rate limits. Access to these two sources is strictly **best-effort**. Please set responsible rate limits (`bref_requests_per_minute`), pass clearance cookies (`CF_CLEARANCE`, `CF_COOKIE`) via `extra_headers` if challenged, or use local Parquet caching.
+
 ## Citation
 
 If you use `polars-baseball` in research, academic work, or software projects, please cite it using [`CITATION.cff`](CITATION.cff).

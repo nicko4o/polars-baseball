@@ -541,3 +541,90 @@ def test_http_client_reused_across_multiple_event_loops() -> None:
     id1 = asyncio.run(run_in_loop())
     id2 = asyncio.run(run_in_loop())
     assert id1 != id2
+
+
+def test_parse_retry_after() -> None:
+    assert HttpClient._parse_retry_after(None) is None
+    assert HttpClient._parse_retry_after({}) is None
+    assert HttpClient._parse_retry_after({"retry-after": "5"}) == 5.0
+    assert HttpClient._parse_retry_after({"Retry-After": "120"}) == 60.0  # capped at 60s
+    assert HttpClient._parse_retry_after({"Retry-After": "-5"}) is None
+    assert HttpClient._parse_retry_after({"Retry-After": "invalid"}) is None
+
+
+@pytest.mark.asyncio
+async def test_retry_after_respected_during_429() -> None:
+    client = HttpClient(max_retries=1, retry_backoff_base_seconds=0.1)
+
+    mock_resp_429 = MagicMock()
+    mock_resp_429.status_code = 429
+    mock_resp_429.headers = {"Retry-After": "7"}
+    err_429 = CurlHTTPError("Too Many Requests", response=mock_resp_429)
+
+    mock_resp_200 = MagicMock()
+    mock_resp_200.status_code = 200
+    mock_resp_200.text = "success"
+    mock_resp_200.raise_for_status.return_value = None
+
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(side_effect=[err_429, mock_resp_200])
+
+    with (
+        patch.object(client, "get_cffi_session", return_value=mock_session),
+        patch("polars_baseball._client.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        result = await client.get_text("https://example.com/api")
+
+    assert result == "success"
+    mock_sleep.assert_awaited_once_with(7.0)
+
+
+@pytest.mark.asyncio
+async def test_post_not_retried_by_default() -> None:
+    client = HttpClient(max_retries=2, retry_backoff_base_seconds=0)
+
+    mock_resp_500 = MagicMock()
+    mock_resp_500.status_code = 500
+    err_500 = CurlHTTPError("Server Error", response=mock_resp_500)
+
+    mock_session = MagicMock()
+    mock_session.post = AsyncMock(side_effect=err_500)
+
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
+        with pytest.raises(PolarsBaseballHttpError) as exc_info:
+            await client.post_json("https://example.com/api", {"data": 1})
+
+    assert exc_info.value.status_code == 500
+    # POST is non-idempotent, must not be retried by default
+    assert mock_session.post.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_post_retried_when_retry_non_idempotent_true() -> None:
+    client = HttpClient(max_retries=2, retry_backoff_base_seconds=0)
+
+    mock_resp_500 = MagicMock()
+    mock_resp_500.status_code = 500
+    err_500 = CurlHTTPError("Server Error", response=mock_resp_500)
+
+    mock_resp_200 = MagicMock()
+    mock_resp_200.status_code = 200
+    mock_resp_200.text = '{"ok": true}'
+    mock_resp_200.raise_for_status.return_value = None
+
+    mock_session = MagicMock()
+    mock_session.post = AsyncMock(side_effect=[err_500, mock_resp_200])
+
+    with patch.object(client, "get_cffi_session", return_value=mock_session):
+        res = await client.post_json("https://example.com/api", {"data": 1}, retry_non_idempotent=True)
+
+    assert res == '{"ok": true}'
+    assert mock_session.post.call_count == 2
+
+
+def test_retry_delay_full_jitter() -> None:
+    client = HttpClient(retry_backoff_base_seconds=1.0)
+    # Attempt 0: base is 1.0, range is [0.5, 1.5]
+    delays = [client._retry_delay(0) for _ in range(50)]
+    assert all(0.5 <= d <= 1.5 for d in delays)
+    assert len(set(delays)) > 1  # Verify randomness

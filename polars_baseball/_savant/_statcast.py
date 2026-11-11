@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Iterable, Sequence
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -200,7 +201,33 @@ class SavantStatcastMixin:
         parallel: bool = True,
         concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
     ) -> pl.DataFrame:
-        """Fetch Statcast pitch-level data for a date range."""
+        """Fetch Statcast pitch-level data from Baseball Savant for a given date range.
+
+        Queries the Baseball Savant search endpoint across chunked date intervals
+        and concatenates the results into a single Polars DataFrame.
+
+        Parameters
+        ----------
+        start_date : str | date | None, default None
+            First day of data to retrieve ('YYYY-MM-DD'). Defaults to yesterday if omitted.
+        end_date : str | date | None, default None
+            Last day of data to retrieve ('YYYY-MM-DD'). Defaults to today if omitted.
+        team : str | None, default None
+            Three-letter team abbreviation filter (e.g. 'NYY', 'BOS'). If None, all teams are returned.
+        verbose : bool, default True
+            Whether to display query progress bars (tqdm) and informative logger messages.
+        parallel : bool, default True
+            If True, chunks date ranges into concurrent HTTP requests bounded by ``concurrency_limit``.
+            If False, requests are executed sequentially.
+        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (6)
+            Maximum number of concurrent HTTP requests when ``parallel`` is True.
+
+        Returns
+        -------
+        pl.DataFrame
+            Concatenated and sorted Statcast pitch-by-pitch data. Returns an empty DataFrame
+            if no pitch data exists for the query window.
+        """
         start_dt_date, end_dt_date = sanitize_date_range(start_date, end_date)
 
         if verbose:
@@ -222,7 +249,8 @@ class SavantStatcastMixin:
 
     async def single_game(self, game_pk: str | int) -> pl.DataFrame:
         """Fetch Statcast data for a single game."""
-        url = _SC_SINGLE_GAME_REQUEST.format(game_pk=game_pk)
+        valid_pk = _validate_game_pk(game_pk)
+        url = _SC_SINGLE_GAME_REQUEST.format(game_pk=valid_pk)
         df = await self._gateway.get_dataset(url)
         if df.is_empty():
             return pl.DataFrame()
@@ -267,6 +295,71 @@ class SavantStatcastMixin:
         """Fetch Statcast data for a specific pitcher."""
         return await self._statcast_player("pitcher", start_date, end_date, player_id)
 
+    async def _sync_in_season_incremental(
+        self,
+        year: int,
+        target_end: date,
+        verbose: bool,
+        concurrency_limit: int,
+    ) -> Path | None:
+        last_synced_str = self._dataset_gateway.partition_max_date(year)
+        if last_synced_str is None:
+            return None
+        try:
+            last_date = date.fromisoformat(last_synced_str)
+        except ValueError:
+            return None
+
+        if last_date >= target_end:
+            return self._dataset_gateway.partition_path(year)
+
+        incremental_start = last_date + timedelta(days=1)
+        date_range = list(statcast_date_range(incremental_start, target_end, step=STATCAST_DATE_STEP, verbose=False))
+        if not date_range:
+            return self._dataset_gateway.partition_path(year)
+
+        frames = await self._run_statcast_parallel(date_range, None, verbose, concurrency_limit)
+        new_dfs = [df for df in frames if df is not None and not df.is_empty()]
+        if not new_dfs:
+            return self._dataset_gateway.partition_path(year)
+
+        existing_df = self._dataset_gateway.read_partition(year)
+        all_dfs = ([existing_df] if existing_df is not None and not existing_df.is_empty() else []) + new_dfs
+        df = pl.concat(align_statcast_schemas(all_dfs), how="diagonal")
+        if "game_date" in df.columns:
+            df = df.sort("game_date")
+        return await self._dataset_gateway.write_partition(year, df)
+
+    async def _sync_season(
+        self,
+        year: int,
+        force_update: bool,
+        verbose: bool,
+        concurrency_limit: int,
+    ) -> Path:
+        current_season = most_recent_season()
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        season_end = date(year, 12, 31)
+        target_end = min(yesterday, season_end)
+
+        if self._dataset_gateway.year_exists(year) and not force_update:
+            if year < current_season:
+                return self._dataset_gateway.partition_path(year)
+            incremental_path = await self._sync_in_season_incremental(year, target_end, verbose, concurrency_limit)
+            if incremental_path is not None:
+                return incremental_path
+
+        start = date(year, 1, 1)
+        stop = target_end if year >= current_season and target_end >= start else season_end
+        date_range = list(statcast_date_range(start, stop, step=STATCAST_DATE_STEP, verbose=False))
+        frames = await self._run_statcast_parallel(date_range, None, verbose, concurrency_limit)
+        dfs = [df for df in frames if df is not None and not df.is_empty()]
+        df = pl.concat(align_statcast_schemas(dfs), how="diagonal") if dfs else pl.DataFrame()
+        if "game_date" in df.columns:
+            df = df.sort("game_date")
+        return await self._dataset_gateway.write_partition(year, df)
+
     async def sync_statcast(
         self,
         seasons: int | Sequence[int],
@@ -274,7 +367,28 @@ class SavantStatcastMixin:
         verbose: bool = True,
         concurrency_limit: int = DEFAULT_STATCAST_CONCURRENCY_LIMIT,
     ) -> list[Path]:
-        """Scrape and persist full-season Statcast partitions to local compiled dataset."""
+        """Scrape and persist full-season Statcast partitions to local compiled dataset.
+
+        Historical completed seasons (prior to current season) are immutable and cached
+        permanently unless ``force_update=True``. Active in-season datasets are automatically
+        updated incrementally by downloading only missing dates since the last synced date.
+
+        Parameters
+        ----------
+        seasons : int | Sequence[int]
+            A single season year or a sequence of season years (e.g. 2023 or [2022, 2023]).
+        force_update : bool, default False
+            If True, ignores existing partitions and forces a full re-scrape of the entire season.
+        verbose : bool, default True
+            Whether to display progress bars during batch date scraping.
+        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (6)
+            Maximum concurrent requests for scraping season chunks.
+
+        Returns
+        -------
+        list[Path]
+            Paths to the persisted Hive-partitioned Parquet files on disk.
+        """
         years = _normalize_seasons(seasons)
         if years is None or not years:
             raise InvalidParameterError("sync_statcast requires at least one season.")
@@ -282,36 +396,109 @@ class SavantStatcastMixin:
         paths: list[Path] = []
         for year in years:
             _validate_season(year)
-            if self._dataset_gateway.year_exists(year) and not force_update:
-                paths.append(self._dataset_gateway.partition_path(year))
-                continue
-            start = date(year, 1, 1)
-            stop = date(year, 12, 31)
-            date_range = list(statcast_date_range(start, stop, step=STATCAST_DATE_STEP, verbose=False))
-            frames = await self._run_statcast_parallel(date_range, None, verbose, concurrency_limit)
-            dfs = [df for df in frames if df is not None and not df.is_empty()]
-            df = pl.concat(align_statcast_schemas(dfs), how="diagonal") if dfs else pl.DataFrame()
-            paths.append(await self._dataset_gateway.write_partition(year, df))
+            path = await self._sync_season(year, force_update, verbose, concurrency_limit)
+            paths.append(path)
         return paths
+
+    def _check_season_staleness(
+        self,
+        year: int,
+        max_age: timedelta | None,
+        current_season: int,
+        target_end: date,
+    ) -> Literal["force", "incremental", "fresh"]:
+        path = self._dataset_gateway.partition_path(year)
+        if max_age is not None and path.exists():
+            mtime = path.stat().st_mtime
+            if (time.time() - mtime) > max_age.total_seconds():
+                return "force"
+        if year >= current_season:
+            last_synced_str = self._dataset_gateway.partition_max_date(year)
+            if last_synced_str is None:
+                return "force"
+            try:
+                last_d = date.fromisoformat(last_synced_str)
+                if last_d < target_end:
+                    return "incremental"
+            except ValueError:
+                return "force"
+        return "fresh"
+
+    async def _refresh_stale_seasons(
+        self,
+        years: list[int],
+        missing: list[int],
+        force_update: bool,
+        max_age: timedelta | None,
+    ) -> None:
+        current_season = most_recent_season()
+        yesterday = date.today() - timedelta(days=1)
+        force_years: list[int] = []
+        incremental_years: list[int] = []
+
+        for year in years:
+            if year in missing:
+                continue
+            if force_update:
+                force_years.append(year)
+                continue
+            target_end = min(yesterday, date(year, 12, 31))
+            status = self._check_season_staleness(year, max_age, current_season, target_end)
+            if status == "force":
+                force_years.append(year)
+            elif status == "incremental":
+                incremental_years.append(year)
+
+        if force_years:
+            await self.sync_statcast(force_years, force_update=True)
+        if incremental_years:
+            await self.sync_statcast(incremental_years, force_update=False)
 
     async def scan_statcast(
         self,
         seasons: int | Sequence[int] | None = None,
         auto_download: bool = False,
+        force_update: bool = False,
+        max_age: timedelta | None = None,
     ) -> pl.LazyFrame:
-        """Lazily scan the local Statcast Hive-partitioned Parquet dataset."""
+        """Lazily scan the local Statcast Hive-partitioned Parquet dataset.
+
+        Parameters
+        ----------
+        seasons : int | Sequence[int] | None, default None
+            Specific season year(s) to query. If None, all locally available seasons are scanned.
+        auto_download : bool, default False
+            If True, automatically downloads missing seasons via ``sync_statcast()``. Also updates
+            in-season partitions if they are behind yesterday's date, or partitions older than ``max_age``.
+        force_update : bool, default False
+            When combined with ``auto_download=True``, forces full re-download of the specified seasons.
+        max_age : timedelta | None, default None
+            Maximum acceptable cache age for partition files. If a partition's file age exceeds
+            ``max_age`` and ``auto_download=True``, it is refreshed.
+
+        Returns
+        -------
+        pl.LazyFrame
+            Polars LazyFrame referencing the Parquet dataset with Hive partitioning enabled.
+        """
         years = _normalize_seasons(seasons)
-        if years is not None:
-            for year in years:
-                _validate_season(year)
-            synced = set(self._dataset_gateway.synced_seasons())
-            missing = [year for year in years if year not in synced]
-            if missing:
-                if auto_download:
-                    await self.sync_statcast(missing)
-                else:
-                    raise UpstreamUnavailableError(
-                        f"No local Statcast partition for season(s): {sorted(missing)}. "
-                        "Run sync_statcast() or pass auto_download=True."
-                    )
+        if years is None:
+            return self._dataset_gateway.scan(None)
+
+        for year in years:
+            _validate_season(year)
+
+        synced = set(self._dataset_gateway.synced_seasons())
+        missing = [year for year in years if year not in synced]
+        if missing:
+            if not auto_download:
+                raise UpstreamUnavailableError(
+                    f"No local Statcast partition for season(s): {sorted(missing)}. "
+                    "Run sync_statcast() or pass auto_download=True."
+                )
+            await self.sync_statcast(missing, force_update=force_update)
+
+        if auto_download:
+            await self._refresh_stale_seasons(years, missing, force_update, max_age)
+
         return self._dataset_gateway.scan(years)

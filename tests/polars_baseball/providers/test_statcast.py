@@ -281,3 +281,13 @@ async def test_statcast_parallel_verbose_progress() -> None:
         dfs = await client.savant._run_statcast_parallel(date_range, team=None, verbose=True, concurrency_limit=2)
 
     assert len(dfs) == 2
+
+
+@pytest.mark.asyncio
+async def test_single_game_parameter_validation() -> None:
+    client = BaseballClient()
+    with pytest.raises(InvalidParameterError, match="game_pk must be an integer or integer string"):
+        await client.savant.single_game("747046&all=false")
+
+    with pytest.raises(InvalidParameterError, match="game_pk must be an integer or integer string"):
+        await client.savant.single_game("invalid")

@@ -238,6 +238,18 @@ def test_bref_coercion_fail_fast() -> None:
         parser.parse(html)
 
 
+def test_bref_html_parser_does_not_swallow_programming_errors() -> None:
+    from unittest.mock import patch
+
+    from polars_baseball.parsers.bref import BRefHTMLParser
+
+    html = "<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td>Trout</td></tr></tbody></table>"
+    parser = BRefHTMLParser()
+    with patch.object(BRefHTMLParser, "_clean_dataframe", side_effect=TypeError("Internal bug")):
+        with pytest.raises(TypeError, match="Internal bug"):
+            parser.parse(html)
+
+
 def test_parse_fangraphs_season_schedule_empty() -> None:
     from polars_baseball.parsers.fangraphs import parse_fangraphs_season_schedule
 

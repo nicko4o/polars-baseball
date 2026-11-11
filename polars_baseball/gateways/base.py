@@ -41,10 +41,8 @@ class BaseGateway:
         key = cache_key or generate_cache_key(url, params)
 
         async def _fetch_and_parse() -> pl.DataFrame:
-            if headers is not None:
-                raw_text = await self._client.http.get_text(url, params=params, headers=headers)
-            else:
-                raw_text = await self._client.http.get_text(url, params=params)
+            kwargs = {"headers": headers} if headers is not None else {}
+            raw_text = await self._client.http.get_text(url, params=params, **kwargs)
             if not raw_text:
                 raise UpstreamUnavailableError(error_msg)
             return parser(raw_text)
@@ -74,10 +72,8 @@ class BaseGateway:
         key = cache_key or generate_cache_key(url, params)
 
         async def _fetch() -> str:
-            if headers is not None:
-                raw_text = await self._client.http.get_text(url, params=params, headers=headers)
-            else:
-                raw_text = await self._client.http.get_text(url, params=params)
+            kwargs = {"headers": headers} if headers is not None else {}
+            raw_text = await self._client.http.get_text(url, params=params, **kwargs)
             if not raw_text:
                 raise UpstreamUnavailableError(error_msg)
             return raw_text

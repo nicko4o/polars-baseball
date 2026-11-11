@@ -52,6 +52,21 @@ Advanced metrics, tracking attributes, and provider-specific calculation fields 
 
 ---
 
+## Provider Service Levels & Best-Effort Scrapers
+
+`polars-baseball` categorizes data providers into two distinct operational tiers:
+
+### Tier 1: Structured APIs & Compiled Archives (High Reliability)
+- **MLB Stats API (`client.mlb.*`)**, **Baseball Savant (`client.savant.*`)**, **Retrosheet (`client.retrosheet.*`)**, and **Lahman (`client.lahman.*`)**.
+- These providers offer structured JSON, CSV, or archival data endpoints without active anti-bot gates. They are considered highly reliable for automated data pipelines.
+
+### Tier 2: Unofficial Web Scrapers (Best-Effort & Anti-Bot Protected)
+- **FanGraphs (`client.fangraphs.*`)** and **Baseball Reference (`client.bref.*`)**.
+- These providers rely on HTML table parsing and undocumented internal query endpoints. Both sites employ Cloudflare Turnstile anti-bot protection and strict rate limiting.
+- **Service Level Guarantee**: Access to Tier 2 sources is provided strictly on a **best-effort basis**. Users must respect provider Terms of Service, configure conservative rate limits (`bref_requests_per_minute`), pass clearance tokens via `extra_headers` (`CF_CLEARANCE`, `CF_COOKIE`) when prompted, or rely on local parquet cache. Uninterrupted availability cannot be guaranteed if upstream anti-bot policies change.
+
+---
+
 ## Deprecation Lifecycle
 
 When a public API method or parameter is scheduled for deprecation:
