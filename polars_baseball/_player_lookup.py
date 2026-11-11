@@ -89,13 +89,13 @@ class PlayerLookupService:
     def _get_lock(self) -> asyncio.Lock:
         return self._lock_registry.get_lock("player_lookup_table")
 
-    async def _ensure_table(self, context: BaseballClient | None = None) -> pl.DataFrame:
+    async def _ensure_table(self, client: BaseballClient | None = None) -> pl.DataFrame:
         if self.table is not None:
             return self.table
         async with self._get_lock():
             if self.table is not None:
                 return self.table
-            table = await self._load_table(context)
+            table = await self._load_table(client)
             self.table = table.with_columns(
                 pl.col("name_last")
                 .str.normalize("NFD")
@@ -113,11 +113,11 @@ class PlayerLookupService:
         last: str,
         first: str | None = None,
         ignore_accents: bool = False,
-        context: BaseballClient | None = None,
+        client: BaseballClient | None = None,
     ) -> pl.DataFrame:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
-        table = await self._ensure_table(context)
+        table = await self._ensure_table(client)
         last_column = "name_last"
         first_column = "name_first"
         if ignore_accents:
@@ -136,11 +136,11 @@ class PlayerLookupService:
         last: str,
         first: str | None = None,
         ignore_accents: bool = False,
-        context: BaseballClient | None = None,
+        client: BaseballClient | None = None,
     ) -> pl.DataFrame:
         last_clean = last.lower()
         first_clean = first.lower() if first else None
-        table = await self._ensure_table(context)
+        table = await self._ensure_table(client)
         last_column = "name_last"
         first_column = "name_first"
         if ignore_accents:
@@ -154,9 +154,9 @@ class PlayerLookupService:
     async def search_list(
         self,
         players: list[tuple[str, str]],
-        context: BaseballClient | None = None,
+        client: BaseballClient | None = None,
     ) -> pl.DataFrame:
-        table = await self._ensure_table(context)
+        table = await self._ensure_table(client)
         if not players:
             return _without_normalized_names(table.clear())
         keys = [f"{last.lower()}|{first.lower()}" for last, first in players]
@@ -167,7 +167,7 @@ class PlayerLookupService:
         self,
         player_ids: list[PlayerId],
         key_type: KeyType = KeyType.MLBAM,
-        context: BaseballClient | None = None,
+        client: BaseballClient | None = None,
     ) -> pl.DataFrame:
         if not isinstance(key_type, KeyType):
             raise InvalidParameterError("key_type must be a KeyType enum value.")
@@ -180,5 +180,5 @@ class PlayerLookupService:
                 raise InvalidParameterError(f"Invalid integer player ID for {key_type.value}: {e}") from e
         else:
             ids = [str(player_id) for player_id in player_ids]
-        results = (await self._ensure_table(context)).filter(pl.col(key).is_in(ids))
+        results = (await self._ensure_table(client)).filter(pl.col(key).is_in(ids))
         return _without_normalized_names(results)

@@ -8,7 +8,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 
 _default_client = BaseballClient()
 
@@ -90,7 +90,7 @@ _MOCK_PITCH_ARSENAL_STATS = (
 )
 
 
-def _setup_mock_http(url_map: dict[str, str]) -> BaseballContext:
+def _setup_mock_http(url_map: dict[str, str]) -> BaseballClient:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
     mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_fetch)
@@ -108,7 +108,7 @@ def _setup_mock_http(url_map: dict[str, str]) -> BaseballContext:
         return ""
 
     mock_http.get_text = AsyncMock(side_effect=_get_text)
-    return BaseballContext(http=mock_http, cache=mock_cache)
+    return BaseballClient(http=mock_http, cache=mock_cache)
 
 
 @pytest.mark.asyncio

@@ -193,7 +193,6 @@ def test_reference_docs_do_not_document_ghost_client_methods() -> None:
         "tuple",
         "set",
         "BaseballClient",
-        "BaseballContext",
     }
 
     for subclient_name, doc_rel in PROVIDER_DOCS_MAP.items():
@@ -220,3 +219,10 @@ def test_reference_docs_do_not_document_ghost_client_methods() -> None:
                 ghost_methods.append(f"{doc_rel}: `{func_name}(...)` does not exist on {subclient_name}")
 
     assert not ghost_methods, "Ghost/misplaced methods documented: " + ", ".join(ghost_methods)
+
+
+def test_baseball_context_alias_is_not_exposed() -> None:
+    import polars_baseball.client as pb_client
+
+    assert not hasattr(pb, "BaseballContext")
+    assert not hasattr(pb_client, "BaseballContext")

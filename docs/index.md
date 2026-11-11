@@ -28,6 +28,7 @@ Interactive Jupyter notebooks demonstrating real workflows:
 - [Baseball Reference](reference/bref.md)
 - [Lahman](reference/lahman.md)
 - [Retrosheet](reference/retrosheet.md)
+- [Stability & Upstream Schema Policy](reference/stability.md)
 
 ## Maintenance
 

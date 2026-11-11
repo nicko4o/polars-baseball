@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 class BRefGateway(BaseGateway):
     """Gateway for querying and caching raw data from Baseball Reference."""
 
-    def __init__(self, context: BaseballClient) -> None:
-        super().__init__(context)
+    def __init__(self, client: BaseballClient) -> None:
+        super().__init__(client)
 
     async def get_dataset(
         self,

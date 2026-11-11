@@ -33,9 +33,10 @@ class StatcastDatasetGateway:
     reusing the CompiledDatasetGateway primitives.
     """
 
-    def __init__(self, context: BaseballClient) -> None:
-        self._context = context
-        self._cache_dir = resolve_cache_dir(context)
+    def __init__(self, client: BaseballClient) -> None:
+        self._client = client
+        self._context = client
+        self._cache_dir = resolve_cache_dir(client)
 
     def _root(self) -> Path:
         if self._cache_dir is None:

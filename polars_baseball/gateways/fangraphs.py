@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 class FanGraphsGateway(BaseGateway):
     """Fetch, cache, and parse FanGraphs leaderboard responses."""
 
-    def __init__(self, context: BaseballClient, *, parser: FangraphsHTMLParser | None = None) -> None:
-        super().__init__(context)
+    def __init__(self, client: BaseballClient, *, parser: FangraphsHTMLParser | None = None) -> None:
+        super().__init__(client)
         self._parser = parser or FangraphsHTMLParser()
 
     async def get_leaderboard(

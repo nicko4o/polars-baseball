@@ -12,7 +12,7 @@ from polars_baseball._storage_primitives import (
     validate_safe_path_component,
     validate_zip_archive,
 )
-from polars_baseball.client import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamDataCorruptedError
 
 
@@ -72,5 +72,5 @@ async def test_get_file_lock_deduplication() -> None:
 
 
 def test_resolve_cache_dir(tmp_path: Path) -> None:
-    ctx = BaseballContext.with_file_cache(tmp_path)
-    assert resolve_cache_dir(ctx) == tmp_path
+    client = BaseballClient.with_file_cache(tmp_path)
+    assert resolve_cache_dir(client) == tmp_path

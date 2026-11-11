@@ -46,6 +46,7 @@ Use this page to choose an API by task. Provider-specific pages still hold the d
 - [Baseball Reference](reference/bref.md)
 - [Lahman](reference/lahman.md)
 - [Retrosheet](reference/retrosheet.md)
+- [Stability & Upstream Schema Policy](reference/stability.md)
 
 ## Operational Guides
 

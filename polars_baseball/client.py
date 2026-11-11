@@ -71,11 +71,11 @@ class BaseballClient:
                 raise
 
     async def close(self) -> None:
-        """Close underlying HTTP transport sessions."""
+        """Close underlying HTTP transport sessions.
+
+        Note:
+            - ``aclose`` is an alias to this method for compatibility with ``contextlib.aclosing``.
+        """
         await self.http.close()
 
     aclose = close
-
-
-# Transitional alias for smooth internal refactoring
-BaseballContext = BaseballClient

@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.fangraphs import FanGraphsGateway
 
 _HTML = (
@@ -27,7 +27,7 @@ async def test_get_leaderboard_owns_fetch_cache_and_parse() -> None:
     http.get_text.return_value = _HTML
     cache = MagicMock()
     cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
-    context = BaseballContext(http=http, cache=cache)
+    context = BaseballClient(http=http, cache=cache)
 
     result = await FanGraphsGateway(context).get_leaderboard(
         "https://example.test/leaders",

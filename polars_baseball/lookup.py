@@ -139,7 +139,7 @@ class LookupClient:
         ignore_accents: bool = False,
     ) -> pl.DataFrame:
         """Lookup a player by last (and optionally first) name."""
-        df = await self._service.search(last, first, ignore_accents, context=self._client)
+        df = await self._service.search(last, first, ignore_accents, client=self._client)
         if df.is_empty():
             warnings.warn(
                 "No player found for the given name. Check the spelling or use "
@@ -156,14 +156,14 @@ class LookupClient:
         ignore_accents: bool = False,
     ) -> pl.DataFrame:
         """Return fuzzy player name suggestions without treating them as exact lookup results."""
-        return await self._service.suggest(last, first, ignore_accents, context=self._client)
+        return await self._service.suggest(last, first, ignore_accents, client=self._client)
 
     async def player_search_list(
         self,
         player_list: list[tuple[str, str]],
     ) -> pl.DataFrame:
         """Batch lookup for multiple player name pairs."""
-        return await self._service.search_list(player_list, context=self._client)
+        return await self._service.search_list(player_list, client=self._client)
 
     async def playerid_reverse_lookup(
         self,
@@ -171,7 +171,7 @@ class LookupClient:
         key_type: KeyType = KeyType.MLBAM,
     ) -> pl.DataFrame:
         """Reverse lookup players by their IDs in a given key system."""
-        return await self._service.reverse_lookup(player_ids, key_type, context=self._client)
+        return await self._service.reverse_lookup(player_ids, key_type, client=self._client)
 
     def team_ids(self, season: int | None = None, league: str = "ALL") -> pl.DataFrame:
         """Fetch team identifiers from bundled FanGraphs team data."""

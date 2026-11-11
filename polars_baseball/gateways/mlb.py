@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 class MlbStatsGateway(BaseGateway):
     """Gateway for MLB Stats API JSON payloads."""
 
-    def __init__(self, context: BaseballClient) -> None:
-        super().__init__(context)
+    def __init__(self, client: BaseballClient) -> None:
+        super().__init__(client)
 
     async def fetch(
         self,
