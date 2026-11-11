@@ -40,6 +40,7 @@ IMPLEMENTATION_NAMESPACE_LEAKS = {
     "gateways",
     "logging",
     "parsers",
+    "schemas",
 }
 
 
