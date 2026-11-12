@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import InvalidParameterError
 
 _default_client = BaseballClient()
@@ -96,7 +96,7 @@ def mock_csv_data() -> bytes:
 async def test_running_apis(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df1 = await statcast_sprint_speed(2026, context=ctx)
     assert isinstance(df1, pl.DataFrame)
@@ -110,7 +110,7 @@ async def test_running_apis(mock_csv_data: bytes) -> None:
 async def test_fielding_apis(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df1 = await statcast_outs_above_average(2026, pos=3, context=ctx)
     assert df1.height == 2
@@ -147,7 +147,7 @@ async def test_oaa_fallback_on_html_response() -> None:
 </tbody></table></div></body></html>"""
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=html_data)
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await statcast_outs_above_average(2023, pos="CF", context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -170,7 +170,7 @@ async def test_oaa_rejects_aggregate_pos() -> None:
 async def test_catcher_framing_filtering() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=b"name,player_id,year,rv_tot\nRealmuto J.T.,592663,2026,10\n,,2026,0\n")
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await statcast_catcher_framing(2026, context=ctx)
     assert df.height == 1
@@ -181,7 +181,7 @@ async def test_catcher_framing_filtering() -> None:
 async def test_catcher_blocking_and_base_stealing(mock_csv_data: bytes) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=mock_csv_data)
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df_blocking = await statcast_catcher_blocking(2026, context=ctx)
     assert isinstance(df_blocking, pl.DataFrame)

@@ -5,11 +5,13 @@ import hashlib
 import json
 import logging
 import threading
+import time
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
+from typing import TypeVar
 
 import polars as pl
 from polars.exceptions import ComputeError
@@ -21,6 +23,7 @@ from polars_baseball.exceptions import CacheClearError
 
 logger = logging.getLogger(__name__)
 
+_T = TypeVar("_T")
 _IN_FLIGHT_REGISTRY = LoopBoundLockRegistry()
 
 
@@ -38,7 +41,7 @@ def generate_cache_key(
         serialized_params = json.dumps(sorted_params)
 
     raw_str = f"{CACHE_SCHEMA_VERSION}:{url}?{serialized_params}"
-    return hashlib.md5(raw_str.encode("utf-8")).hexdigest()
+    return hashlib.md5(raw_str.encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 class CacheAdapter(ABC):
@@ -69,6 +72,29 @@ class CacheAdapter(ABC):
     def clear(self) -> None:
         """Remove all cached entries."""
 
+    async def _get_or_fetch_generic(
+        self,
+        key: str,
+        fetcher: Callable[[], Awaitable[_T]],
+        getter: Callable[[str, timedelta | None], _T | None],
+        setter: Callable[[str, _T], None],
+        *,
+        max_age: timedelta | None = None,
+        force_update: bool = False,
+    ) -> _T:
+        if not force_update:
+            cached = await asyncio.to_thread(getter, key, max_age)
+            if cached is not None:
+                return cached
+        async with _in_flight_lock_for(self, key):
+            if not force_update:
+                cached = await asyncio.to_thread(getter, key, max_age)
+                if cached is not None:
+                    return cached
+            val = await fetcher()
+            await asyncio.to_thread(setter, key, val)
+            return val
+
     async def get_or_fetch(
         self,
         key: str,
@@ -77,18 +103,9 @@ class CacheAdapter(ABC):
         max_age: timedelta | None = None,
         force_update: bool = False,
     ) -> pl.DataFrame:
-        if not force_update:
-            cached = await asyncio.to_thread(self.get, key, max_age)
-            if cached is not None:
-                return cached
-        async with _in_flight_lock_for(self, key):
-            if not force_update:
-                cached = await asyncio.to_thread(self.get, key, max_age)
-                if cached is not None:
-                    return cached
-            df = await fetcher()
-            await asyncio.to_thread(self.set, key, df)
-            return df
+        return await self._get_or_fetch_generic(
+            key, fetcher, self.get, self.set, max_age=max_age, force_update=force_update
+        )
 
     async def get_or_fetch_raw(
         self,
@@ -98,18 +115,10 @@ class CacheAdapter(ABC):
         max_age: timedelta | None = None,
         force_update: bool = False,
     ) -> bytes:
-        if not force_update:
-            cached = await asyncio.to_thread(self.get_raw, key, max_age)
-            if cached is not None:
-                return cached
-        async with _in_flight_lock_for(self, key):
-            if not force_update:
-                cached = await asyncio.to_thread(self.get_raw, key, max_age)
-                if cached is not None:
-                    return cached
-            raw = await fetcher()
-            await asyncio.to_thread(self.set_raw, key, raw)
-            return raw.encode("utf-8") if isinstance(raw, str) else raw
+        raw = await self._get_or_fetch_generic(
+            key, fetcher, self.get_raw, self.set_raw, max_age=max_age, force_update=force_update
+        )
+        return raw.encode("utf-8") if isinstance(raw, str) else raw
 
 
 def _write_cached_file(path: Path, value: pl.DataFrame) -> bool:
@@ -139,24 +148,38 @@ def _clear_cache_dir(cache_dir: Path) -> None:
         raise CacheClearError(f"Failed to remove cache directory {cache_dir}: {e}") from e
 
 
-def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+def _is_cache_expired(path: Path, key: str, max_age: timedelta | None) -> bool:
+    if max_age is None:
+        return False
+    try:
+        mtime = path.stat().st_mtime
+        return (time.time() - mtime) > max_age.total_seconds()
+    except OSError:
+        logger.warning("Failed to check cache age for %s, treating as miss", key)
+        return True
+
+
+def _try_read_cached_entry(
+    path: Path,
+    key: str,
+    reader: Callable[[Path], _T],
+    error_types: tuple[type[Exception], ...],
+    max_age: timedelta | None = None,
+) -> _T | None:
     if not path.exists():
         return None
-    if max_age is not None:
-        try:
-            mtime = datetime.fromtimestamp(path.stat().st_mtime)
-            if datetime.now() - mtime > max_age:
-                path.unlink(missing_ok=True)
-                return None
-        except OSError:
-            logger.warning("Failed to check cache age for %s, treating as miss", key)
-            return None
+    if _is_cache_expired(path, key, max_age):
+        return None
     try:
-        return pl.read_parquet(path)
-    except (ComputeError, OSError) as e:
+        return reader(path)
+    except error_types as e:
         logger.warning("Cache file corrupt for %s, deleting and treating as miss: %s", key, e)
         path.unlink(missing_ok=True)
         return None
+
+
+def _try_read_cached(path: Path, key: str, max_age: timedelta | None = None) -> pl.DataFrame | None:
+    return _try_read_cached_entry(path, key, pl.read_parquet, (ComputeError, OSError), max_age)
 
 
 def _write_cached_raw_file(path: Path, value: bytes | str) -> bool:
@@ -170,23 +193,7 @@ def _write_cached_raw_file(path: Path, value: bytes | str) -> bool:
 
 
 def _try_read_cached_raw(path: Path, key: str, max_age: timedelta | None = None) -> bytes | None:
-    if not path.exists():
-        return None
-    if max_age is not None:
-        try:
-            mtime = datetime.fromtimestamp(path.stat().st_mtime)
-            if datetime.now() - mtime > max_age:
-                path.unlink(missing_ok=True)
-                return None
-        except OSError:
-            logger.warning("Failed to check raw cache age for %s, treating as miss", key)
-            return None
-    try:
-        return path.read_bytes()
-    except OSError as e:
-        logger.warning("Raw cache file corrupt for %s, deleting and treating as miss: %s", key, e)
-        path.unlink(missing_ok=True)
-        return None
+    return _try_read_cached_entry(path, key, lambda p: p.read_bytes(), (OSError,), max_age)
 
 
 class FileCacheAdapter(CacheAdapter):
@@ -237,8 +244,7 @@ class FileCacheAdapter(CacheAdapter):
         if self._disabled:
             return
         with self._clear_lock, self._lock_for(key):
-            if not _write_cached_file(self._get_path(key), value):
-                self._disabled = True
+            _write_cached_file(self._get_path(key), value)
 
     def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
         if self._disabled:
@@ -249,8 +255,7 @@ class FileCacheAdapter(CacheAdapter):
         if self._disabled:
             return
         with self._clear_lock, self._lock_for(key):
-            if not _write_cached_raw_file(self._get_raw_path(key), value):
-                self._disabled = True
+            _write_cached_raw_file(self._get_raw_path(key), value)
 
     def clear(self) -> None:
         if self._disabled:

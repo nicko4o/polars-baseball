@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import InvalidParameterError
 
 _default_client = BaseballClient()
@@ -101,7 +101,7 @@ MOCK_PARK_FACTORS_HTML_2023 = MOCK_PARK_FACTORS_HTML_2024.replace('"2024"', '"20
 async def test_savant_park_factors_single_year(tmp_path: Path) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=MOCK_PARK_FACTORS_HTML_2024)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -123,7 +123,7 @@ async def test_savant_park_factors_year_range_tuple(tmp_path: Path) -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=(2023, 2024), context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -140,7 +140,7 @@ async def test_savant_park_factors_start_end_year(tmp_path: Path) -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(start_year=2023, end_year=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -151,7 +151,7 @@ async def test_savant_park_factors_start_end_year(tmp_path: Path) -> None:
 async def test_savant_park_factors_venue_filtering(tmp_path: Path) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=MOCK_PARK_FACTORS_HTML_2024)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=2024, venue_id=15, context=ctx)
     assert df.height == 1
@@ -183,7 +183,7 @@ async def test_savant_park_factors_invalid_params() -> None:
 async def test_savant_park_factors_empty_response(tmp_path: Path) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value="<html><body><script>var data = [];</script></body></html>")
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -199,7 +199,7 @@ async def test_savant_park_factors_year_list(tmp_path: Path) -> None:
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=[2023, 2024], context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -211,7 +211,7 @@ async def test_savant_park_factors_year_list(tmp_path: Path) -> None:
 async def test_savant_park_factors_bat_side_r(tmp_path: Path) -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=MOCK_PARK_FACTORS_HTML_2024)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     df = await savant_park_factors(year=2024, bat_side="R", context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -241,7 +241,7 @@ async def test_savant_park_factors_fail_fast_cancellation(tmp_path: Path) -> Non
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     with pytest.raises(RuntimeError, match="Upstream connection failure"):
         await savant_park_factors(
@@ -274,7 +274,7 @@ async def test_savant_park_factors_bounded_concurrency_admission(tmp_path: Path)
 
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=mock_get_text)
-    ctx = BaseballContext.with_file_cache(tmp_path, http=mock_http)
+    ctx = BaseballClient.with_file_cache(tmp_path, http=mock_http)
 
     limit = 2
     years = [2021, 2022, 2023, 2024, 2025]

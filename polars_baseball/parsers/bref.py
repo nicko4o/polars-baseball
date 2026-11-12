@@ -113,7 +113,7 @@ class BRefHTMLParser(BaseParser):
             return BRefHTMLParser._clean_dataframe(df)
         except UpstreamParseError:
             raise
-        except Exception as e:
+        except (lxml.etree.Error, pl.exceptions.ComputeError, pl.exceptions.ShapeError, ValueError) as e:
             raise UpstreamStructureChangedError(f"Failed to parse Baseball Reference HTML table: {e}") from e
 
 
@@ -213,7 +213,7 @@ def parse_bref_dataset(raw: str | bytes) -> pl.DataFrame:
     # 3. Fallback to reading as raw CSV if not already handled
     try:
         return pl.read_csv(io.BytesIO(raw_text.encode("utf-8")), null_values="NULL")
-    except Exception as exc:
+    except (pl.exceptions.ComputeError, pl.exceptions.NoDataError, ValueError) as exc:
         raise UpstreamStructureChangedError(f"Could not parse Baseball Reference response: {exc}") from exc
 
 

@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 class RetrosheetGateway(BaseGateway):
     """Gateway for querying and caching raw data from Retrosheet."""
 
-    def __init__(self, context: BaseballClient) -> None:
-        super().__init__(context)
+    def __init__(self, client: BaseballClient) -> None:
+        super().__init__(client)
 
     async def get_season_contents(self, season: int, *, use_cache: bool = True) -> list[str]:
         url = RETROSHEET_CONTENTS_URL_TEMPLATE.format(season)

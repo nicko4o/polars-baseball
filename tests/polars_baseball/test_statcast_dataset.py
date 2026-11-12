@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import polars as pl
 import pytest
 
+from polars_baseball._season import most_recent_season
 from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import InvalidParameterError, UpstreamUnavailableError
 
@@ -30,11 +32,13 @@ _DARVISH_2024_DF = _DARVISH_DF.with_columns(
 )
 
 
-def _dataset_root(cache_dir: Path) -> Path:
+def _dataset_root(cache_dir: Path | None) -> Path:
+    assert cache_dir is not None
     return cache_dir / "compiled-datasets" / "statcast"
 
 
-def _partition_file(cache_dir: Path, year: int) -> Path:
+def _partition_file(cache_dir: Path | None, year: int) -> Path:
+    assert cache_dir is not None
     return _dataset_root(cache_dir) / f"year={year}" / "statcast.parquet"
 
 
@@ -168,3 +172,75 @@ async def test_write_partition_casts_types_to_canonical_schema(client: BaseballC
     df = pl.read_parquet(paths[0])
     assert df["zone"].dtype == pl.Int64
     assert df["release_speed"].dtype == pl.Float64
+
+
+@pytest.mark.asyncio
+async def test_sync_statcast_in_season_incremental_sync(client: BaseballClient) -> None:
+    current_year = most_recent_season()
+    part_file = _partition_file(client.cache.cache_dir, current_year)
+    part_file.parent.mkdir(parents=True)
+    initial_df = pl.DataFrame({"game_date": [f"{current_year}-04-01"], "game_year": [current_year]})
+    initial_df.write_parquet(part_file)
+
+    new_data = pl.DataFrame({"game_date": [f"{current_year}-04-02"], "game_year": [current_year]})
+    with patch(
+        "polars_baseball.savant.SavantClient._run_statcast_parallel", new=AsyncMock(return_value=[new_data])
+    ) as mock_fetch:
+        paths = await client.savant.sync_statcast([current_year])
+
+    # Should have triggered incremental fetch since current_year is in-season
+    mock_fetch.assert_awaited_once()
+    date_ranges = mock_fetch.call_args[0][0]
+    # Check that incremental start is after the existing partition's max date
+    assert date_ranges[0][0] == date(current_year, 4, 2)
+    merged_df = pl.read_parquet(paths[0])
+    assert merged_df["game_date"].to_list() == [f"{current_year}-04-01", f"{current_year}-04-02"]
+
+
+@pytest.mark.asyncio
+async def test_scan_statcast_with_max_age_refreshes_stale_partition(client: BaseballClient) -> None:
+    import os
+    import time
+
+    part_file = _partition_file(client.cache.cache_dir, 2023)
+    part_file.parent.mkdir(parents=True)
+    _DARVISH_DF.write_parquet(part_file)
+
+    # Set file mtime to 10 days ago
+    old_mtime = time.time() - 86400 * 10
+    os.utime(part_file, (old_mtime, old_mtime))
+
+    updated_df = _DARVISH_DF.with_columns(pl.lit(99.9).alias("release_speed"))
+    with patch(
+        "polars_baseball.savant.SavantClient._run_statcast_parallel", new=AsyncMock(return_value=[updated_df])
+    ) as mock_fetch:
+        result = await client.savant.scan_statcast(
+            seasons=[2023],
+            auto_download=True,
+            max_age=timedelta(days=1),
+        )
+
+    mock_fetch.assert_awaited_once()
+    df = result.collect()
+    assert df["release_speed"].to_list() == [99.9, 99.9]
+
+
+@pytest.mark.asyncio
+async def test_scan_statcast_force_update(client: BaseballClient) -> None:
+    part_file = _partition_file(client.cache.cache_dir, 2023)
+    part_file.parent.mkdir(parents=True)
+    _DARVISH_DF.write_parquet(part_file)
+
+    refetched = _DARVISH_DF.with_columns(pl.lit(100.0).alias("release_speed"))
+    with patch(
+        "polars_baseball.savant.SavantClient._run_statcast_parallel", new=AsyncMock(return_value=[refetched])
+    ) as mock_fetch:
+        result = await client.savant.scan_statcast(
+            seasons=[2023],
+            auto_download=True,
+            force_update=True,
+        )
+
+    mock_fetch.assert_awaited_once()
+    df = result.collect()
+    assert df["release_speed"].to_list() == [100.0, 100.0]

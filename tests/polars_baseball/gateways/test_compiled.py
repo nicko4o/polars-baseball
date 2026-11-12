@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from polars_baseball._cache import FileCacheAdapter
-from polars_baseball.client import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.compiled import CompiledDatasetGateway, CompiledTable
 
@@ -24,7 +24,7 @@ def _archive(csv_text: str, filename: str = "source/data/table.csv") -> bytes:
 async def test_compiled_gateway_writes_table_parquet_once(tmp_path: Path) -> None:
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=_archive("id,name\n1,Ada\n"))
-    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
     table = CompiledTable(
         dataset="demo",
         table_name="data/table",
@@ -46,7 +46,7 @@ async def test_compiled_gateway_writes_table_parquet_once(tmp_path: Path) -> Non
 async def test_compiled_gateway_supports_uncached_reads(tmp_path: Path) -> None:
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=_archive("id,name\n1,Ada\n"))
-    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
     table = CompiledTable(
         dataset="demo",
         table_name="data/table",
@@ -66,7 +66,7 @@ async def test_compiled_gateway_supports_uncached_reads(tmp_path: Path) -> None:
 async def test_compiled_gateway_fails_when_archive_member_missing(tmp_path: Path) -> None:
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=_archive("id,name\n1,Ada\n", filename="README.md"))
-    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
     table = CompiledTable(
         dataset="demo",
         table_name="data/table",
@@ -84,7 +84,7 @@ async def test_compiled_gateway_fails_when_archive_member_missing(tmp_path: Path
 async def test_compiled_gateway_can_match_archive_member_pattern(tmp_path: Path) -> None:
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=_archive("id,name\n1,Ada\n", filename="source/data/people.csv"))
-    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
     table = CompiledTable(
         dataset="demo",
         table_name="people",
@@ -120,7 +120,7 @@ async def test_compiled_gateway_corrupted_archive_raises_upstream_data_corrupted
 
     mock_http = MagicMock()
     mock_http.get_bytes = AsyncMock(return_value=b"not a valid zip file binary stream")
-    ctx = BaseballContext(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
     table = CompiledTable(
         dataset="demo",
         table_name="data/table",

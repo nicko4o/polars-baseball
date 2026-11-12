@@ -21,9 +21,9 @@ from polars_baseball._concurrency import LoopBoundLockRegistry
 _FILE_LOCKS = LoopBoundLockRegistry()
 
 
-def resolve_cache_dir(context: BaseballClient) -> Path | None:
-    """Extract cache_dir from context if file-backed."""
-    return context.cache.cache_dir
+def resolve_cache_dir(client: BaseballClient) -> Path | None:
+    """Extract cache_dir from client if file-backed."""
+    return client.cache.cache_dir
 
 
 def get_file_lock(key: str) -> asyncio.Lock:

@@ -73,9 +73,10 @@ class CompiledDatasetGateway:
         2. On-demand compilation from upstream ZIP archives.
     """
 
-    def __init__(self, context: BaseballClient) -> None:
-        self._context = context
-        self._cache_dir = resolve_cache_dir(context)
+    def __init__(self, client: BaseballClient) -> None:
+        self._client = client
+        self._context = client
+        self._cache_dir = resolve_cache_dir(client)
 
     async def ensure_archive(self, dataset: str, archive_url: str) -> Path:
         """Download and validate the ZIP archive for a dataset, or return cached path.

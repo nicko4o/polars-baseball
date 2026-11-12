@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.gateways.savant import SavantGateway
 
 
@@ -14,7 +14,7 @@ async def test_get_optional_dataset_returns_none_for_unavailable_csv(response: s
     http.get_text.return_value = response
     cache = MagicMock()
     cache.get.return_value = None
-    context = BaseballContext(http=http, cache=cache)
+    context = BaseballClient(http=http, cache=cache)
 
     result = await SavantGateway(context).get_optional_dataset(
         "https://example.test/active-spin",

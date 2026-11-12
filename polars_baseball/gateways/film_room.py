@@ -46,8 +46,9 @@ query FilmRoomSearch($query: String!, $limit: Int, $page: Int) {
 class FilmRoomGateway:
     """Gateway for querying MLB Film Room GraphQL and REST services."""
 
-    def __init__(self, context: BaseballClient) -> None:
-        self._context = context
+    def __init__(self, client: BaseballClient) -> None:
+        self._client = client
+        self._context = client
 
     async def fetch_search(
         self,
@@ -115,7 +116,12 @@ class FilmRoomGateway:
             "Referer": FILM_ROOM_SEARCH_URL,
         }
 
-        raw_text = await self._context.http.post_json(FILM_ROOM_GRAPHQL_URL, json_data=payload, headers=headers)
+        raw_text = await self._context.http.post_json(
+            FILM_ROOM_GRAPHQL_URL,
+            json_data=payload,
+            headers=headers,
+            retry_non_idempotent=True,
+        )
 
         try:
             return json.loads(raw_text)

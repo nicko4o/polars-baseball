@@ -8,7 +8,7 @@ import pytest
 
 from polars_baseball._cache import FileCacheAdapter
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import UpstreamStructureChangedError, UpstreamUnavailableError
 from polars_baseball.gateways.bref import BRefGateway
 
@@ -19,7 +19,7 @@ async def test_get_dataset_no_cache_empty_response() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = ""
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamUnavailableError):
@@ -43,7 +43,7 @@ async def test_get_dataset_cached_fetcher_empty_response() -> None:
 
     mock_cache.get_or_fetch = AsyncMock(side_effect=fake_get_or_fetch)
 
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamUnavailableError):
@@ -56,7 +56,7 @@ async def test_get_dataset_passes_params_to_cache() -> None:
     mock_cache = MagicMock(spec=FileCacheAdapter)
     mock_cache.get_or_fetch = AsyncMock(return_value=pl.DataFrame())
 
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
+    ctx = BaseballClient(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
 
     max_age = timedelta(hours=1)
@@ -79,7 +79,7 @@ async def test_get_dataset_parse_failure_raises() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "<<<corrupted xml table"
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamStructureChangedError):
@@ -92,7 +92,7 @@ async def test_get_splits_no_cache_empty_html() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = ""
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamUnavailableError):
@@ -105,7 +105,7 @@ async def test_get_splits_cached_empty_html() -> None:
     mock_cache = MagicMock(spec=FileCacheAdapter)
     mock_cache.get_or_fetch_raw = AsyncMock(return_value=b"")
 
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
+    ctx = BaseballClient(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
 
     with pytest.raises(UpstreamUnavailableError):
@@ -118,7 +118,7 @@ async def test_get_splits_passes_params_to_cache() -> None:
     mock_cache = MagicMock(spec=FileCacheAdapter)
     mock_cache.get_or_fetch_raw = AsyncMock(return_value=b"<html></html>")
 
-    ctx = BaseballContext(http=AsyncMock(spec=HttpClient), cache=mock_cache)
+    ctx = BaseballClient(http=AsyncMock(spec=HttpClient), cache=mock_cache)
     gateway = BRefGateway(ctx)
 
     max_age = timedelta(minutes=30)
@@ -142,7 +142,7 @@ async def test_get_dataset_default_csv_parser() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "col1,col2\n1,2\n"
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
@@ -158,7 +158,7 @@ async def test_get_dataset_default_chain_html_table() -> None:
         "<tbody><tr><td>10</td><td>20</td></tr></tbody></table>"
     )
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
@@ -179,7 +179,7 @@ async def test_get_dataset_default_embedded_csv_export() -> None:
         "</body></html>"
     )
 
-    ctx = BaseballContext(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
+    ctx = BaseballClient(http=mock_http, cache=MagicMock(spec=FileCacheAdapter))
     gateway = BRefGateway(ctx)
 
     df = await gateway.get_dataset("https://www.baseball-reference.com/dummy", use_cache=False)
@@ -206,7 +206,7 @@ async def test_get_splits_cache_fetcher_success() -> None:
 
     mock_cache.get_or_fetch_raw = AsyncMock(side_effect=fake_get_or_fetch_raw)
 
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
     gateway = BRefGateway(ctx)
 
     _, info, _ = await gateway.get_splits("troutmi01", year=2026, use_cache=True)

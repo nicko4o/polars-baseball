@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.enums.mlb import MlbRosterType, MlbStatsGroup
 from polars_baseball.exceptions import InvalidParameterError, PolarsBaseballTransportError, UpstreamParseError
 
@@ -269,7 +269,7 @@ _MOCK_BOXSCORE_JSON = {
 async def test_mlb_people_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PEOPLE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_people(person_ids=545361, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -297,7 +297,7 @@ async def test_mlb_people_invalid_parameters() -> None:
 async def test_mlb_people_awards_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PEOPLE_AWARDS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_people_awards(person_id=660271, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -314,7 +314,7 @@ async def test_mlb_people_awards_basic() -> None:
 async def test_mlb_people_awards_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"awards": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_people_awards(person_id=660271, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -331,7 +331,7 @@ async def test_mlb_people_awards_invalid_params() -> None:
 async def test_mlb_schedule_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_schedule(season=2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -357,7 +357,7 @@ async def test_mlb_schedule_basic() -> None:
 async def test_mlb_schedule_with_hydrate_probable_pitchers() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_schedule(season=2026, hydrate="probablePitcher", context=ctx)
 
@@ -394,7 +394,7 @@ async def test_mlb_schedule_invalid_parameters() -> None:
 async def test_mlb_roster_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_ROSTER_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_roster(team_id=119, season=2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -410,7 +410,7 @@ async def test_mlb_roster_basic() -> None:
 async def test_mlb_roster_accepts_enum_and_ci_string() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_ROSTER_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_roster(team_id=119, season=2026, roster_type=MlbRosterType.ACTIVE, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -440,7 +440,7 @@ async def test_mlb_roster_invalid_parameters() -> None:
 async def test_mlb_api_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Connection reset"))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Connection reset"):
         await mlb_people(person_ids=545361, context=ctx)
@@ -450,7 +450,7 @@ async def test_mlb_api_upstream_error() -> None:
 async def test_mlb_player_stats_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_player_stats(person_id=545361, group="hitting", stats_type="season", season=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -468,7 +468,7 @@ async def test_mlb_player_stats_basic() -> None:
 async def test_mlb_player_stats_accepts_enum_group() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_player_stats(person_id=545361, group=MlbStatsGroup.PITCHING, season=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -504,7 +504,7 @@ async def test_mlb_player_stats_invalid_parameters() -> None:
 async def test_mlb_player_stats_with_dates() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_player_stats(
         person_id=545361,
@@ -528,7 +528,7 @@ async def test_mlb_player_stats_with_dates() -> None:
 async def test_mlb_player_stats_accepts_date_objects() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PLAYER_STATS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_player_stats(
         person_id=545361,
@@ -548,7 +548,7 @@ async def test_mlb_player_stats_accepts_date_objects() -> None:
 async def test_mlb_schedule_accepts_date_object() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_SCHEDULE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_schedule(date=date(2026, 6, 1), context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -561,7 +561,7 @@ async def test_mlb_schedule_accepts_date_object() -> None:
 async def test_mlb_transactions_accepts_date_objects() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_transactions(date=date(2026, 6, 1), context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -573,7 +573,7 @@ async def test_mlb_transactions_accepts_date_objects() -> None:
 async def test_mlb_game_boxscore_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_BOXSCORE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_boxscore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -600,7 +600,7 @@ async def test_mlb_game_boxscore_basic() -> None:
 async def test_mlb_game_boxscore_stats_schema() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_BOXSCORE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_boxscore_stats(game_pk=715789, context=ctx)
 
@@ -681,7 +681,7 @@ _MOCK_TEAMS_JSON = {
 async def test_mlb_teams_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TEAMS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_teams(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -697,7 +697,7 @@ async def test_mlb_teams_basic() -> None:
 async def test_mlb_teams_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"teams": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_teams(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -708,7 +708,7 @@ async def test_mlb_teams_empty() -> None:
 async def test_mlb_teams_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("API timeout"))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="API timeout"):
         await mlb_teams(season=2025, context=ctx)
@@ -768,7 +768,7 @@ _MOCK_LEAGUES_JSON = {
 async def test_mlb_divisions_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_DIVISIONS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_divisions(context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -784,7 +784,7 @@ async def test_mlb_divisions_basic() -> None:
 async def test_mlb_divisions_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"divisions": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_divisions(context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -801,7 +801,7 @@ async def test_mlb_divisions_invalid_params() -> None:
 async def test_mlb_leagues_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LEAGUES_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_leagues(context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -817,7 +817,7 @@ async def test_mlb_leagues_basic() -> None:
 async def test_mlb_leagues_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"leagues": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_leagues(context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -859,7 +859,7 @@ _MOCK_PBP_JSON = {
 async def test_mlb_game_play_by_play_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PBP_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_play_by_play(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -882,7 +882,7 @@ async def test_mlb_game_play_by_play_basic() -> None:
 async def test_mlb_game_play_by_play_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"allPlays": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_play_by_play(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -893,7 +893,7 @@ async def test_mlb_game_play_by_play_empty() -> None:
 async def test_mlb_game_play_by_play_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Bad Gateway"))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Bad Gateway"):
         await mlb_game_play_by_play(game_pk=715789, context=ctx)
@@ -935,7 +935,7 @@ _MOCK_WP_JSON = [
 async def test_mlb_game_play_by_play_with_win_probability() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_WP_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_play_by_play(game_pk=715789, win_probability=True, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -953,7 +953,7 @@ async def test_mlb_game_play_by_play_with_win_probability() -> None:
 async def test_mlb_game_win_probability_public_api() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_WP_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_win_probability(game_pk=715789, context=ctx)
 
@@ -985,7 +985,7 @@ async def test_mlb_game_win_probability_invalid_parameters() -> None:
 async def test_mlb_game_play_by_play_with_win_probability_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps([]))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_play_by_play(game_pk=715789, win_probability=True, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1015,7 +1015,7 @@ _MOCK_LEADERS_JSON = {
 async def test_mlb_stat_leaders_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LEADERS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1032,7 +1032,7 @@ async def test_mlb_stat_leaders_basic() -> None:
 async def test_mlb_stat_leaders_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"leagueLeaders": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1043,7 +1043,7 @@ async def test_mlb_stat_leaders_empty() -> None:
 async def test_mlb_stat_leaders_upstream_error() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(side_effect=PolarsBaseballTransportError("Server Error"))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(PolarsBaseballTransportError, match="Server Error"):
         await mlb_stat_leaders(season=2025, categories=["homeRuns"], context=ctx)
@@ -1080,7 +1080,7 @@ _MOCK_TEAM_STATS_JSON = {
 async def test_mlb_team_stats_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TEAM_STATS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_team_stats(team_id=119, season=2025, group="hitting", context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1097,7 +1097,7 @@ async def test_mlb_team_stats_basic() -> None:
 async def test_mlb_team_stats_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"stats": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_team_stats(team_id=119, season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1154,7 +1154,7 @@ _MOCK_POSTSEASON_JSON = {
 async def test_mlb_postseason_schedule_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_POSTSEASON_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_postseason_schedule(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1170,7 +1170,7 @@ async def test_mlb_postseason_schedule_basic() -> None:
 async def test_mlb_postseason_schedule_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({"dates": []}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_postseason_schedule(season=2025, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1218,7 +1218,7 @@ _MOCK_DRAFT_JSON = {
 async def test_mlb_draft_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_DRAFT_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     # 1. Fetch entire draft
     df = await mlb_draft(year=2019, context=ctx)
@@ -1274,7 +1274,7 @@ _MOCK_PITCH_ARSENAL_JSON = {
 async def test_mlb_pitch_arsenal_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_PITCH_ARSENAL_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_pitch_arsenal(person_id=545361, season=2024, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1317,7 +1317,7 @@ _MOCK_TRANSACTIONS_JSON = {
 async def test_mlb_transactions_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_transactions(date="2024-05-01", context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1336,7 +1336,7 @@ async def test_mlb_transactions_basic() -> None:
 async def test_mlb_transactions_team_and_player_filter() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_TRANSACTIONS_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_transactions(team_id=110, player_id=656941, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1385,7 +1385,7 @@ _MOCK_VENUES_JSON = {
 async def test_mlb_venues_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_VENUES_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     # 1. Single ID
     df = await mlb_venues(venue_ids=10, context=ctx)
@@ -1464,7 +1464,7 @@ _MOCK_LIVE_FEED_JSON = {
 async def test_mlb_game_feed_live_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LIVE_FEED_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_feed_live(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1534,7 +1534,7 @@ async def test_mlb_game_feed_live_play_id_extraction_from_play_events() -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(payload))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_feed_live(game_pk=715789, context=ctx)
     assert df["playId"].to_list() == ["event-uuid-111", "event-guid-222", "about-uuid-333"]
@@ -1559,7 +1559,7 @@ async def test_mlb_draft_fail_fast() -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
         await mlb_draft(year=2019, context=ctx)
@@ -1577,7 +1577,7 @@ async def test_mlb_pitch_arsenal_fail_fast() -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
         await mlb_pitch_arsenal(person_id=545361, season=2024, context=ctx)
@@ -1596,7 +1596,7 @@ async def test_mlb_transactions_fail_fast() -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     with pytest.raises(UpstreamParseError):
         await mlb_transactions(date="2024-05-01", context=ctx)
@@ -1622,7 +1622,7 @@ _MOCK_LINESCORE_JSON = {
 async def test_mlb_game_linescore_basic() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LINESCORE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1655,7 +1655,7 @@ async def test_mlb_game_linescore_invalid_params() -> None:
 async def test_mlb_game_linescore_empty() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps({}))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -1666,7 +1666,7 @@ async def test_mlb_game_linescore_empty() -> None:
 async def test_mlb_game_linescore_caching_and_force_update() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LINESCORE_JSON))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     # 1. First fetch (cache miss)
     df1 = await mlb_game_linescore(game_pk=715789, context=ctx)
@@ -1697,7 +1697,7 @@ async def test_mlb_game_linescore_accepts_custom_cache_max_age() -> None:
     mock_cache.set.return_value = None
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(_MOCK_LINESCORE_JSON))
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
     cache_max_age = timedelta(minutes=5)
 
     df = await mlb_game_linescore(game_pk=715789, cache_max_age=cache_max_age, context=ctx)
@@ -1721,7 +1721,7 @@ async def test_mlb_game_linescore_bad_home_away() -> None:
     }
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text = AsyncMock(return_value=json.dumps(bad_json))
-    ctx = BaseballContext(http=mock_http)
+    ctx = BaseballClient(http=mock_http)
 
     df = await mlb_game_linescore(game_pk=715789, context=ctx)
     assert isinstance(df, pl.DataFrame)

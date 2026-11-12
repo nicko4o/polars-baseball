@@ -18,8 +18,12 @@ if TYPE_CHECKING:
 class BaseGateway:
     """Base gateway handling common HTTP fetch, caching, and parsing lifecycles."""
 
-    def __init__(self, context: BaseballClient) -> None:
-        self._context = context
+    def __init__(self, client: BaseballClient) -> None:
+        self._client = client
+
+    @property
+    def _context(self) -> BaseballClient:
+        return self._client
 
     async def _fetch_cached_df(
         self,
@@ -37,10 +41,8 @@ class BaseGateway:
         key = cache_key or generate_cache_key(url, params)
 
         async def _fetch_and_parse() -> pl.DataFrame:
-            if headers is not None:
-                raw_text = await self._context.http.get_text(url, params=params, headers=headers)
-            else:
-                raw_text = await self._context.http.get_text(url, params=params)
+            kwargs = {"headers": headers} if headers is not None else {}
+            raw_text = await self._client.http.get_text(url, params=params, **kwargs)
             if not raw_text:
                 raise UpstreamUnavailableError(error_msg)
             return parser(raw_text)
@@ -48,7 +50,7 @@ class BaseGateway:
         if not use_cache:
             return await _fetch_and_parse()
 
-        return await self._context.cache.get_or_fetch(
+        return await self._client.cache.get_or_fetch(
             key,
             _fetch_and_parse,
             max_age=max_age,
@@ -70,10 +72,8 @@ class BaseGateway:
         key = cache_key or generate_cache_key(url, params)
 
         async def _fetch() -> str:
-            if headers is not None:
-                raw_text = await self._context.http.get_text(url, params=params, headers=headers)
-            else:
-                raw_text = await self._context.http.get_text(url, params=params)
+            kwargs = {"headers": headers} if headers is not None else {}
+            raw_text = await self._client.http.get_text(url, params=params, **kwargs)
             if not raw_text:
                 raise UpstreamUnavailableError(error_msg)
             return raw_text
@@ -81,7 +81,7 @@ class BaseGateway:
         if not use_cache:
             return await _fetch()
 
-        raw_bytes = await self._context.cache.get_or_fetch_raw(
+        raw_bytes = await self._client.cache.get_or_fetch_raw(
             key,
             _fetch,
             max_age=max_age,

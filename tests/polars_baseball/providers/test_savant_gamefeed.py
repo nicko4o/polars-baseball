@@ -7,7 +7,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError
 from polars_baseball.parsers.savant_gamefeed import EXIT_VELOCITY_SCHEMA, PITCH_DATA_SCHEMA
 
@@ -124,7 +124,7 @@ def _gamefeed_payload() -> str:
     )
 
 
-def _context(raw_payload: str) -> BaseballContext:
+def _context(raw_payload: str) -> BaseballClient:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
@@ -134,7 +134,7 @@ def _context(raw_payload: str) -> BaseballContext:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_gof)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = raw_payload
-    return BaseballContext(http=mock_http, cache=mock_cache)
+    return BaseballClient(http=mock_http, cache=mock_cache)
 
 
 @pytest.mark.asyncio
@@ -346,7 +346,7 @@ def _gamefeed_payload_second() -> str:
     )
 
 
-def _context_side_effect(payloads: Sequence[str]) -> BaseballContext:
+def _context_side_effect(payloads: Sequence[str]) -> BaseballClient:
     mock_cache = MagicMock()
     mock_cache.get.return_value = None
 
@@ -356,7 +356,7 @@ def _context_side_effect(payloads: Sequence[str]) -> BaseballContext:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_gof)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.side_effect = payloads
-    return BaseballContext(http=mock_http, cache=mock_cache)
+    return BaseballClient(http=mock_http, cache=mock_cache)
 
 
 @pytest.mark.asyncio
@@ -451,7 +451,7 @@ async def test_savant_gamefeed_many_bounds_concurrency() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _gamefeed_payload()
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     pks = [777000 + i for i in range(10)]
     df = await savant_gamefeed_exit_velocity_many(pks, context=ctx, concurrency_limit=2)
@@ -481,7 +481,7 @@ async def test_savant_gamefeed_many_sequential_mode() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_mock_gof)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _gamefeed_payload()
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     pks = [777000 + i for i in range(5)]
     df = await savant_gamefeed_pitch_data_many(pks, context=ctx, parallel=False)

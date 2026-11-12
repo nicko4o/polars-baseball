@@ -21,7 +21,9 @@ def test_provider_policy_accepts_same_origin() -> None:
     bref_policy = resolve_request_policy("https://www.baseball-reference.com/data")
     assert bref_policy.provider_label == "BRef"
     assert bref_policy.rate_limited is True
+    assert bref_policy.is_cloudflare_protected is True
 
     fg_policy = resolve_request_policy("https://www.fangraphs.com/leaders")
     assert fg_policy.provider_label == "FanGraphs"
     assert fg_policy.rate_limited is False
+    assert fg_policy.is_cloudflare_protected is True

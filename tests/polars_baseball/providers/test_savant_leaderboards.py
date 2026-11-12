@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._client import HttpClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.enums.savant import ArsenalType
 from polars_baseball.exceptions import InvalidParameterError, UpstreamParseError, UpstreamUnavailableError
 
@@ -124,7 +124,7 @@ async def test_batter_leaderboards() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df1 = await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
     df2 = await statcast_expected_stats(2026, player_type="batter", context=ctx)
@@ -145,7 +145,7 @@ async def test_savant_leaderboard_empty_response_fails_fast() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = ""
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     with pytest.raises(UpstreamUnavailableError, match="empty"):
         await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
@@ -180,7 +180,7 @@ async def test_snake_case_min_params() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df1 = await statcast_exitvelo_barrels(2026, player_type="batter", min_bbe=100, context=ctx)
     df2 = await statcast_expected_stats(2026, player_type="batter", min_pa=100, context=ctx)
@@ -201,7 +201,7 @@ async def test_percentile_ranks_filtering() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "player_name,player_id,year\nOhtani Shohei,660271,2026\n,999999,2026\n"
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_batter_percentile_ranks(2026, context=ctx)
 
@@ -216,7 +216,7 @@ async def test_run_values() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df_bat = await statcast_run_value(2026, player_type="batter", context=ctx)
     df_pit = await statcast_run_value(2026, player_type="pitcher", context=ctx)
@@ -237,7 +237,7 @@ async def test_active_spin_fallback() -> None:
         "<html><body>Redirecting...</body></html>",
         _MOCK_CSV,
     ]
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     with pytest.warns(UserWarning, match="spin-based"):
         df = await statcast_pitcher_active_spin(2020, context=ctx)
@@ -254,7 +254,7 @@ async def test_active_spin_raises_when_all_fetches_fail() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = "<html><body>Redirecting...</body></html>"
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     with pytest.warns(UserWarning, match="spin-based"):
         with pytest.raises(UpstreamParseError, match="active spin"):
@@ -270,7 +270,7 @@ async def test_pitch_arsenal_accepts_enum() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_pitcher_pitch_arsenal(2026, arsenal_type=ArsenalType.AVG_SPEED, context=ctx)
 
@@ -291,7 +291,7 @@ async def test_spin_dir_comp_uses_params_dict() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     await statcast_pitcher_spin_dir_comp(2024, pitch_a="FF", pitch_b="CH", context=ctx)
 
@@ -309,7 +309,7 @@ async def test_savant_leaderboard_robust_parsing() -> None:
     mock_http = AsyncMock(spec=HttpClient)
     # Return messy CSV with spaces in header and string values, and mixed formats
     mock_http.get_text.return_value = "player_name , player_id , year , stat \n Ohtani Shohei , 660271 , 2026 , 12.3 \n"
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_exitvelo_barrels(2026, player_type="batter", context=ctx)
     assert "player_id" in df.columns  # Header stripped
@@ -325,7 +325,7 @@ async def test_pitch_tempo() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_pitch_tempo(2026, context=ctx)
     assert isinstance(df, pl.DataFrame)
@@ -339,7 +339,7 @@ async def test_arm_strength() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_arm_strength(2026, context=ctx)
 
@@ -361,7 +361,7 @@ async def test_baserunning_run_value() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_baserunning_run_value(2026, context=ctx)
 
@@ -382,7 +382,7 @@ async def test_catcher_throwing() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_catcher_throwing(2026, context=ctx)
 
@@ -403,7 +403,7 @@ async def test_catcher_stance() -> None:
     mock_cache.get_or_fetch = AsyncMock(side_effect=_get_or_fetch)
     mock_http = AsyncMock(spec=HttpClient)
     mock_http.get_text.return_value = _MOCK_CSV
-    ctx = BaseballContext(http=mock_http, cache=mock_cache)
+    ctx = BaseballClient(http=mock_http, cache=mock_cache)
 
     df = await statcast_catcher_stance(2026, context=ctx)
 

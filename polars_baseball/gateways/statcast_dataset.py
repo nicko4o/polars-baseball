@@ -33,9 +33,10 @@ class StatcastDatasetGateway:
     reusing the CompiledDatasetGateway primitives.
     """
 
-    def __init__(self, context: BaseballClient) -> None:
-        self._context = context
-        self._cache_dir = resolve_cache_dir(context)
+    def __init__(self, client: BaseballClient) -> None:
+        self._client = client
+        self._context = client
+        self._cache_dir = resolve_cache_dir(client)
 
     def _root(self) -> Path:
         if self._cache_dir is None:
@@ -47,6 +48,25 @@ class StatcastDatasetGateway:
 
     def year_exists(self, year: int) -> bool:
         return self.partition_path(year).exists()
+
+    def partition_max_date(self, year: int) -> str | None:
+        path = self.partition_path(year)
+        if not path.exists():
+            return None
+        try:
+            val = pl.scan_parquet(path).select(pl.col("game_date").max()).collect().item()
+            return str(val) if val is not None else None
+        except Exception:
+            return None
+
+    def read_partition(self, year: int) -> pl.DataFrame | None:
+        path = self.partition_path(year)
+        if not path.exists():
+            return None
+        try:
+            return pl.read_parquet(path)
+        except Exception:
+            return None
 
     def synced_seasons(self) -> list[int]:
         root = self._root()

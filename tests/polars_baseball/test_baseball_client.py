@@ -6,17 +6,13 @@ import pytest
 from polars_baseball._cache import CacheAdapter, FileCacheAdapter, NullCacheAdapter
 from polars_baseball._client import HttpClient
 from polars_baseball.bref import BRefClient
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.fangraphs import FanGraphsClient
 from polars_baseball.lahman import LahmanClient
 from polars_baseball.lookup import LookupClient
 from polars_baseball.mlb import MlbClient
 from polars_baseball.retrosheet import RetrosheetClient
 from polars_baseball.savant import SavantClient
-
-
-def test_baseball_client_alias() -> None:
-    assert BaseballContext is BaseballClient
 
 
 def test_baseball_client_defaults() -> None:

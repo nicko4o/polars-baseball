@@ -1,7 +1,5 @@
 """Live contract tests for FanGraphs enum column codes."""
 
-import typing
-
 import polars as pl
 import pytest
 
@@ -37,15 +35,14 @@ class TestLiveFetchAndValidate:
     PITCHING_CRITICAL = {"Name", "Team", "Season", "WAR", "ERA", "WHIP"}
     FIELDING_CRITICAL = {"Name", "Team", "Season", "Inn", "DRS", "UZR"}
 
-    def _fetch_and_check(
-        self, fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]], critical: set[str], **kwargs: int
-    ) -> pl.DataFrame:
-        from polars_baseball.client import BaseballContext
+    def _fetch_and_check(self, method_name: str, critical: set[str], **kwargs: int) -> pl.DataFrame:
+        from polars_baseball.client import BaseballClient
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
         async def run() -> pl.DataFrame:
-            async with BaseballContext() as ctx:
-                return await fetcher(context=ctx, **kwargs)
+            async with BaseballClient() as client:
+                fetcher = getattr(client.fangraphs, method_name)
+                return await fetcher(**kwargs)
 
         try:
             df = run_async(run())
@@ -59,21 +56,15 @@ class TestLiveFetchAndValidate:
         return df
 
     def test_live_batting(self) -> None:
-        import polars_baseball as pb
-
-        df = self._fetch_and_check(pb.fangraphs.batting, self.BATTING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check("batting", self.BATTING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_pitching(self) -> None:
-        import polars_baseball as pb
-
-        df = self._fetch_and_check(pb.fangraphs.pitching, self.PITCHING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check("pitching", self.PITCHING_CRITICAL, start_season=2024)
         assert df.height > 0
 
     def test_live_fielding(self) -> None:
-        import polars_baseball as pb
-
-        df = self._fetch_and_check(pb.fangraphs.fielding, self.FIELDING_CRITICAL, start_season=2024)
+        df = self._fetch_and_check("fielding", self.FIELDING_CRITICAL, start_season=2024)
         assert df.height > 0
 
 
@@ -111,18 +102,18 @@ class TestLiveCodeToNameMapping:
     @staticmethod
     def _fetch_and_check(
         codes: dict[str, str],
-        fetcher: typing.Callable[..., typing.Awaitable[pl.DataFrame]],
+        method_name: str,
         enum_class: type[FangraphsStatsBase],
     ) -> None:
-        from polars_baseball.client import BaseballContext
+        from polars_baseball.client import BaseballClient
         from polars_baseball.exceptions import PolarsBaseballHttpError
 
         async def run() -> pl.DataFrame:
-            async with BaseballContext() as ctx:
+            async with BaseballClient() as client:
+                fetcher = getattr(client.fangraphs, method_name)
                 return await fetcher(
                     start_season=2024,
                     stat_columns=[enum_class.parse(c) for c in codes],
-                    context=ctx,
                 )
 
         try:
@@ -136,19 +127,13 @@ class TestLiveCodeToNameMapping:
             assert expected_name in df.columns, f"Missing column: {expected_name}"
 
     def test_batting_codes(self) -> None:
-        import polars_baseball as pb
-
-        self._fetch_and_check(self.BATTING_EXPECTATIONS, pb.fangraphs.batting, FangraphsBattingStats)
+        self._fetch_and_check(self.BATTING_EXPECTATIONS, "batting", FangraphsBattingStats)
 
     def test_pitching_codes(self) -> None:
-        import polars_baseball as pb
-
-        self._fetch_and_check(self.PITCHING_EXPECTATIONS, pb.fangraphs.pitching, FangraphsPitchingStats)
+        self._fetch_and_check(self.PITCHING_EXPECTATIONS, "pitching", FangraphsPitchingStats)
 
     def test_fielding_codes(self) -> None:
-        import polars_baseball as pb
-
-        self._fetch_and_check(self.FIELDING_EXPECTATIONS, pb.fangraphs.fielding, FangraphsFieldingStats)
+        self._fetch_and_check(self.FIELDING_EXPECTATIONS, "fielding", FangraphsFieldingStats)
 
 
 class TestEnumColumnDriftDetector:

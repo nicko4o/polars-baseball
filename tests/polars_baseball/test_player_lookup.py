@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from polars_baseball._player_lookup import PlayerLookupService
-from polars_baseball.client import BaseballClient, BaseballContext
+from polars_baseball.client import BaseballClient
 from polars_baseball.enums.player import KeyType
 
 
@@ -110,53 +110,53 @@ async def test_reverse_lookup_invalid_integer_id_raises_error() -> None:
 
 @pytest.mark.asyncio
 async def test_playerid_lookup_accepts_context() -> None:
-    """Verify playerid_lookup accepts the context parameter (contract test)."""
+    """Verify playerid_lookup accepts the client parameter (contract test)."""
 
-    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+    async def load_table(client: BaseballClient | None = None) -> pl.DataFrame:
         return _player_table()
 
     service = PlayerLookupService(load_table)
-    ctx = BaseballContext()
-    result = await service.search("trout", context=ctx)
+    client = BaseballClient()
+    result = await service.search("trout", client=client)
     assert result.height == 1
 
 
 @pytest.mark.asyncio
 async def test_player_name_suggestions_accepts_context() -> None:
-    """Verify player_name_suggestions accepts the context parameter."""
+    """Verify player_name_suggestions accepts the client parameter."""
 
-    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+    async def load_table(client: BaseballClient | None = None) -> pl.DataFrame:
         return _player_table()
 
     service = PlayerLookupService(load_table)
-    ctx = BaseballContext()
-    result = await service.suggest("valenzula", context=ctx)
+    client = BaseballClient()
+    result = await service.suggest("valenzula", client=client)
     assert result.height > 0
 
 
 @pytest.mark.asyncio
 async def test_player_search_list_accepts_context() -> None:
-    """Verify player_search_list accepts the context parameter."""
+    """Verify player_search_list accepts the client parameter."""
 
-    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+    async def load_table(client: BaseballClient | None = None) -> pl.DataFrame:
         return _player_table()
 
     service = PlayerLookupService(load_table)
-    ctx = BaseballContext()
-    result = await service.search_list([("trout", "mike")], context=ctx)
+    client = BaseballClient()
+    result = await service.search_list([("trout", "mike")], client=client)
     assert result.height == 1
 
 
 @pytest.mark.asyncio
 async def test_playerid_reverse_lookup_accepts_context() -> None:
-    """Verify playerid_reverse_lookup accepts the context parameter."""
+    """Verify playerid_reverse_lookup accepts the client parameter."""
 
-    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+    async def load_table(client: BaseballClient | None = None) -> pl.DataFrame:
         return _player_table()
 
     service = PlayerLookupService(load_table)
-    ctx = BaseballContext()
-    result = await service.reverse_lookup([545361], key_type=KeyType.MLBAM, context=ctx)
+    client = BaseballClient()
+    result = await service.reverse_lookup([545361], key_type=KeyType.MLBAM, client=client)
     assert result.height == 1
 
 
@@ -190,7 +190,7 @@ def test_player_lookup_service_cross_event_loops() -> None:
     import asyncio
     import concurrent.futures
 
-    async def load_table(ctx: BaseballContext | None = None) -> pl.DataFrame:
+    async def load_table(client: BaseballClient | None = None) -> pl.DataFrame:
         await asyncio.sleep(0.01)
         return _player_table()
 
