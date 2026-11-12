@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-12
+
 ### Added
 
 - Added `force_update` and `max_age` parameters to `client.savant.scan_statcast()` for explicit cache invalidation and freshness controls.
