@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-11-13
+
 ### Fixed
 
-- Hardened `client.savant.sync_statcast()` and `scan_statcast()` incremental synchronization to prevent partition overwrite on read failure, align date calculations to US Eastern Time, introduce a 2-day lookback overlap window to capture late-finishing games and Statcast corrections, and automatically catch up incomplete historical seasons.
+- Hardened `client.savant.sync_statcast()` and `scan_statcast()` incremental synchronization to prevent partition overwrite on read failure, align date calculations to US Eastern Time, introduce a 2-day lookback overlap window replacing only covered dates while preserving null-date rows, and automatically catch up and self-heal incomplete historical seasons (including updated `2026-10-28` season end date).
+- Added unconditional `tzdata` dependency and fixed `UTC-5` fallback so baseball date utilities never fail with `ZoneInfoNotFoundError` on Windows or minimal container environments.
 - Corrected `concurrency_limit` and single-day date resolution descriptions in `client.savant.statcast()` and `sync_statcast()` docstrings.
 
 ## [0.29.0] - 2026-11-12
