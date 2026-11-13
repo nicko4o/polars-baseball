@@ -127,3 +127,51 @@ def test_validate_statcast_valid_dates_config_rejects_wrong_first_year() -> None
 
     with pytest.raises(RuntimeError, match="STATCAST_VALID_DATES minimum year"):
         _validate_statcast_valid_dates_config({2009: (date(2009, 1, 1), date(2009, 12, 31))})
+
+
+def test_baseball_eastern_date_helpers() -> None:
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    from polars_baseball._season import get_baseball_eastern_today, get_baseball_eastern_yesterday
+
+    today_ny = datetime.now(ZoneInfo("America/New_York")).date()
+    yesterday_ny = today_ny - timedelta(days=1)
+
+    assert get_baseball_eastern_today() == today_ny
+    assert get_baseball_eastern_yesterday() == yesterday_ny
+
+
+def test_season_runtime_works_without_zoneinfo_db() -> None:
+    import importlib
+    from unittest.mock import patch
+    from zoneinfo import ZoneInfoNotFoundError
+
+    import polars_baseball._season as season_mod
+
+    with patch("zoneinfo.ZoneInfo", side_effect=ZoneInfoNotFoundError("No time zone found")):
+        importlib.reload(season_mod)
+        season_mod._us_eastern_tz.cache_clear()
+        today = season_mod.get_baseball_eastern_today()
+        season = season_mod.most_recent_season()
+        with pytest.warns(UserWarning, match="No date range supplied"):
+            start, end = season_mod.sanitize_date_range(None, None)
+        assert isinstance(today, date)
+        assert isinstance(season, int)
+        assert start <= end
+
+    # Reload cleanly afterward so module state stays normal
+    importlib.reload(season_mod)
+
+
+def test_season_completion_threshold_and_current_season_present() -> None:
+    from polars_baseball._season import STATCAST_VALID_DATES, season_completion_threshold
+
+    current = most_recent_season()
+    assert current in STATCAST_VALID_DATES, (
+        f"Current season {current} is missing from statcast_valid_dates.json; please update it."
+    )
+    assert season_completion_threshold(2026) == date(2026, 10, 28)
+    assert season_completion_threshold(2024) == date(2024, 10, 30)
+    assert season_completion_threshold(2022) == date(2022, 11, 5)
+    assert season_completion_threshold(2099) == date(2099, 11, 1)

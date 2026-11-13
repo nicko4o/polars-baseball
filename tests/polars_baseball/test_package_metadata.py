@@ -10,6 +10,8 @@ def test_manifest_includes_runtime_json_data() -> None:
     manifest_text = (_PROJECT_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
 
     assert "include polars_baseball/data/*.json" in manifest_text
+    assert "include CHANGELOG.md" in manifest_text
+    assert "include CITATION.cff" in manifest_text
     assert "prune scratch" in manifest_text
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -20,8 +21,11 @@ from polars_baseball.gateways.compiled import COMPILED_DATASETS_DIR
 if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
 
+logger = logging.getLogger(__name__)
+
 _DATASET_DIR = "statcast"
 _PARTITION_FILE = "statcast.parquet"
+_COMPLETE_MARKER_FILE = ".complete"
 _YEAR_PARTITION_PATTERN = re.compile(r"^year=(\d{4})$")
 
 
@@ -49,6 +53,20 @@ class StatcastDatasetGateway:
     def year_exists(self, year: int) -> bool:
         return self.partition_path(year).exists()
 
+    def completion_marker_path(self, year: int) -> Path:
+        return self.partition_path(year).parent / _COMPLETE_MARKER_FILE
+
+    def is_season_marked_complete(self, year: int) -> bool:
+        return self.year_exists(year) and self.completion_marker_path(year).exists()
+
+    def mark_season_complete(self, year: int) -> None:
+        marker = self.completion_marker_path(year)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch(exist_ok=True)
+
+    def clear_season_complete(self, year: int) -> None:
+        self.completion_marker_path(year).unlink(missing_ok=True)
+
     def partition_max_date(self, year: int) -> str | None:
         path = self.partition_path(year)
         if not path.exists():
@@ -56,7 +74,8 @@ class StatcastDatasetGateway:
         try:
             val = pl.scan_parquet(path).select(pl.col("game_date").max()).collect().item()
             return str(val) if val is not None else None
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to determine partition_max_date for %s: %s", path, e)
             return None
 
     def read_partition(self, year: int) -> pl.DataFrame | None:
@@ -65,7 +84,8 @@ class StatcastDatasetGateway:
             return None
         try:
             return pl.read_parquet(path)
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to read Statcast partition from %s: %s", path, e)
             return None
 
     def synced_seasons(self) -> list[int]:

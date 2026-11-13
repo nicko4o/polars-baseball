@@ -1711,6 +1711,7 @@ dependencies = [
     { name = "polars" },
     { name = "tqdm" },
     { name = "typing-extensions" },
+    { name = "tzdata" },
 ]
 
 [package.optional-dependencies]
@@ -1765,6 +1766,7 @@ requires-dist = [
     { name = "types-setuptools", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
     { name = "typing-extensions", specifier = ">=4.0.0" },
+    { name = "tzdata", specifier = ">=2024.1" },
 ]
 provides-extras = ["plot", "docs", "test"]
 

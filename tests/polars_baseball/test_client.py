@@ -628,3 +628,25 @@ def test_retry_delay_full_jitter() -> None:
     delays = [client._retry_delay(0) for _ in range(50)]
     assert all(0.5 <= d <= 1.5 for d in delays)
     assert len(set(delays)) > 1  # Verify randomness
+
+
+@pytest.mark.asyncio
+async def test_non_bref_request_does_not_acquire_bref_rate_limit_lock() -> None:
+    client = HttpClient(bref_requests_per_minute=1)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "ok"
+    mock_resp.raise_for_status.return_value = None
+
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(return_value=mock_resp)
+
+    with (
+        patch.object(client, "get_cffi_session", return_value=mock_session),
+        patch.object(client, "_rate_limit", new=AsyncMock()) as mock_rate_limit,
+    ):
+        # FanGraphs policy has rate_limit_lock_key=None
+        await client.get_text("https://www.fangraphs.com/leaders")
+
+    mock_rate_limit.assert_not_awaited()

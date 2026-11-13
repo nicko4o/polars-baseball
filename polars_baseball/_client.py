@@ -253,8 +253,8 @@ class HttpClient:
     ) -> str | bytes:
         session = self.get_cffi_session()
         policy = resolve_request_policy(url)
-        lock_key = policy.rate_limit_lock_key or _BREF_RATE_LIMIT_LOCK_KEY
-        if (rate_limited or policy.rate_limited) and lock_key in self._rate_limits:
+        lock_key = policy.rate_limit_lock_key
+        if lock_key and (rate_limited or policy.rate_limited) and lock_key in self._rate_limits:
             await self._rate_limit(lock_key)
         str_params = self._str_params(params)
         merged_headers: dict[str, str] = {}
