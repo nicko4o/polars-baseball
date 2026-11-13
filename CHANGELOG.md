@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Hardened `client.savant.sync_statcast()` and `scan_statcast()` incremental synchronization to prevent partition overwrite on read failure, align date calculations to US Eastern Time, introduce a 2-day lookback overlap window to capture late-finishing games and Statcast corrections, and automatically catch up incomplete historical seasons.
+- Corrected `concurrency_limit` and single-day date resolution descriptions in `client.savant.statcast()` and `sync_statcast()` docstrings.
+
 ## [0.29.0] - 2026-11-12
 
 ### Added

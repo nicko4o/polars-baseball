@@ -95,3 +95,23 @@ jobs:
           fail_ci_if_error: false
       - name: Cache test
         run: uv run python ./scripts/validate_cache.py
+
+  windows-smoke:
+    needs: lint
+    name: Windows import smoke test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+          cache-suffix: windows-smoke
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Smoke test import and Eastern timezone helper
+        run: uv run python -c "import polars_baseball; from polars_baseball._season import get_baseball_eastern_today; print(get_baseball_eastern_today())"

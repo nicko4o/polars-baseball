@@ -382,3 +382,24 @@ def test_file_cache_adapter_clear_empties_locks(tmp_path: Path) -> None:
     _ = adapter._lock_for(key)
     adapter.clear()
     assert len(adapter._key_locks) == 0
+
+
+def test_file_cache_write_failure_logs_warning_without_traceback(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    from polars_baseball._cache import _write_cached_file, _write_cached_raw_file
+
+    with (
+        patch("polars_baseball._cache.atomic_write_parquet", side_effect=OSError("Disk full")),
+        patch("polars_baseball._cache.atomic_write_bytes", side_effect=OSError("Disk full")),
+    ):
+        success1 = _write_cached_file(tmp_path / "df.parquet", pl.DataFrame({"a": [1]}))
+        success2 = _write_cached_raw_file(tmp_path / "raw.bin", b"test")
+
+    assert not success1
+    assert not success2
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert any("Failed to write cache entry" in r.message for r in warnings)
+    assert any("Failed to write raw cache entry" in r.message for r in warnings)
+    # Ensure exc_info is False/None to avoid traceback log explosion
+    assert all(r.exc_info is None for r in warnings)

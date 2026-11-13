@@ -2,10 +2,18 @@ import json
 import logging
 import warnings
 from collections.abc import Iterator
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone, tzinfo
+from functools import lru_cache
 from importlib.resources import files as resources_files
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from polars_baseball._config import DATE_FORMAT, SEASON_MID_MARCH_DAY, STATCAST_FIRST_YEAR
+from polars_baseball._config import (
+    DATE_FORMAT,
+    SEASON_MID_MARCH_DAY,
+    STATCAST_FIRST_YEAR,
+    STATCAST_SEASON_COMPLETION_DAY,
+    STATCAST_SEASON_COMPLETION_MONTH,
+)
 from polars_baseball.exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
@@ -59,8 +67,41 @@ def coerce_datestring(value: str | date | None) -> str | None:
     return value.strftime(DATE_FORMAT)
 
 
+_US_EASTERN_FALLBACK_OFFSET_HOURS = -5
+
+
+@lru_cache(maxsize=1)
+def _us_eastern_tz() -> tzinfo:
+    try:
+        return ZoneInfo("America/New_York")
+    except ZoneInfoNotFoundError:
+        logger.warning("IANA timezone 'America/New_York' not found; falling back to fixed UTC-5 offset.")
+        return timezone(timedelta(hours=_US_EASTERN_FALLBACK_OFFSET_HOURS))
+
+
+def get_baseball_eastern_today() -> date:
+    """Return current calendar date in US Eastern timezone (America/New_York)."""
+    return datetime.now(_us_eastern_tz()).date()
+
+
+def get_baseball_eastern_yesterday() -> date:
+    """Return yesterday's calendar date in US Eastern timezone (America/New_York)."""
+    return get_baseball_eastern_today() - timedelta(days=1)
+
+
+def season_completion_threshold(year: int) -> date:
+    """Return expected completion date threshold for a historical season.
+
+    Uses ``STATCAST_VALID_DATES`` when available so seasons ending in late October
+    (e.g. 2018, 2019, 2020, 2024) are accurately recognized as complete.
+    """
+    if year in STATCAST_VALID_DATES:
+        return STATCAST_VALID_DATES[year][1]
+    return date(year, STATCAST_SEASON_COMPLETION_MONTH, STATCAST_SEASON_COMPLETION_DAY)
+
+
 def most_recent_season() -> int:
-    today = date.today()
+    today = get_baseball_eastern_today()
     if today.month > 3 or (today.month == 3 and today.day >= SEASON_MID_MARCH_DAY):
         return today.year
     return today.year - 1
@@ -74,7 +115,7 @@ def sanitize_date_range(start_dt: str | date | None, end_dt: str | date | None) 
     value. If end < start, the pair is swapped.
     """
     if start_dt is None and end_dt is None:
-        today = date.today()
+        today = get_baseball_eastern_today()
         start_dt = today - timedelta(1)
         end_dt = today
         warnings.warn("No date range supplied, assuming yesterday's date.", stacklevel=2)

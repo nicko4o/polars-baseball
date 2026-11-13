@@ -125,8 +125,8 @@ def _write_cached_file(path: Path, value: pl.DataFrame) -> bool:
     try:
         atomic_write_parquet(path, value)
         return True
-    except OSError:
-        logger.exception("Failed to write cache entry to %s", path)
+    except OSError as e:
+        logger.warning("Failed to write cache entry to %s: %s", path, e)
         return False
 
 
@@ -187,8 +187,8 @@ def _write_cached_raw_file(path: Path, value: bytes | str) -> bool:
     try:
         atomic_write_bytes(path, raw_bytes)
         return True
-    except OSError:
-        logger.exception("Failed to write raw cache entry to %s", path)
+    except OSError as e:
+        logger.warning("Failed to write raw cache entry to %s: %s", path, e)
         return False
 
 

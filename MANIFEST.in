@@ -1,4 +1,6 @@
 include LICENSE
+include CHANGELOG.md
+include CITATION.cff
 include polars_baseball/data/*.csv
 include polars_baseball/data/*.json
 prune scratch

@@ -17,9 +17,16 @@ from polars_baseball._config import (
     SAVANT_STATCAST_SEARCH_URL,
     STATCAST_DATE_STEP,
     STATCAST_FIRST_YEAR,
+    STATCAST_INCREMENTAL_OVERLAP_DAYS,
 )
 from polars_baseball._schemas.statcast import align_statcast_schemas
-from polars_baseball._season import most_recent_season, sanitize_date_range, statcast_date_range
+from polars_baseball._season import (
+    get_baseball_eastern_yesterday,
+    most_recent_season,
+    sanitize_date_range,
+    season_completion_threshold,
+    statcast_date_range,
+)
 from polars_baseball.exceptions import (
     InvalidParameterError,
     UpstreamUnavailableError,
@@ -109,6 +116,20 @@ def _validate_season(year: int) -> None:
         raise InvalidParameterError(
             f"Season {year} is out of range; Statcast data is available for {STATCAST_FIRST_YEAR}-{max_year}."
         )
+
+
+def _filter_replaced_dates(existing_df: pl.DataFrame, new_dfs: list[pl.DataFrame]) -> pl.DataFrame:
+    """Drop rows from existing_df whose game_date is covered by new_dfs, preserving null dates."""
+    if "game_date" not in existing_df.columns:
+        return existing_df
+    new_dates: set[str] = set()
+    for new_df in new_dfs:
+        if "game_date" in new_df.columns:
+            new_dates.update(new_df["game_date"].drop_nulls().cast(pl.Utf8).unique().to_list())
+    if not new_dates:
+        return existing_df
+    date_col_str = pl.col("game_date").cast(pl.Utf8)
+    return existing_df.filter(pl.col("game_date").is_null() | ~date_col_str.is_in(new_dates))
 
 
 class SavantStatcastMixin:
@@ -209,9 +230,13 @@ class SavantStatcastMixin:
         Parameters
         ----------
         start_date : str | date | None, default None
-            First day of data to retrieve ('YYYY-MM-DD'). Defaults to yesterday if omitted.
+            First day of data to retrieve ('YYYY-MM-DD'). If both ``start_date`` and ``end_date``
+            are omitted, defaults to yesterday. If omitted while ``end_date`` is provided,
+            defaults to ``end_date`` (single-day query).
         end_date : str | date | None, default None
-            Last day of data to retrieve ('YYYY-MM-DD'). Defaults to today if omitted.
+            Last day of data to retrieve ('YYYY-MM-DD'). If both ``start_date`` and ``end_date``
+            are omitted, defaults to today. If omitted while ``start_date`` is provided,
+            defaults to ``start_date`` (single-day query).
         team : str | None, default None
             Three-letter team abbreviation filter (e.g. 'NYY', 'BOS'). If None, all teams are returned.
         verbose : bool, default True
@@ -219,7 +244,7 @@ class SavantStatcastMixin:
         parallel : bool, default True
             If True, chunks date ranges into concurrent HTTP requests bounded by ``concurrency_limit``.
             If False, requests are executed sequentially.
-        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (6)
+        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (3)
             Maximum number of concurrent HTTP requests when ``parallel`` is True.
 
         Returns
@@ -304,31 +329,53 @@ class SavantStatcastMixin:
     ) -> Path | None:
         last_synced_str = self._dataset_gateway.partition_max_date(year)
         if last_synced_str is None:
+            logger.warning("Partition max date for year %d could not be determined; falling back to full sync.", year)
             return None
         try:
             last_date = date.fromisoformat(last_synced_str)
         except ValueError:
+            logger.warning(
+                "Invalid date format in partition max date for year %d: %s; falling back to full sync.",
+                year,
+                last_synced_str,
+            )
             return None
 
         if last_date >= target_end:
             return self._dataset_gateway.partition_path(year)
 
-        incremental_start = last_date + timedelta(days=1)
+        incremental_start = max(last_date - timedelta(days=STATCAST_INCREMENTAL_OVERLAP_DAYS), date(year, 1, 1))
         date_range = list(statcast_date_range(incremental_start, target_end, step=STATCAST_DATE_STEP, verbose=False))
         if not date_range:
+            if target_end >= date(year, 12, 31):
+                self._dataset_gateway.mark_season_complete(year)
             return self._dataset_gateway.partition_path(year)
+
+        existing_df = self._dataset_gateway.read_partition(year)
+        if existing_df is None or existing_df.is_empty():
+            logger.warning(
+                "Existing partition for year %d cannot be read or is empty. "
+                "Aborting incremental sync to prevent data loss; falling back to full sync.",
+                year,
+            )
+            return None
 
         frames = await self._run_statcast_parallel(date_range, None, verbose, concurrency_limit)
         new_dfs = [df for df in frames if df is not None and not df.is_empty()]
         if not new_dfs:
+            if target_end >= date(year, 12, 31):
+                self._dataset_gateway.mark_season_complete(year)
             return self._dataset_gateway.partition_path(year)
 
-        existing_df = self._dataset_gateway.read_partition(year)
-        all_dfs = ([existing_df] if existing_df is not None and not existing_df.is_empty() else []) + new_dfs
+        filtered_existing = _filter_replaced_dates(existing_df, new_dfs)
+        all_dfs = [filtered_existing] + new_dfs
         df = pl.concat(align_statcast_schemas(all_dfs), how="diagonal")
         if "game_date" in df.columns:
             df = df.sort("game_date")
-        return await self._dataset_gateway.write_partition(year, df)
+        path = await self._dataset_gateway.write_partition(year, df)
+        if target_end >= date(year, 12, 31):
+            self._dataset_gateway.mark_season_complete(year)
+        return path
 
     async def _sync_season(
         self,
@@ -338,17 +385,40 @@ class SavantStatcastMixin:
         concurrency_limit: int,
     ) -> Path:
         current_season = most_recent_season()
-        today = date.today()
-        yesterday = today - timedelta(days=1)
+        yesterday = get_baseball_eastern_yesterday()
         season_end = date(year, 12, 31)
         target_end = min(yesterday, season_end)
 
-        if self._dataset_gateway.year_exists(year) and not force_update:
+        if force_update:
+            self._dataset_gateway.clear_season_complete(year)
+        elif self._dataset_gateway.year_exists(year):
             if year < current_season:
-                return self._dataset_gateway.partition_path(year)
-            incremental_path = await self._sync_in_season_incremental(year, target_end, verbose, concurrency_limit)
-            if incremental_path is not None:
-                return incremental_path
+                if self._dataset_gateway.is_season_marked_complete(year):
+                    return self._dataset_gateway.partition_path(year)
+                completion_threshold = season_completion_threshold(year)
+                max_synced_str = self._dataset_gateway.partition_max_date(year)
+                is_complete = False
+                if max_synced_str is not None:
+                    try:
+                        is_complete = date.fromisoformat(max_synced_str) >= completion_threshold
+                    except ValueError:
+                        is_complete = False
+                if is_complete:
+                    self._dataset_gateway.mark_season_complete(year)
+                    return self._dataset_gateway.partition_path(year)
+                logger.info(
+                    "Historical partition for season %d is incomplete (max date: %s < %s); catching up.",
+                    year,
+                    max_synced_str,
+                    completion_threshold,
+                )
+                incremental_path = await self._sync_in_season_incremental(year, season_end, verbose, concurrency_limit)
+                if incremental_path is not None:
+                    return incremental_path
+            else:
+                incremental_path = await self._sync_in_season_incremental(year, target_end, verbose, concurrency_limit)
+                if incremental_path is not None:
+                    return incremental_path
 
         start = date(year, 1, 1)
         stop = target_end if year >= current_season and target_end >= start else season_end
@@ -358,7 +428,10 @@ class SavantStatcastMixin:
         df = pl.concat(align_statcast_schemas(dfs), how="diagonal") if dfs else pl.DataFrame()
         if "game_date" in df.columns:
             df = df.sort("game_date")
-        return await self._dataset_gateway.write_partition(year, df)
+        path = await self._dataset_gateway.write_partition(year, df)
+        if year < current_season:
+            self._dataset_gateway.mark_season_complete(year)
+        return path
 
     async def sync_statcast(
         self,
@@ -369,9 +442,12 @@ class SavantStatcastMixin:
     ) -> list[Path]:
         """Scrape and persist full-season Statcast partitions to local compiled dataset.
 
-        Historical completed seasons (prior to current season) are immutable and cached
-        permanently unless ``force_update=True``. Active in-season datasets are automatically
-        updated incrementally by downloading only missing dates since the last synced date.
+        Historical completed seasons (prior to current season) that are complete through the end of
+        the season are cached permanently unless ``force_update=True``. Active in-season datasets
+        and incomplete historical partitions are automatically updated incrementally using a 2-day
+        lookback overlap window aligned to US Eastern Time (triggered at most once per Eastern day
+        once ``target_end`` is reached; late-finishing games synced in early Eastern hours will be
+        corrected on the next day's sync).
 
         Parameters
         ----------
@@ -381,7 +457,7 @@ class SavantStatcastMixin:
             If True, ignores existing partitions and forces a full re-scrape of the entire season.
         verbose : bool, default True
             Whether to display progress bars during batch date scraping.
-        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (6)
+        concurrency_limit : int, default DEFAULT_STATCAST_CONCURRENCY_LIMIT (3)
             Maximum concurrent requests for scraping season chunks.
 
         Returns
@@ -412,16 +488,20 @@ class SavantStatcastMixin:
             mtime = path.stat().st_mtime
             if (time.time() - mtime) > max_age.total_seconds():
                 return "force"
-        if year >= current_season:
-            last_synced_str = self._dataset_gateway.partition_max_date(year)
-            if last_synced_str is None:
-                return "force"
-            try:
-                last_d = date.fromisoformat(last_synced_str)
-                if last_d < target_end:
-                    return "incremental"
-            except ValueError:
-                return "force"
+
+        if year < current_season and self._dataset_gateway.is_season_marked_complete(year):
+            return "fresh"
+
+        threshold = target_end if year >= current_season else season_completion_threshold(year)
+        last_synced_str = self._dataset_gateway.partition_max_date(year)
+        if last_synced_str is None:
+            return "force"
+        try:
+            last_d = date.fromisoformat(last_synced_str)
+            if last_d < threshold:
+                return "incremental"
+        except ValueError:
+            return "force"
         return "fresh"
 
     async def _refresh_stale_seasons(
@@ -432,7 +512,7 @@ class SavantStatcastMixin:
         max_age: timedelta | None,
     ) -> None:
         current_season = most_recent_season()
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = get_baseball_eastern_yesterday()
         force_years: list[int] = []
         incremental_years: list[int] = []
 
@@ -469,7 +549,7 @@ class SavantStatcastMixin:
             Specific season year(s) to query. If None, all locally available seasons are scanned.
         auto_download : bool, default False
             If True, automatically downloads missing seasons via ``sync_statcast()``. Also updates
-            in-season partitions if they are behind yesterday's date, or partitions older than ``max_age``.
+            in-season or incomplete historical partitions, or partitions older than ``max_age``.
         force_update : bool, default False
             When combined with ``auto_download=True``, forces full re-download of the specified seasons.
         max_age : timedelta | None, default None
