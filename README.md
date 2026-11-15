@@ -149,7 +149,7 @@ Interactive Jupyter notebooks live in [`notebooks/`](notebooks/):
 Do not trust performance claims without a reproducible command:
 
 ```bash
-python -m benchmarks run statcast_1week
+python -m benchmarks run statcast_7day_cold
 ```
 
 List available profiles:
