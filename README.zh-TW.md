@@ -146,7 +146,7 @@ async with BaseballClient() as client:
 先用可重現指令，不要相信沒有條件的效能口號：
 
 ```bash
-python -m benchmarks run statcast_1week
+python -m benchmarks run statcast_7day_cold
 ```
 
 列出可用 profiles：
