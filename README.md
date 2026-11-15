@@ -10,14 +10,9 @@
 
 Languages: [English](README.md) | [Traditional Chinese](README.zh-TW.md)
 
-`polars-baseball` is **The unified Polars-native baseball data SDK**: a typed, async-first Python
-library for retrieving MLB and baseball analytics data from Statcast, Baseball Savant, FanGraphs,
-Baseball Reference, Lahman, Retrosheet, and the MLB Stats API.
-
-If you searched for `python baseball data`, `python statcast`, `fangraphs python`,
-`baseball savant api`, `pybaseball alternative`, or `polars dataframe baseball`, this project is
-built for the workflow where data should land directly in `polars.DataFrame` instead of going
-through pandas first.
+`polars-baseball` is a typed, async-first Python library for retrieving MLB and baseball analytics
+data from Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, and the
+MLB Stats API—landing directly in `polars.DataFrame` without going through pandas first.
 
 ## Why use polars-baseball instead of pybaseball?
 
@@ -50,16 +45,12 @@ polars-baseball -> Polars -> analysis
 
 ## Key Features
 
-- **Polars-native data**: Public data-fetching APIs return `polars.DataFrame` unless an API
-  reference explicitly documents a non-tabular contract.
-- **Async-first engine**: Data-fetching APIs are `async def` and can be composed with your own
-  async workflows.
-- **Multiple providers**: Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman,
-  Retrosheet, MLB Stats API, and player ID workflows.
-- **Opt-in file cache**: Large workflows can cache repeated network requests as Parquet files.
-- **Service-ready client**: `BaseballClient` lets long-running apps control HTTP and cache
-  resources explicitly.
-- **Explicit HTTP policy**: `HttpClient` exposes timeout, retry, and BRef rate-limit settings.
+- Public data-fetching APIs return `polars.DataFrame` by default (unless an endpoint explicitly documents a non-tabular contract).
+- Every data-fetching API is `async def`, so you can compose queries concurrently with `asyncio`.
+- Unified access to Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, MLB Stats API, and player ID lookups.
+- Opt-in local Parquet caching avoids redundant network requests across large queries.
+- `BaseballClient` gives long-running services explicit control over HTTP connection pools and cache lifecycles.
+- `HttpClient` exposes timeout, retry, and Baseball Reference rate-limit settings.
 
 ## Installation
 
@@ -104,52 +95,36 @@ if __name__ == "__main__":
 ### Aggregate directly with Polars
 
 ```python
-import asyncio
-
 import polars as pl
 from polars_baseball import BaseballClient
 
-
-async def main() -> None:
-    async with BaseballClient() as client:
-        df = await client.savant.pitcher(
-            start_date="2026-06-01",
-            end_date="2026-06-01",
-            # Use await client.lookup.playerid_lookup("Judge", "Aaron") to find player IDs
-            player_id=506433,
-        )
-        summary = df.group_by("pitch_type").agg(
-            pl.col("release_speed").mean().alias("mean_speed"),
-            pl.len().alias("pitch_count"),
-        )
-        print(summary.sort("pitch_count", descending=True))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+async with BaseballClient() as client:
+    df = await client.savant.pitcher(
+        start_date="2026-06-01",
+        end_date="2026-06-01",
+        # Use await client.lookup.playerid_lookup("Judge", "Aaron") to find player IDs
+        player_id=506433,
+    )
+    summary = df.group_by("pitch_type").agg(
+        pl.col("release_speed").mean().alias("mean_speed"),
+        pl.len().alias("pitch_count"),
+    )
+    print(summary.sort("pitch_count", descending=True))
 ```
 
 ### FanGraphs leaderboard
 
 ```python
-import asyncio
-
 from polars_baseball import BaseballClient
 
-
-async def main() -> None:
-    async with BaseballClient() as client:
-        df = await client.fangraphs.batting(
-            start_season=2026,
-            end_season=2026,
-            qual=100,
-            max_results=20,
-        )
-        print(df.head(10))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+async with BaseballClient() as client:
+    df = await client.fangraphs.batting(
+        start_season=2026,
+        end_season=2026,
+        qual=100,
+        max_results=20,
+    )
+    print(df.head(10))
 ```
 
 ## Examples
@@ -239,14 +214,6 @@ Provider-specific workflows and enums live in their dedicated namespaces (e.g. `
 - [Official Documentation Portal](https://nicko4o.github.io/polars-baseball/)
 - [API Use-Case Index](docs/api_index.md): Choose the right API by task.
 - [Maintaining Guide](docs/MAINTAINING.md): Package publishing and maintenance steps.
-
-## Showcase
-
-Projects using `polars-baseball`:
-
-- MLB dashboard workflows
-- Chinese baseball website data jobs
-- Threads bot baseball data pipelines
 
 ## Community & Governance
 
