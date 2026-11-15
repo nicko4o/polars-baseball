@@ -10,13 +10,7 @@
 
 語言：[English](README.md) | [繁體中文](README.zh-TW.md)
 
-`polars-baseball` 是 **The unified Polars-native baseball data SDK**：typed、async-first、
-以 Polars 為核心的 Python 棒球資料擷取套件，統一存取 Statcast、Baseball Savant、
-FanGraphs、Baseball Reference、Lahman、Retrosheet 與 MLB Stats API。
-
-如果你正在找 `python baseball data`、`python statcast`、`fangraphs python`、
-`baseball savant api`、`pybaseball alternative` 或 `polars dataframe baseball`，
-這個專案服務的就是「資料直接進 `polars.DataFrame`，不要先繞過 pandas」的工作流。
+`polars-baseball` 是以 Polars 為核心、支援非同步（async-first）且具備完整型別標註的 Python 棒球資料擷取套件，統一存取 Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、Retrosheet 與 MLB Stats API，讓資料直接進到 `polars.DataFrame`，不必先經過 pandas 轉換。
 
 ## 為什麼不是只用 pybaseball？
 
@@ -48,12 +42,12 @@ polars-baseball -> Polars -> analysis
 
 ## 主要特性
 
-- **Polars-native data**：公開資料擷取 API 會回傳 `polars.DataFrame`，除非 API 文件明確記載非表格 contract。
-- **Async-first engine**：資料擷取 API 都是 `async def`，可以和既有 async workflow 組合。
-- **多資料來源**：Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、
-  Retrosheet、MLB Stats API 與 player ID workflow。
-- **Built-in cache**：重複網路請求會以 Parquet 快取，適合大量查詢。
-- **Service-ready client**：`BaseballClient` 讓長駐服務明確控制 HTTP 與 cache 資源。
+- 公開資料擷取 API 預設回傳 `polars.DataFrame`（除非該端點明確記載為非表格資料）。
+- 所有資料擷取 API 皆為 `async def`，可直接與現有的 `asyncio` 非同步流程組合。
+- 統一存取 Statcast、Baseball Savant、FanGraphs、Baseball Reference、Lahman、Retrosheet、MLB Stats API 與球員 ID 查詢。
+- 內建可選的本地 Parquet 快取，減少大量查詢時的重複網路請求。
+- 藉由 `BaseballClient` 讓長駐服務明確管理 HTTP 連線池與快取生命週期。
+- `HttpClient` 提供逾時時間、重試次數與 Baseball Reference 請求頻率限制設定。
 
 ## 安裝
 
@@ -98,52 +92,36 @@ if __name__ == "__main__":
 ### 直接用 Polars 聚合
 
 ```python
-import asyncio
-
 import polars as pl
 from polars_baseball import BaseballClient
 
-
-async def main() -> None:
-    async with BaseballClient() as client:
-        df = await client.savant.pitcher(
-            start_date="2026-06-01",
-            end_date="2026-06-01",
-            # 不知道 ID？用 await client.lookup.playerid_lookup("Judge", "Aaron") 查詢
-            player_id=506433,
-        )
-        summary = df.group_by("pitch_type").agg(
-            pl.col("release_speed").mean().alias("mean_speed"),
-            pl.len().alias("pitch_count"),
-        )
-        print(summary.sort("pitch_count", descending=True))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+async with BaseballClient() as client:
+    df = await client.savant.pitcher(
+        start_date="2026-06-01",
+        end_date="2026-06-01",
+        # 不知道 ID？用 await client.lookup.playerid_lookup("Judge", "Aaron") 查詢
+        player_id=506433,
+    )
+    summary = df.group_by("pitch_type").agg(
+        pl.col("release_speed").mean().alias("mean_speed"),
+        pl.len().alias("pitch_count"),
+    )
+    print(summary.sort("pitch_count", descending=True))
 ```
 
 ### FanGraphs 排行榜
 
 ```python
-import asyncio
-
 from polars_baseball import BaseballClient
 
-
-async def main() -> None:
-    async with BaseballClient() as client:
-        df = await client.fangraphs.batting(
-            start_season=2026,
-            end_season=2026,
-            qual=100,
-            max_results=20,
-        )
-        print(df.head(10))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+async with BaseballClient() as client:
+    df = await client.fangraphs.batting(
+        start_season=2026,
+        end_season=2026,
+        qual=100,
+        max_results=20,
+    )
+    print(df.head(10))
 ```
 
 ## 範例
@@ -163,7 +141,7 @@ if __name__ == "__main__":
 - [`notebooks/statcast_pitch_mix_demo.ipynb`](notebooks/statcast_pitch_mix_demo.ipynb)：Statcast pitch mix、球速排行、擊球結果。
 - [`notebooks/fangraphs_leaderboard_demo.ipynb`](notebooks/fangraphs_leaderboard_demo.ipynb)：FanGraphs 打擊排行榜與 sabermetric 篩選。
 - [`notebooks/mlb_schedule_demo.ipynb`](notebooks/mlb_schedule_demo.ipynb)：MLB 賽程、戰績、名單與球隊資料。
-## Benchmark
+## 效能基準測試 (Benchmark)
 
 先用可重現指令，不要相信沒有條件的效能口號：
 
@@ -185,9 +163,9 @@ python -m benchmarks baseline show
 python -m benchmarks baseline clear
 ```
 
-Runner 會回報 wall time、CPU time、peak Python memory（透過 `tracemalloc`）、GC collections
-以及 result shape。使用 `--baseline` 標記可儲存結果並與歷史資料比對。
-要比較 pandas-first workflow，請固定 date range、cache state、Python 版本與機器。
+Runner 會回報 wall time、CPU time、peak Python memory（使用 `tracemalloc` 測量）、GC collections
+以及 result shape。加上 `--baseline` 旗標可儲存結果並與歷史資料比對。
+若要比較 pandas-first 工作流，請固定日期範圍、快取狀態、Python 版本與測試機器。
 
 ## Web 服務與高並行
 
@@ -229,17 +207,9 @@ async def get_statcast() -> dict[str, int]:
 
 ## 文件與資源
 
-- [官方線上文件門戶 (Official Docs Portal)](https://nicko4o.github.io/polars-baseball/)
+- [官方線上文件](https://nicko4o.github.io/polars-baseball/)
 - [API 用途索引 (API Index)](docs/api_index.md)：依任務選擇正確 API。
 - [維護者指南 (Maintaining Guide)](docs/MAINTAINING.md)：套件發布與維護流程。
-
-## Showcase
-
-使用 `polars-baseball` 的專案：
-
-- MLB dashboard workflows
-- 中文棒球網站資料工作流
-- Threads bot 棒球資料 pipeline
 
 ## 社群規範與專案治理
 
@@ -260,11 +230,11 @@ async def get_statcast() -> dict[str, int]:
 
 > [!IMPORTANT]
 > **FanGraphs 與 Baseball Reference「盡力而為（Best-Effort）」與防爬蟲聲明**：
-> 有別於官方或封裝歸檔來源（MLB Stats API、Savant、Retrosheet、Lahman），FanGraphs 與 Baseball Reference 仰賴網頁擷取（Web Scraping），且受 Cloudflare Turnstile 與嚴格頻率限制保護。存取此二來源屬於**盡力而為（Best-Effort）**。請設定合理的請求頻率（`bref_requests_per_minute`）、於受挑戰時透過 `extra_headers` 傳入通行 Cookie（`CF_CLEARANCE`, `CF_COOKIE`），或善用本地 Parquet 快取。
+> 有別於官方或封裝歸檔來源（MLB Stats API、Savant、Retrosheet、Lahman），FanGraphs 與 Baseball Reference 仰賴網頁擷取（Web Scraping），且受 Cloudflare Turnstile 與嚴格頻率限制保護。存取此二來源屬於**盡力而為（Best-Effort）**。請設定合理的請求頻率（`bref_requests_per_minute`）、於受挑戰時藉由 `extra_headers` 傳入通行 Cookie（`CF_CLEARANCE`, `CF_COOKIE`），或善用本地 Parquet 快取。
 
 ## 學術與研究引用 (Citation)
 
-若您在學術研究、棒球分析論文或軟體專案中使用 `polars-baseball`，請參考 [`CITATION.cff`](CITATION.cff) 進行引用。
+若你在學術研究、棒球分析論文或軟體專案中使用 `polars-baseball`，請參考 [`CITATION.cff`](CITATION.cff) 進行引用。
 
 ## 作者
 
