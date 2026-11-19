@@ -1,6 +1,6 @@
 import math
 from collections.abc import Mapping
-from typing import TypeAlias, cast
+from typing import TypeAlias
 
 import polars as pl
 
@@ -141,7 +141,7 @@ def _pitch_node_rows(payload: JsonObject, node: str) -> list[PitchRow]:
     if isinstance(raw_rows, list):
         return [(None, row) for row in _list_rows(raw_rows, node)]
     if isinstance(raw_rows, dict):
-        return _mapped_pitch_rows(cast(JsonObject, raw_rows), node)
+        return _mapped_pitch_rows(raw_rows, node)
     raise UpstreamParseError(f"Savant gamefeed node {node!r} must be a list or object of lists.")
 
 
@@ -162,7 +162,7 @@ def _node_rows(payload: JsonObject, node: str) -> list[JsonObject]:
     if isinstance(raw_rows, list):
         return _list_rows(raw_rows, node)
     if isinstance(raw_rows, dict):
-        return _mapped_list_rows(cast(JsonObject, raw_rows), node)
+        return _mapped_list_rows(raw_rows, node)
     raise UpstreamParseError(f"Savant gamefeed node {node!r} must be a list or object of lists.")
 
 
@@ -171,7 +171,7 @@ def _list_rows(raw_rows: list[JsonValue], node: str) -> list[JsonObject]:
     for raw_row in raw_rows:
         if not isinstance(raw_row, dict):
             raise UpstreamParseError(f"Savant gamefeed node {node!r} contains a non-object row.")
-        rows.append(cast(JsonObject, raw_row))
+        rows.append(raw_row)
     return rows
 
 
@@ -228,7 +228,7 @@ def _frame(rows: list[dict[str, object]], schema: Mapping[str, pl.DataType | typ
 
 def _object_or_empty(value: JsonValue) -> JsonObject:
     if isinstance(value, dict):
-        return cast(JsonObject, value)
+        return value
     return {}
 
 
