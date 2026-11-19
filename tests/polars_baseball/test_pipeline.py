@@ -124,3 +124,33 @@ def test_pipeline_parser_missing_rankings() -> None:
     parser = MLBPipelineParser()
     with pytest.raises(UpstreamParseError, match="No player rankings data found"):
         parser.parse(html_content)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad_list_type", ["../secret", "top100?x=1", "top100#frag", "a/b", ""])
+async def test_prospect_rankings_rejects_unsafe_list_type(bad_list_type: str) -> None:
+    from unittest.mock import AsyncMock
+
+    from polars_baseball._client import HttpClient
+    from polars_baseball.client import BaseballClient
+    from polars_baseball.exceptions import InvalidParameterError
+
+    mock_http = AsyncMock(spec=HttpClient)
+    client = BaseballClient.with_null_cache(http=mock_http)
+    with pytest.raises(InvalidParameterError):
+        await client.mlb.prospect_rankings(list_type=bad_list_type)
+    mock_http.get_text.assert_not_awaited()
+
+
+def test_parse_scouting_grades_no_polynomial_redos() -> None:
+    import time
+
+    from polars_baseball.parsers.pipeline import _parse_scouting_grades
+
+    adversarial = ("a " * 8000) + "Hit: 60 | Power: 55"
+    start = time.monotonic()
+    grades = _parse_scouting_grades(adversarial)
+    elapsed = time.monotonic() - start
+
+    assert grades == {"hit": 60, "power": 55}
+    assert elapsed < 0.25

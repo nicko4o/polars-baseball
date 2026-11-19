@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import polars as pl
 
 from polars_baseball._config import SAVANT_ROOT
+from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.savant import SavantGateway
 
 if TYPE_CHECKING:
@@ -167,8 +168,11 @@ LEADERBOARDS: dict[str, LeaderboardDef] = {
 async def fetch_leaderboard(name: str, client: BaseballClient, **kwargs: object) -> pl.DataFrame:
     reg = LEADERBOARDS.get(name)
     if reg is None:
-        msg = f"Unknown leaderboard: {name}"
-        raise ValueError(msg)
+        raise InvalidParameterError(f"Unknown leaderboard: {name}")
     url = f"{SAVANT_ROOT}{reg.path}"
     params = reg.build_params(**kwargs)
-    return await SavantGateway(client).get_leaderboard(url, params)
+    savant_client = getattr(client, "savant", None)
+    active_gateway = getattr(savant_client, "_gateway", None)
+    if not isinstance(active_gateway, SavantGateway):
+        active_gateway = SavantGateway(client)
+    return await active_gateway.get_leaderboard(url, params)

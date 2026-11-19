@@ -122,3 +122,27 @@ def test_parse_savant_leaderboard_invalid_fails_fast() -> None:
 
     with pytest.raises(UpstreamStructureChangedError):
         parse_savant_leaderboard("random plain text without comma or table")
+
+
+@pytest.mark.asyncio
+async def test_fetch_leaderboard_uses_client_savant_gateway_seam() -> None:
+    from unittest.mock import AsyncMock
+
+    import polars as pl
+
+    from polars_baseball._client import HttpClient
+    from polars_baseball.client import BaseballClient
+
+    expected = pl.DataFrame({"player_id": [660271]})
+    mock_gateway = MagicMock(spec=SavantGateway)
+    mock_gateway.get_leaderboard = AsyncMock(return_value=expected)
+
+    mock_http = AsyncMock(spec=HttpClient)
+    mock_http.get_text.side_effect = AssertionError("Should not bypass client.savant._gateway")
+    client = BaseballClient.with_null_cache(http=mock_http)
+    client.savant._gateway = mock_gateway
+
+    result = await client.savant.exitvelo_barrels(2024)
+
+    assert result.equals(expected)
+    mock_gateway.get_leaderboard.assert_awaited_once()

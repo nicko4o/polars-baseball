@@ -58,8 +58,8 @@ def check_savant_error_row(raw_data: str | bytes) -> None:
 
     try:
         df_err = pl.read_csv(raw_bin)
-    except pl.exceptions.PolarsError:
-        raise UpstreamParseError("Savant request failed with an error row.") from None
+    except pl.exceptions.PolarsError as exc:
+        raise UpstreamParseError("Savant request failed with an error row.") from exc
 
     if "error" in df_err.columns and df_err.height > 0:
         raise UpstreamParseError(str(df_err["error"][0]))
@@ -116,7 +116,7 @@ def _parse_savant_html_table(raw_text: str) -> pl.DataFrame:
         return pl.DataFrame(rows_data)
     except UpstreamStructureChangedError:
         raise
-    except Exception as exc:
+    except (lxml.etree.Error, pl.exceptions.PolarsError, ValueError, TypeError) as exc:
         raise UpstreamParseError("Savant HTML leaderboard parsing failed.") from exc
 
 

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Named constants for mlbID extraction — avoids magic strings in DOM traversal.
 _MLB_ID_PARAM: str = "mlb_ID="
 _MLBID_COLUMN: str = "mlbID"
+_MAX_TABLE_COLSPAN: int = 64
 
 
 class BRefHTMLParser(BaseParser):
@@ -170,7 +171,8 @@ def _try_parse_bref_csv_export(html: str) -> pl.DataFrame:
             return _extract_bref_csv_div(csv_divs[0])
 
         return pl.DataFrame()
-    except (lxml.etree.ParserError, pl.exceptions.PolarsError):
+    except (lxml.etree.ParserError, pl.exceptions.PolarsError) as exc:
+        logger.debug("BRef embedded CSV export parse failed; falling back: %s", exc)
         return pl.DataFrame()
 
 
@@ -247,7 +249,15 @@ class BRefGameLogParser(BaseParser):
             row_headers: list[str] = []
             th_list = cast(list[_Element], tr.xpath(".//th|.//td"))
             for cell in th_list:
-                colspan = int(cell.get("colspan", "1"))
+                raw_colspan = cell.get("colspan", "1")
+                try:
+                    colspan = int(raw_colspan)
+                except ValueError as exc:
+                    raise UpstreamStructureChangedError(f"Invalid table header colspan value: {raw_colspan!r}") from exc
+                if colspan < 1 or colspan > _MAX_TABLE_COLSPAN:
+                    raise UpstreamStructureChangedError(
+                        f"Table header colspan {colspan} out of allowed bounds (1..{_MAX_TABLE_COLSPAN})."
+                    )
                 row_headers.extend([self._text(cell)] * colspan)
             parsed_headers.append(row_headers)
         return parsed_headers
@@ -307,7 +317,7 @@ class BRefGameLogParser(BaseParser):
         parser = lxml.etree.HTMLParser()
         tree = lxml.etree.fromstring(raw.encode("utf-8"), parser)
         table_id = f"players_standard_{self.log_type}"
-        tables = cast(list[_Element], tree.xpath(f"//table[@id='{table_id}']"))
+        tables = cast(list[_Element], tree.xpath("//table[@id=$table_id]", table_id=table_id))
         if not tables:
             raise UpstreamStructureChangedError(f"Table with id '{table_id}' not found on scraped page.")
 

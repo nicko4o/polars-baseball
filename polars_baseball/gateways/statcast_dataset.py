@@ -74,7 +74,7 @@ class StatcastDatasetGateway:
         try:
             val = pl.scan_parquet(path).select(pl.col("game_date").max()).collect().item()
             return str(val) if val is not None else None
-        except Exception as e:
+        except (pl.exceptions.PolarsError, OSError) as e:
             logger.warning("Failed to determine partition_max_date for %s: %s", path, e)
             return None
 
@@ -84,7 +84,7 @@ class StatcastDatasetGateway:
             return None
         try:
             return pl.read_parquet(path)
-        except Exception as e:
+        except (pl.exceptions.PolarsError, OSError) as e:
             logger.error("Failed to read Statcast partition from %s: %s", path, e)
             return None
 

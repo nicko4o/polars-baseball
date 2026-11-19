@@ -1,7 +1,10 @@
 from dataclasses import dataclass
+from typing import Final
 from urllib.parse import urlparse
 
 from polars_baseball._config import BREF_ROOT, FG_ROOT
+
+BREF_RATE_LIMIT_LOCK_KEY: Final[str] = "bref_rate_limit"
 
 
 @dataclass(frozen=True)
@@ -20,7 +23,7 @@ _PROVIDER_POLICIES: tuple[tuple[str, RequestPolicy], ...] = (
             "BRef",
             rate_limited=True,
             is_cloudflare_protected=True,
-            rate_limit_lock_key="bref_rate_limit",
+            rate_limit_lock_key=BREF_RATE_LIMIT_LOCK_KEY,
         ),
     ),
     (

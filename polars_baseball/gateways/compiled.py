@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Final
 
 import polars as pl
 
-from polars_baseball._config import COMPILED_DATASETS_ROOT_URL
+from polars_baseball._config import COMPILED_DATASETS_ROOT_URL, DEFAULT_CSV_INFER_SCHEMA_LENGTH
 from polars_baseball._storage_primitives import (
     atomic_write_bytes,
     atomic_write_parquet,
@@ -32,7 +32,7 @@ COMPILED_DATASETS_DIR: Final[str] = "compiled-datasets"
 ARCHIVES_DIR: Final[str] = "_archives"
 PARQUET_SUFFIX: Final[str] = ".parquet"
 ZIP_SUFFIX: Final[str] = ".zip"
-DEFAULT_CSV_INFER_SCHEMA_LENGTH: Final[int] = 10000
+MAX_ZIP_MEMBER_BYTES: Final[int] = 256 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ class CompiledDatasetGateway:
         """Resolve the local Parquet path for a table, compiling from archive if needed.
 
         Note:
-            Requires a file-backed cache directory. Raises UpstreamParseError
+            Requires a file-backed cache directory. Raises ClientError
             when cache_dir is None.
         """
         if self._cache_dir is None:
@@ -129,7 +129,7 @@ class CompiledDatasetGateway:
         if not use_cache or self._cache_dir is None:
             return await self._fetch_table_uncached(table)
         lazy_frame = await self.scan_table(table)
-        return lazy_frame.collect()
+        return await asyncio.to_thread(lazy_frame.collect)
 
     def _table_path(self, table: CompiledTable) -> Path:
         return self._file_cache_dir() / COMPILED_DATASETS_DIR / table.dataset / f"{table.table_name}{PARQUET_SUFFIX}"
@@ -156,11 +156,26 @@ class CompiledDatasetGateway:
     async def _fetch_remote_parquet(self, table: CompiledTable) -> pl.DataFrame:
         url = f"{COMPILED_DATASETS_ROOT_URL}/{table.dataset}/{table.table_name}{PARQUET_SUFFIX}"
         raw = await self._context.http.get_bytes(url)
-        return pl.read_parquet(io.BytesIO(raw))
+        return await asyncio.to_thread(pl.read_parquet, io.BytesIO(raw))
 
     async def _fetch_archive_csv(self, table: CompiledTable) -> pl.DataFrame:
         archive_path = await self.ensure_archive(table.dataset, table.archive_url)
         return await asyncio.to_thread(_read_archive_csv, archive_path, table)
+
+
+def _ensure_member_size_within_limit(member: str, size: int) -> None:
+    if size > MAX_ZIP_MEMBER_BYTES:
+        raise UpstreamDataCorruptedError(
+            f"Archive member '{member}' exceeds maximum allowed uncompressed size ({MAX_ZIP_MEMBER_BYTES} bytes)."
+        )
+
+
+def _read_bounded_zip_member(archive: zipfile.ZipFile, member: str) -> bytes:
+    _ensure_member_size_within_limit(member, archive.getinfo(member).file_size)
+    with archive.open(member) as stream:
+        raw = stream.read(MAX_ZIP_MEMBER_BYTES + 1)
+    _ensure_member_size_within_limit(member, len(raw))
+    return raw
 
 
 def _read_archive_zip_to_df(file_or_bytes: Path | bytes, table: CompiledTable, error_message: str) -> pl.DataFrame:
@@ -168,7 +183,7 @@ def _read_archive_zip_to_df(file_or_bytes: Path | bytes, table: CompiledTable, e
         file_like = io.BytesIO(file_or_bytes) if isinstance(file_or_bytes, bytes) else file_or_bytes
         with zipfile.ZipFile(file_like) as archive:
             member = _resolve_archive_member(archive, table)
-            raw = archive.read(member)
+            raw = _read_bounded_zip_member(archive, member)
         return _read_csv_bytes(raw, table)
     except zipfile.BadZipFile as err:
         raise UpstreamDataCorruptedError(error_message) from err

@@ -131,3 +131,25 @@ async def test_compiled_gateway_corrupted_archive_raises_upstream_data_corrupted
     gateway = CompiledDatasetGateway(ctx)
     with pytest.raises(UpstreamDataCorruptedError, match="Bad zip file"):
         await gateway.read_table(table)
+
+
+@pytest.mark.asyncio
+async def test_compiled_gateway_rejects_oversized_zip_member(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import polars_baseball.gateways.compiled as compiled_mod
+    from polars_baseball.exceptions import UpstreamDataCorruptedError
+
+    monkeypatch.setattr(compiled_mod, "MAX_ZIP_MEMBER_BYTES", 32)
+    payload = "id,name\n" + ("1,Ada\n" * 20)
+    mock_http = MagicMock()
+    mock_http.get_bytes = AsyncMock(return_value=_archive(payload))
+    ctx = BaseballClient(http=mock_http, cache=FileCacheAdapter(tmp_path))
+    table = CompiledTable(
+        dataset="demo",
+        table_name="data/table",
+        archive_url=ARCHIVE_URL,
+        archive_member="source/data/table.csv",
+    )
+
+    gateway = CompiledDatasetGateway(ctx)
+    with pytest.raises(UpstreamDataCorruptedError, match="exceeds maximum allowed uncompressed size"):
+        await gateway.read_table(table)

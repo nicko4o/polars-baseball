@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 
 from polars_baseball._concurrency import bounded_gather
-from polars_baseball._config import DEFAULT_STATCAST_CONCURRENCY_LIMIT
+from polars_baseball._config import (
+    DEFAULT_STATCAST_CONCURRENCY_LIMIT,
+    STATCAST_BAT_TRACKING_START_YEAR,
+    STATCAST_SPRINT_SPEED_START_YEAR,
+)
 from polars_baseball._leaderboard_registry import fetch_leaderboard
 from polars_baseball._savant._leaderboards import SavantLeaderboardMixin
 from polars_baseball.enums.savant import ArsenalType
@@ -19,6 +24,8 @@ from polars_baseball.exceptions import (
 
 if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
+
+logger = logging.getLogger(__name__)
 
 _BATTER_PROFILE_METRICS: tuple[tuple[str, str, str], ...] = (
     ("xwoba", "xwOBA", "rate"),
@@ -79,36 +86,40 @@ def _normalize_name_col(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
+async def _safe_fetch_source(source_name: str, fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
+    try:
+        return await fetcher()
+    except UpstreamUnavailableError as exc:
+        logger.debug("Savant profile source '%s' unavailable; degrading to empty frame: %s", source_name, exc)
+        return pl.DataFrame()
+
+
 async def _fetch_batter_raw_sources(client: BaseballClient, year: int) -> dict[str, pl.DataFrame]:
     """Fetch raw metric sources for batters concurrently."""
     sources: dict[str, pl.DataFrame] = {}
 
-    async def _safe_call(fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
-        try:
-            return await fetcher()
-        except UpstreamUnavailableError:
-            return pl.DataFrame()
-
     async def _fetch_exp() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: client.savant.expected_stats(year, "batter"))
+        df = await _safe_fetch_source("batter_expected_stats", lambda: client.savant.expected_stats(year, "batter"))
         return "exp", _normalize_name_col(df)
 
     async def _fetch_ev() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: client.savant.exitvelo_barrels(year, "batter"))
+        df = await _safe_fetch_source("batter_exitvelo_barrels", lambda: client.savant.exitvelo_barrels(year, "batter"))
         return "ev", _normalize_name_col(df)
 
     async def _fetch_sprint() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: fetch_leaderboard("sprint_speed", client, year=str(year), min="1"))
+        df = await _safe_fetch_source(
+            "sprint_speed", lambda: fetch_leaderboard("sprint_speed", client, year=str(year), min="1")
+        )
         return "sprint", _normalize_name_col(df)
 
     tasks: list[Callable[[], Awaitable[tuple[str, pl.DataFrame]]]] = [_fetch_exp, _fetch_ev]
-    if year >= 2015:
+    if year >= STATCAST_SPRINT_SPEED_START_YEAR:
         tasks.append(_fetch_sprint)
 
-    if year >= 2024:
+    if year >= STATCAST_BAT_TRACKING_START_YEAR:
 
         async def _fetch_bat() -> tuple[str, pl.DataFrame]:
-            df = await _safe_call(lambda: client.savant.bat_tracking(year, "batter"))
+            df = await _safe_fetch_source("bat_tracking", lambda: client.savant.bat_tracking(year, "batter"))
             if "id" in df.columns and "player_id" not in df.columns:
                 df = df.rename({"id": "player_id"})
             return "bat", _normalize_name_col(df)
@@ -125,31 +136,27 @@ async def _fetch_pitcher_raw_sources(client: BaseballClient, year: int) -> dict[
     """Fetch raw metric sources for pitchers concurrently."""
     sources: dict[str, pl.DataFrame] = {}
 
-    async def _safe_call(fetcher: Callable[[], Awaitable[pl.DataFrame]]) -> pl.DataFrame:
-        try:
-            return await fetcher()
-        except UpstreamUnavailableError:
-            return pl.DataFrame()
-
     async def _fetch_exp() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: client.savant.pitcher_expected_stats(year))
+        df = await _safe_fetch_source("pitcher_expected_stats", lambda: client.savant.pitcher_expected_stats(year))
         return "exp", _normalize_name_col(df)
 
     async def _fetch_ev() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(lambda: client.savant.pitcher_exitvelo_barrels(year))
+        df = await _safe_fetch_source("pitcher_exitvelo_barrels", lambda: client.savant.pitcher_exitvelo_barrels(year))
         return "ev", _normalize_name_col(df)
 
     async def _fetch_arsenal_speed() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(
-            lambda: client.savant.pitcher_pitch_arsenal(year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPEED)
+        df = await _safe_fetch_source(
+            "pitcher_arsenal_speed",
+            lambda: client.savant.pitcher_pitch_arsenal(year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPEED),
         )
         if "pitcher" in df.columns and "player_id" not in df.columns:
             df = df.rename({"pitcher": "player_id"})
         return "arsenal_speed", _normalize_name_col(df)
 
     async def _fetch_arsenal_spin() -> tuple[str, pl.DataFrame]:
-        df = await _safe_call(
-            lambda: client.savant.pitcher_pitch_arsenal(year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPIN)
+        df = await _safe_fetch_source(
+            "pitcher_arsenal_spin",
+            lambda: client.savant.pitcher_pitch_arsenal(year, min_pitches=1, arsenal_type=ArsenalType.AVG_SPIN),
         )
         if "pitcher" in df.columns and "player_id" not in df.columns:
             df = df.rename({"pitcher": "player_id"})

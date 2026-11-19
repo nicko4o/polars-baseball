@@ -10,7 +10,7 @@ class ServerError(PolarsBaseballError):
     """5xx-equivalent: upstream / parsing failure, not caller's fault."""
 
 
-class PolarsBaseballHttpError(ServerError):
+class PolarsBaseballHttpError(PolarsBaseballError):
     """Exception raised when an HTTP request fails."""
 
     def __init__(self, message: str, status_code: int = 500, retry_after: float | None = None) -> None:
@@ -23,7 +23,7 @@ class PolarsBaseballHttpClientError(ClientError, PolarsBaseballHttpError):
     """HTTP 4xx-equivalent: client request fault (e.g. 403 Forbidden, 404 Not Found)."""
 
 
-class PolarsBaseballHttpServerError(PolarsBaseballHttpError):
+class PolarsBaseballHttpServerError(ServerError, PolarsBaseballHttpError):
     """HTTP 5xx-equivalent: upstream server fault (e.g. 500, 502, 503)."""
 
 

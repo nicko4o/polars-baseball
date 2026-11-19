@@ -650,3 +650,25 @@ async def test_non_bref_request_does_not_acquire_bref_rate_limit_lock() -> None:
         await client.get_text("https://www.fangraphs.com/leaders")
 
     mock_rate_limit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_reacquired_on_retry() -> None:
+    client = HttpClient(bref_requests_per_minute=600, max_retries=1, retry_backoff_base_seconds=0)
+
+    err_503 = CurlHTTPError("Service Unavailable", response=MagicMock(status_code=503))
+    ok_resp = MagicMock(status_code=200, text="ok")
+    ok_resp.raise_for_status.return_value = None
+
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(side_effect=[err_503, ok_resp])
+
+    with (
+        patch.object(client, "get_cffi_session", return_value=mock_session),
+        patch.object(client, "_rate_limit", new=AsyncMock()) as mock_rate_limit,
+    ):
+        result = await client.get_text("https://www.baseball-reference.com/data")
+
+    assert result == "ok"
+    assert mock_session.get.await_count == 2
+    assert mock_rate_limit.await_count == 2

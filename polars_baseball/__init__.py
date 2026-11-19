@@ -4,6 +4,22 @@ from polars_baseball import bref, fangraphs, lahman, lookup, mlb, retrosheet, sa
 from polars_baseball.client import BaseballClient
 from polars_baseball.enums import KeyType
 from polars_baseball.enums.position import Position
+from polars_baseball.exceptions import (
+    CacheClearError,
+    ClientError,
+    InvalidParameterError,
+    InvalidSchemaError,
+    PolarsBaseballError,
+    PolarsBaseballHttpClientError,
+    PolarsBaseballHttpError,
+    PolarsBaseballHttpServerError,
+    PolarsBaseballTransportError,
+    ServerError,
+    UpstreamDataCorruptedError,
+    UpstreamParseError,
+    UpstreamStructureChangedError,
+    UpstreamUnavailableError,
+)
 
 __version__ = "0.29.1"
 
@@ -11,8 +27,22 @@ _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
 __all__ = [
     "BaseballClient",
+    "CacheClearError",
+    "ClientError",
+    "InvalidParameterError",
+    "InvalidSchemaError",
     "KeyType",
+    "PolarsBaseballError",
+    "PolarsBaseballHttpClientError",
+    "PolarsBaseballHttpError",
+    "PolarsBaseballHttpServerError",
+    "PolarsBaseballTransportError",
     "Position",
+    "ServerError",
+    "UpstreamDataCorruptedError",
+    "UpstreamParseError",
+    "UpstreamStructureChangedError",
+    "UpstreamUnavailableError",
     "__version__",
     "bref",
     "fangraphs",

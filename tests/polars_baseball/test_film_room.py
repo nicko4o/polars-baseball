@@ -42,6 +42,11 @@ def test_film_room_query_builder_escaping() -> None:
     assert r'HitResult = ["Home \"Run\""]' in q
 
 
+def test_film_room_query_builder_escapes_backslash_before_quote() -> None:
+    q = FilmRoomQueryBuilder.build(event_types=["Home\\"])
+    assert r'HitResult = ["Home\\"]' in q
+
+
 def test_film_room_query_builder_raw_override() -> None:
     raw = 'ContentTags = ["clutch-moment"]'
     q = FilmRoomQueryBuilder.build(query=raw)

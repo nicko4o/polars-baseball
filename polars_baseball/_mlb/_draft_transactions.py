@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from polars_baseball.gateways.mlb import MlbStatsGateway
 
 _VALID_PROSPECT_TYPES = frozenset({"batters", "pitchers"})
+_PROSPECT_LIST_TYPE_PATTERN = re.compile(r"\A[a-z0-9-]+\Z")
 
 
 def _validate_date_format(val: str | None, name: str) -> None:
@@ -191,6 +192,10 @@ class MlbDraftTransactionsMixin(MlbTaxonomyMixin):
     ) -> pl.DataFrame:
         """Fetch MLB Pipeline prospect rankings."""
         list_type_clean = list_type.lower().strip()
+        if not _PROSPECT_LIST_TYPE_PATTERN.match(list_type_clean):
+            raise InvalidParameterError(
+                f"Invalid list_type {list_type!r}: must contain only lowercase letters, digits, and hyphens."
+            )
         if year is not None:
             max_year = most_recent_season() + 4
             if year < PROSPECT_RANKINGS_START_YEAR or year > max_year:

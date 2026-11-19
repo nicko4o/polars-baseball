@@ -266,17 +266,31 @@ def test_file_cache_clear_waits_for_concurrent_write(tmp_path: Path) -> None:
     assert adapter.get("race-key") is None
 
 
-def test_file_cache_adapter_init_os_error_defensive(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """When FileCacheAdapter.__init__ fails to mkdir, it disables cache, logs warning, and does not crash."""
+def test_file_cache_adapter_lazy_mkdir_zero_implicit_io(tmp_path: Path) -> None:
+    lazy_dir = tmp_path / "nested" / "lazy_cache"
+    adapter = FileCacheAdapter(cache_dir=lazy_dir)
+
+    assert not lazy_dir.exists()
+    assert adapter.get("missing") is None
+    assert not lazy_dir.exists()
+
+    adapter.set("k", pl.DataFrame({"a": [1]}))
+    assert lazy_dir.exists()
+    assert adapter.get("k") is not None
+
+
+def test_file_cache_adapter_mkdir_os_error_defensive(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """When FileCacheAdapter fails to mkdir on first write, it disables cache, logs warning, and does not crash."""
     read_only_dir = tmp_path / "read_only"
+    adapter = FileCacheAdapter(cache_dir=read_only_dir)
+    assert not adapter._disabled
+
     with patch.object(Path, "mkdir", side_effect=PermissionError("Read-only file system")):
-        adapter = FileCacheAdapter(cache_dir=read_only_dir)
+        adapter.set("k", pl.DataFrame({"a": [1]}))
 
     assert adapter._disabled
     assert adapter.cache_dir == read_only_dir
     assert "Failed to create cache directory" in caplog.text
-
-    adapter.set("k", pl.DataFrame({"a": [1]}))
     assert adapter.get("k") is None
     adapter.clear()
 

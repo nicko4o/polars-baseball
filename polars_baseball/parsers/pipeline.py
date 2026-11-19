@@ -8,37 +8,33 @@ import polars as pl
 from polars_baseball._json_utils import JsonObject
 from polars_baseball.exceptions import UpstreamStructureChangedError
 
+_SCOUTING_GRADE_KEYS: tuple[str, ...] = (
+    "hit",
+    "power",
+    "run",
+    "arm",
+    "field",
+    "overall",
+    "fastball",
+    "slider",
+    "curveball",
+    "changeup",
+    "cutter",
+    "splitter",
+    "control",
+)
+_SCOUTING_GRADE_PATTERN = re.compile(
+    rf"\b({'|'.join(_SCOUTING_GRADE_KEYS)})\s*:\s*(\d+)",
+    re.IGNORECASE,
+)
+
 
 def _parse_scouting_grades(bio_text: str) -> dict[str, int]:
     if not bio_text:
         return {}
 
     clean_text = re.sub(r"<[^>]+>", " ", bio_text)
-    grades: dict[str, int] = {}
-    pattern = r"(\b[A-Za-z0-9\-/\s]+)\s*:\s*(\d+)"
-    matches = re.findall(pattern, clean_text)
-
-    target_keys = {
-        "hit",
-        "power",
-        "run",
-        "arm",
-        "field",
-        "overall",
-        "fastball",
-        "slider",
-        "curveball",
-        "changeup",
-        "cutter",
-        "splitter",
-        "control",
-    }
-
-    for k, v in matches:
-        k_clean = k.strip().lower()
-        if k_clean in target_keys:
-            grades[k_clean] = int(v)
-    return grades
+    return {k.lower(): int(v) for k, v in _SCOUTING_GRADE_PATTERN.findall(clean_text)}
 
 
 def _payload_ref(payload: JsonObject, ref: str | None) -> JsonObject:

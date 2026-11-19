@@ -221,7 +221,7 @@ def coerce_bref_schema(df: pl.DataFrame) -> pl.DataFrame:
         for col, target_type, _, expr in cols_to_cast:
             try:
                 df.select(expr)
-            except Exception as col_err:
+            except (ValueError, TypeError, pl.exceptions.ComputeError) as col_err:
                 raise UpstreamParseError(
                     f"failed strict cast: Column '{col}' conversion to {target_type} failed: {col_err}"
                 ) from col_err
