@@ -8,14 +8,15 @@ import time
 import weakref
 from collections.abc import Awaitable, Callable, Mapping
 from email.utils import parsedate_to_datetime
+from http import HTTPStatus
 from typing import Final, TypeVar, cast
 
-from curl_cffi.requests import AsyncSession
+from curl_cffi.requests import AsyncSession, Response
 from curl_cffi.requests.exceptions import RequestException as CurlRequestException
 
 from polars_baseball._concurrency import LoopBoundLockRegistry
 from polars_baseball._config import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT
-from polars_baseball._http_policy import resolve_request_policy
+from polars_baseball._http_policy import BREF_RATE_LIMIT_LOCK_KEY, RequestPolicy, resolve_request_policy
 from polars_baseball.exceptions import (
     PolarsBaseballHttpClientError,
     PolarsBaseballHttpError,
@@ -37,7 +38,20 @@ BACKOFF_MULTIPLIER = 2.0
 TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 IDEMPOTENT_HTTP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 MAX_RETRY_AFTER_SECONDS: Final[float] = 60.0
-_BREF_RATE_LIMIT_LOCK_KEY: Final[str] = "bref_rate_limit"
+_BREF_RATE_LIMIT_LOCK_KEY: Final[str] = BREF_RATE_LIMIT_LOCK_KEY
+_CLOUDFLARE_ONLY_HEADER_NAMES: Final[frozenset[str]] = frozenset({"cookie"})
+_USER_AGENT_HEADER_NAME: Final[str] = "user-agent"
+_HTTP_CLIENT_ERROR_MIN: Final[int] = HTTPStatus.BAD_REQUEST
+_HTTP_CLIENT_ERROR_MAX: Final[int] = HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+def _set_header_case_insensitive(target: dict[str, str], key: str, value: str) -> None:
+    lower_key = key.lower()
+    for existing in list(target):
+        if existing.lower() == lower_key and existing != key:
+            del target[existing]
+    target[key] = value
+
 
 _T = TypeVar("_T")
 
@@ -65,13 +79,17 @@ class HttpClient:
             )
         if timeout <= 0:
             raise ValueError(f"timeout must be greater than 0, got {timeout}")
-        self._sessions: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, AsyncSession] = weakref.WeakKeyDictionary()
+        self._sessions: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, AsyncSession[Response]] = (
+            weakref.WeakKeyDictionary()
+        )
         self._session_guard = threading.Lock()
+        self._rate_limit_guard = threading.Lock()
         self._locks = LoopBoundLockRegistry()
         self._rate_limits: dict[str, float] = {}
         self._rate_limit_last_request: dict[str, float] = {}
         if bref_requests_per_minute is not None:
             self._rate_limits[_BREF_RATE_LIMIT_LOCK_KEY] = SECONDS_PER_MINUTE / bref_requests_per_minute
+        self._cf_headers: dict[str, str] = self._resolve_cf_headers()
         self._extra_headers: dict[str, str] = self._resolve_extra_headers(extra_headers)
         self._max_retries = max_retries
         self._retry_backoff_base_seconds = retry_backoff_base_seconds
@@ -95,11 +113,13 @@ class HttpClient:
 
     @property
     def _bref_last_request(self) -> float:
-        return self._rate_limit_last_request.get(_BREF_RATE_LIMIT_LOCK_KEY, 0.0)
+        with self._rate_limit_guard:
+            return self._rate_limit_last_request.get(_BREF_RATE_LIMIT_LOCK_KEY, 0.0)
 
     @_bref_last_request.setter
     def _bref_last_request(self, value: float) -> None:
-        self._rate_limit_last_request[_BREF_RATE_LIMIT_LOCK_KEY] = value
+        with self._rate_limit_guard:
+            self._rate_limit_last_request[_BREF_RATE_LIMIT_LOCK_KEY] = value
 
     @property
     def extra_headers(self) -> dict[str, str]:
@@ -110,29 +130,58 @@ class HttpClient:
         self._extra_headers = dict(value) if value is not None else {}
 
     @staticmethod
-    def _resolve_extra_headers(extra_headers: Mapping[str, str] | None) -> dict[str, str]:
-        resolved: dict[str, str] = {}
+    def _resolve_cf_headers() -> dict[str, str]:
+        cf_headers: dict[str, str] = {}
         cf_cookie = os.environ.get("CF_COOKIE")
         cf_clearance = os.environ.get("CF_CLEARANCE")
-        user_agent = os.environ.get("USER_AGENT")
 
         if cf_cookie:
-            resolved["Cookie"] = cf_cookie
+            cf_headers["Cookie"] = cf_cookie
         elif cf_clearance:
-            resolved["Cookie"] = f"cf_clearance={cf_clearance}"
+            cf_headers["Cookie"] = f"cf_clearance={cf_clearance}"
+        return cf_headers
+
+    @staticmethod
+    def _resolve_extra_headers(extra_headers: Mapping[str, str] | None) -> dict[str, str]:
+        resolved: dict[str, str] = {}
+        user_agent = os.environ.get("USER_AGENT")
         if user_agent:
             resolved["User-Agent"] = user_agent
-
         if extra_headers is not None:
             resolved.update(extra_headers)
         return resolved
 
-    def _create_session(self) -> AsyncSession:
+    def _build_request_headers(
+        self,
+        policy: RequestPolicy,
+        headers: Mapping[str, str] | None,
+    ) -> dict[str, str]:
+        merged: dict[str, str] = {}
+        if self._impersonate is None:
+            merged.update(self._default_headers)
+        else:
+            # Exclude default User-Agent to avoid interfering with curl-cffi impersonation
+            for k, v in self._default_headers.items():
+                if k.lower() != _USER_AGENT_HEADER_NAME:
+                    merged[k] = v
+        if policy.is_cloudflare_protected:
+            for k, v in self._cf_headers.items():
+                _set_header_case_insensitive(merged, k, v)
+        for k, v in self._extra_headers.items():
+            if not policy.is_cloudflare_protected and k.lower() in _CLOUDFLARE_ONLY_HEADER_NAMES:
+                continue
+            _set_header_case_insensitive(merged, k, v)
+        if headers is not None:
+            for k, v in headers.items():
+                _set_header_case_insensitive(merged, k, v)
+        return merged
+
+    def _create_session(self) -> AsyncSession[Response]:
         if self._impersonate is not None:
             return AsyncSession(timeout=self._timeout, impersonate=self._impersonate)  # type: ignore[arg-type]
         return AsyncSession(timeout=self._timeout)
 
-    def get_cffi_session(self) -> AsyncSession:
+    def get_cffi_session(self) -> AsyncSession[Response]:
         loop = asyncio.get_running_loop()
         with self._session_guard:
             session = self._sessions.get(loop)
@@ -142,7 +191,7 @@ class HttpClient:
             return session
 
     async def close(self) -> None:
-        to_close: list[AsyncSession] = []
+        to_close: list[AsyncSession[Response]] = []
         with self._session_guard:
             to_close.extend(self._sessions.values())
             self._sessions.clear()
@@ -164,13 +213,19 @@ class HttpClient:
         if delay is None:
             return
         async with self._locks.get_lock(lock_key):
-            now = time.monotonic()
-            last = self._rate_limit_last_request.get(lock_key, 0.0)
-            elapsed = now - last
-            sleep_time = delay - elapsed
+            with self._rate_limit_guard:
+                now = time.monotonic()
+                last = self._rate_limit_last_request.get(lock_key, 0.0)
+                next_slot = max(now, last + delay)
+                sleep_time = next_slot - now
+                self._rate_limit_last_request[lock_key] = next_slot
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-            self._rate_limit_last_request[lock_key] = time.monotonic()
+            with self._rate_limit_guard:
+                finished = time.monotonic()
+                self._rate_limit_last_request[lock_key] = max(
+                    self._rate_limit_last_request.get(lock_key, 0.0), finished
+                )
 
     @staticmethod
     def _is_transient_status(status_code: int) -> bool:
@@ -235,7 +290,7 @@ class HttpClient:
                 seconds = dt.timestamp() - time.time()
                 if seconds > 0:
                     return min(seconds, MAX_RETRY_AFTER_SECONDS)
-            except Exception:
+            except (TypeError, ValueError, OverflowError):
                 pass
         return None
 
@@ -254,22 +309,13 @@ class HttpClient:
         session = self.get_cffi_session()
         policy = resolve_request_policy(url)
         lock_key = policy.rate_limit_lock_key
-        if lock_key and (rate_limited or policy.rate_limited) and lock_key in self._rate_limits:
-            await self._rate_limit(lock_key)
+        should_rate_limit = bool(lock_key and (rate_limited or policy.rate_limited) and lock_key in self._rate_limits)
         str_params = self._str_params(params)
-        merged_headers: dict[str, str] = {}
-        if self._impersonate is None:
-            merged_headers.update(self._default_headers)
-        else:
-            # Exclude default User-Agent to avoid interfering with curl-cffi impersonation
-            for k, v in self._default_headers.items():
-                if k.lower() != "user-agent":
-                    merged_headers[k] = v
-        merged_headers.update(self._extra_headers)
-        if headers is not None:
-            merged_headers.update(headers)
+        merged_headers = self._build_request_headers(policy, headers)
 
         async def request_once() -> str | bytes:
+            if should_rate_limit and lock_key is not None:
+                await self._rate_limit(lock_key)
             str_headers = merged_headers if merged_headers else None
             try:
                 if method.upper() == "POST":
@@ -289,7 +335,7 @@ class HttpClient:
 
     @staticmethod
     def _create_http_error(msg: str, status_code: int, retry_after: float | None = None) -> PolarsBaseballHttpError:
-        if 400 <= status_code < 500:
+        if _HTTP_CLIENT_ERROR_MIN <= status_code < _HTTP_CLIENT_ERROR_MAX:
             return PolarsBaseballHttpClientError(msg, status_code=status_code, retry_after=retry_after)
         return PolarsBaseballHttpServerError(msg, status_code=status_code, retry_after=retry_after)
 
@@ -303,7 +349,7 @@ class HttpClient:
         if response is None:
             return PolarsBaseballTransportError(f"{label} network request failed: {error}")
         msg = f"{label} HTTP request failed: {error}"
-        if response.status_code == 403:
+        if response.status_code == HTTPStatus.FORBIDDEN:
             if policy.is_cloudflare_protected:
                 msg += " (Request blocked by Cloudflare Turnstile; pass 'CF_CLEARANCE' or 'CF_COOKIE' via BaseballClient extra_headers or use cached data)"
             else:

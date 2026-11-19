@@ -154,6 +154,8 @@ def _is_cache_expired(path: Path, key: str, max_age: timedelta | None) -> bool:
     try:
         mtime = path.stat().st_mtime
         return (time.time() - mtime) > max_age.total_seconds()
+    except FileNotFoundError:
+        return True
     except OSError:
         logger.warning("Failed to check cache age for %s, treating as miss", key)
         return True
@@ -172,6 +174,8 @@ def _try_read_cached_entry(
         return None
     try:
         return reader(path)
+    except FileNotFoundError:
+        return None
     except error_types as e:
         logger.warning("Cache file corrupt for %s, deleting and treating as miss: %s", key, e)
         path.unlink(missing_ok=True)
@@ -206,11 +210,7 @@ class FileCacheAdapter(CacheAdapter):
     def __init__(self, cache_dir: Path | None = None) -> None:
         self._cache_dir = cache_dir or DEFAULT_CACHE_DIR
         self._disabled = False
-        try:
-            self._cache_dir.mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            logger.warning("Failed to create cache directory %s, cache disabled: %s", self._cache_dir, e)
-            self._disabled = True
+        self._dir_ready = False
         self._key_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
         self._meta_lock = threading.Lock()
         self._clear_lock = threading.Lock()
@@ -219,13 +219,29 @@ class FileCacheAdapter(CacheAdapter):
     def cache_dir(self) -> Path:
         return self._cache_dir
 
+    @staticmethod
+    def _sanitize_key(key: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in key)
+
     def _get_path(self, key: str) -> Path:
-        safe_key = "".join(c if c.isalnum() else "_" for c in key)
-        return self._cache_dir / f"{safe_key}.parquet"
+        return self._cache_dir / f"{self._sanitize_key(key)}.parquet"
 
     def _get_raw_path(self, key: str) -> Path:
-        safe_key = "".join(c if c.isalnum() else "_" for c in key)
-        return self._cache_dir / f"{safe_key}.raw"
+        return self._cache_dir / f"{self._sanitize_key(key)}.raw"
+
+    def _ensure_cache_dir(self) -> bool:
+        if self._disabled:
+            return False
+        if self._dir_ready:
+            return True
+        try:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.warning("Failed to create cache directory %s, cache disabled: %s", self._cache_dir, e)
+            self._disabled = True
+            return False
+        self._dir_ready = True
+        return True
 
     def _lock_for(self, key: str) -> threading.Lock:
         with self._meta_lock:
@@ -244,6 +260,8 @@ class FileCacheAdapter(CacheAdapter):
         if self._disabled:
             return
         with self._clear_lock, self._lock_for(key):
+            if not self._ensure_cache_dir():
+                return
             _write_cached_file(self._get_path(key), value)
 
     def get_raw(self, key: str, max_age: timedelta | None = None) -> bytes | None:
@@ -255,6 +273,8 @@ class FileCacheAdapter(CacheAdapter):
         if self._disabled:
             return
         with self._clear_lock, self._lock_for(key):
+            if not self._ensure_cache_dir():
+                return
             _write_cached_raw_file(self._get_raw_path(key), value)
 
     def clear(self) -> None:
@@ -262,6 +282,7 @@ class FileCacheAdapter(CacheAdapter):
             return
         with self._clear_lock:
             _clear_cache_dir(self._cache_dir)
+            self._dir_ready = False
             with self._meta_lock:
                 self._key_locks.clear()
 

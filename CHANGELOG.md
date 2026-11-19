@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Exported all public exception classes (`PolarsBaseballError`, `ClientError`, `ServerError`, `InvalidParameterError`, `PolarsBaseballHttpError`, `PolarsBaseballHttpClientError`, `PolarsBaseballHttpServerError`, `PolarsBaseballTransportError`, `UpstreamParseError`, `UpstreamStructureChangedError`, `UpstreamDataCorruptedError`, `UpstreamUnavailableError`, `InvalidSchemaError`, `CacheClearError`) directly from the `polars_baseball` root package.
+- Added `github_token` forwarding to `BaseballClient.with_file_cache()` and `BaseballClient.with_null_cache()`.
+
+### Changed
+
+- **[Breaking]** Fixed exception hierarchy so `PolarsBaseballHttpClientError` (4xx) no longer inherits from `ServerError` (5xx); `PolarsBaseballHttpError` now inherits directly from `PolarsBaseballError`.
+
+### Fixed
+
+- Eliminated implicit disk I/O during `BaseballClient()` construction by deferring cache directory creation until the first cache write.
+- Enforced Baseball Reference rate limiting across HTTP retry attempts and offloaded Parquet reads during `client.savant.sync_statcast()` and compiled dataset loading to worker threads.
+
+### Security
+
+- Scoped Cloudflare `Cookie` headers (`CF_COOKIE`, `CF_CLEARANCE`, and `extra_headers["Cookie"]`) strictly to Cloudflare-protected origins (Baseball Reference and FanGraphs) to prevent cross-origin cookie leakage to MLB, Savant, and GitHub endpoints.
+- Added strict parameter validation for `client.mlb.prospect_rankings(list_type=...)` and `client.bref.splits()` / `client.bref.game_logs(player_id=...)`, and switched Baseball Reference queries to URL-encoded parameters.
+- Hardened parsers and archive readers against oversized HTML `colspan` values, XPath injection, polynomial ReDoS in MLB Pipeline scouting grade parsing, Film Room DSL backslash escaping, and oversized ZIP member decompression.
+- Raised minimum runtime dependency floor to `lxml>=4.9.1`.
+
 ## [0.29.1] - 2026-11-13
 
 ### Fixed

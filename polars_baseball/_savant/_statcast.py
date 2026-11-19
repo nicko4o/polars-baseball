@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Iterable, Sequence
@@ -27,6 +28,7 @@ from polars_baseball._season import (
     season_completion_threshold,
     statcast_date_range,
 )
+from polars_baseball._storage_primitives import get_file_lock
 from polars_baseball.exceptions import (
     InvalidParameterError,
     UpstreamUnavailableError,
@@ -40,6 +42,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _SC_SINGLE_GAME_REQUEST = f"{SAVANT_STATCAST_SEARCH_URL}?all=true&type=details&game_pk={{game_pk}}"
+_SEASON_END_MONTH = 12
+_SEASON_END_DAY = 31
 _BASE_SC_PARAMS: dict[str, str] = {
     "all": "true",
     "hfPT": "",
@@ -130,6 +134,15 @@ def _filter_replaced_dates(existing_df: pl.DataFrame, new_dfs: list[pl.DataFrame
         return existing_df
     date_col_str = pl.col("game_date").cast(pl.Utf8)
     return existing_df.filter(pl.col("game_date").is_null() | ~date_col_str.is_in(new_dates))
+
+
+def _is_iso_date_at_least(raw_date: str | None, threshold: date) -> bool:
+    if raw_date is None:
+        return False
+    try:
+        return date.fromisoformat(raw_date) >= threshold
+    except ValueError:
+        return False
 
 
 class SavantStatcastMixin:
@@ -320,19 +333,13 @@ class SavantStatcastMixin:
         """Fetch Statcast data for a specific pitcher."""
         return await self._statcast_player("pitcher", start_date, end_date, player_id)
 
-    async def _sync_in_season_incremental(
-        self,
-        year: int,
-        target_end: date,
-        verbose: bool,
-        concurrency_limit: int,
-    ) -> Path | None:
-        last_synced_str = self._dataset_gateway.partition_max_date(year)
+    async def _parse_partition_max_date(self, year: int) -> date | None:
+        last_synced_str = await asyncio.to_thread(self._dataset_gateway.partition_max_date, year)
         if last_synced_str is None:
             logger.warning("Partition max date for year %d could not be determined; falling back to full sync.", year)
             return None
         try:
-            last_date = date.fromisoformat(last_synced_str)
+            return date.fromisoformat(last_synced_str)
         except ValueError:
             logger.warning(
                 "Invalid date format in partition max date for year %d: %s; falling back to full sync.",
@@ -341,17 +348,30 @@ class SavantStatcastMixin:
             )
             return None
 
+    async def _mark_complete_if_year_ended(self, year: int, target_end: date) -> None:
+        if target_end >= date(year, _SEASON_END_MONTH, _SEASON_END_DAY):
+            await asyncio.to_thread(self._dataset_gateway.mark_season_complete, year)
+
+    async def _sync_in_season_incremental(
+        self,
+        year: int,
+        target_end: date,
+        verbose: bool,
+        concurrency_limit: int,
+    ) -> Path | None:
+        last_date = await self._parse_partition_max_date(year)
+        if last_date is None:
+            return None
         if last_date >= target_end:
             return self._dataset_gateway.partition_path(year)
 
         incremental_start = max(last_date - timedelta(days=STATCAST_INCREMENTAL_OVERLAP_DAYS), date(year, 1, 1))
         date_range = list(statcast_date_range(incremental_start, target_end, step=STATCAST_DATE_STEP, verbose=False))
         if not date_range:
-            if target_end >= date(year, 12, 31):
-                self._dataset_gateway.mark_season_complete(year)
+            await self._mark_complete_if_year_ended(year, target_end)
             return self._dataset_gateway.partition_path(year)
 
-        existing_df = self._dataset_gateway.read_partition(year)
+        existing_df = await asyncio.to_thread(self._dataset_gateway.read_partition, year)
         if existing_df is None or existing_df.is_empty():
             logger.warning(
                 "Existing partition for year %d cannot be read or is empty. "
@@ -363,21 +383,53 @@ class SavantStatcastMixin:
         frames = await self._run_statcast_parallel(date_range, None, verbose, concurrency_limit)
         new_dfs = [df for df in frames if df is not None and not df.is_empty()]
         if not new_dfs:
-            if target_end >= date(year, 12, 31):
-                self._dataset_gateway.mark_season_complete(year)
+            await self._mark_complete_if_year_ended(year, target_end)
             return self._dataset_gateway.partition_path(year)
 
         filtered_existing = _filter_replaced_dates(existing_df, new_dfs)
-        all_dfs = [filtered_existing] + new_dfs
-        df = pl.concat(align_statcast_schemas(all_dfs), how="diagonal")
+        df = pl.concat(align_statcast_schemas([filtered_existing, *new_dfs]), how="diagonal")
         if "game_date" in df.columns:
             df = df.sort("game_date")
         path = await self._dataset_gateway.write_partition(year, df)
-        if target_end >= date(year, 12, 31):
-            self._dataset_gateway.mark_season_complete(year)
+        await self._mark_complete_if_year_ended(year, target_end)
         return path
 
+    async def _try_sync_existing_historical(
+        self,
+        year: int,
+        season_end: date,
+        verbose: bool,
+        concurrency_limit: int,
+    ) -> Path | None:
+        if await asyncio.to_thread(self._dataset_gateway.is_season_marked_complete, year):
+            return self._dataset_gateway.partition_path(year)
+
+        completion_threshold = season_completion_threshold(year)
+        max_synced_str = await asyncio.to_thread(self._dataset_gateway.partition_max_date, year)
+        if _is_iso_date_at_least(max_synced_str, completion_threshold):
+            await asyncio.to_thread(self._dataset_gateway.mark_season_complete, year)
+            return self._dataset_gateway.partition_path(year)
+
+        logger.info(
+            "Historical partition for season %d is incomplete (max date: %s < %s); catching up.",
+            year,
+            max_synced_str,
+            completion_threshold,
+        )
+        return await self._sync_in_season_incremental(year, season_end, verbose, concurrency_limit)
+
     async def _sync_season(
+        self,
+        year: int,
+        force_update: bool,
+        verbose: bool,
+        concurrency_limit: int,
+    ) -> Path:
+        lock_key = f"sync:{self._dataset_gateway.partition_path(year)}"
+        async with get_file_lock(lock_key):
+            return await self._sync_season_locked(year, force_update, verbose, concurrency_limit)
+
+    async def _sync_season_locked(
         self,
         year: int,
         force_update: bool,
@@ -390,35 +442,14 @@ class SavantStatcastMixin:
         target_end = min(yesterday, season_end)
 
         if force_update:
-            self._dataset_gateway.clear_season_complete(year)
-        elif self._dataset_gateway.year_exists(year):
+            await asyncio.to_thread(self._dataset_gateway.clear_season_complete, year)
+        elif await asyncio.to_thread(self._dataset_gateway.year_exists, year):
             if year < current_season:
-                if self._dataset_gateway.is_season_marked_complete(year):
-                    return self._dataset_gateway.partition_path(year)
-                completion_threshold = season_completion_threshold(year)
-                max_synced_str = self._dataset_gateway.partition_max_date(year)
-                is_complete = False
-                if max_synced_str is not None:
-                    try:
-                        is_complete = date.fromisoformat(max_synced_str) >= completion_threshold
-                    except ValueError:
-                        is_complete = False
-                if is_complete:
-                    self._dataset_gateway.mark_season_complete(year)
-                    return self._dataset_gateway.partition_path(year)
-                logger.info(
-                    "Historical partition for season %d is incomplete (max date: %s < %s); catching up.",
-                    year,
-                    max_synced_str,
-                    completion_threshold,
-                )
-                incremental_path = await self._sync_in_season_incremental(year, season_end, verbose, concurrency_limit)
-                if incremental_path is not None:
-                    return incremental_path
+                synced_path = await self._try_sync_existing_historical(year, season_end, verbose, concurrency_limit)
             else:
-                incremental_path = await self._sync_in_season_incremental(year, target_end, verbose, concurrency_limit)
-                if incremental_path is not None:
-                    return incremental_path
+                synced_path = await self._sync_in_season_incremental(year, target_end, verbose, concurrency_limit)
+            if synced_path is not None:
+                return synced_path
 
         start = date(year, 1, 1)
         stop = target_end if year >= current_season and target_end >= start else season_end
@@ -430,7 +461,7 @@ class SavantStatcastMixin:
             df = df.sort("game_date")
         path = await self._dataset_gateway.write_partition(year, df)
         if year < current_season:
-            self._dataset_gateway.mark_season_complete(year)
+            await asyncio.to_thread(self._dataset_gateway.mark_season_complete, year)
         return path
 
     async def sync_statcast(
@@ -522,8 +553,8 @@ class SavantStatcastMixin:
             if force_update:
                 force_years.append(year)
                 continue
-            target_end = min(yesterday, date(year, 12, 31))
-            status = self._check_season_staleness(year, max_age, current_season, target_end)
+            target_end = min(yesterday, date(year, _SEASON_END_MONTH, _SEASON_END_DAY))
+            status = await asyncio.to_thread(self._check_season_staleness, year, max_age, current_season, target_end)
             if status == "force":
                 force_years.append(year)
             elif status == "incremental":

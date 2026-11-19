@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
+requires = ["setuptools>=78.1.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -39,7 +39,7 @@ keywords = [
     "pybaseball alternative",
 ]
 dependencies = [
-    "lxml>=4.2.1",
+    "lxml>=4.9.1",
     "tqdm>=4.50.0",
     "curl_cffi>=0.10.0",
     "polars>=1.0.0",

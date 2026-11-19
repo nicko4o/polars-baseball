@@ -9,21 +9,23 @@ This guide describes the exception hierarchy in `polars_baseball`, common error 
 
 ## Exception Hierarchy
 
-All custom exceptions raised by `polars_baseball` are defined in `polars_baseball.exceptions` and follow a structured classification:
+All custom exceptions raised by `polars_baseball` are exported directly from `polars_baseball` (and defined in `polars_baseball.exceptions`) following a structured classification where 4xx client faults and 5xx server faults are strictly disjoint:
 
 ```text
 PolarsBaseballError (Base)
 ├── ClientError (4xx equivalent)
-│   └── InvalidParameterError
-└── ServerError (5xx equivalent)
-    ├── PolarsBaseballHttpError (has .status_code)
-    ├── PolarsBaseballTransportError
-    ├── UpstreamParseError
-    │   ├── UpstreamStructureChangedError
-    │   └── UpstreamDataCorruptedError
-    ├── UpstreamUnavailableError
-    ├── InvalidSchemaError
-    └── CacheClearError
+│   ├── InvalidParameterError
+│   └── PolarsBaseballHttpClientError (HTTP 4xx; also PolarsBaseballHttpError)
+├── ServerError (5xx equivalent)
+│   ├── PolarsBaseballHttpServerError (HTTP 5xx; also PolarsBaseballHttpError)
+│   ├── PolarsBaseballTransportError
+│   ├── UpstreamParseError
+│   │   ├── UpstreamStructureChangedError
+│   │   └── UpstreamDataCorruptedError
+│   ├── UpstreamUnavailableError
+│   ├── InvalidSchemaError
+│   └── CacheClearError
+└── PolarsBaseballHttpError (HTTP base with .status_code and .retry_after)
 ```
 
 ### Exception Reference
@@ -33,8 +35,10 @@ PolarsBaseballError (Base)
 | `PolarsBaseballError` | `Exception` | Base class for all package errors. |
 | `ClientError` | `PolarsBaseballError` | Caller error (invalid arguments or request payload). |
 | `InvalidParameterError` | `ClientError`, `ValueError` | Parameter validation failure (e.g. invalid date format or out-of-range season). |
-| `ServerError` | `PolarsBaseballError` | Upstream network, HTTP, or parser failure. |
-| `PolarsBaseballHttpError` | `ServerError` | HTTP error returned from upstream (e.g. status 403, 404, 500, 503). |
+| `PolarsBaseballHttpError` | `PolarsBaseballError` | Base class for HTTP status errors (exposes `.status_code` and `.retry_after`). |
+| `PolarsBaseballHttpClientError` | `ClientError`, `PolarsBaseballHttpError` | HTTP 4xx client fault (e.g. status 403, 404). |
+| `PolarsBaseballHttpServerError` | `ServerError`, `PolarsBaseballHttpError` | HTTP 5xx upstream server fault (e.g. status 500, 502, 503). |
+| `ServerError` | `PolarsBaseballError` | Upstream network, HTTP 5xx, or parser failure. |
 | `PolarsBaseballTransportError` | `ServerError` | Network connection failure, timeout, or DNS resolution failure. |
 | `UpstreamParseError` | `ServerError`, `RuntimeError` | Failed to parse upstream response body (HTML/JSON). |
 | `UpstreamStructureChangedError` | `UpstreamParseError` | Upstream web layout or JSON payload schema changed. |

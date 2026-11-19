@@ -261,3 +261,50 @@ def test_parse_bref_dataset_csv_table_with_th_and_commas() -> None:
     assert list(df.columns) == ["Name", "Note", "AB"]
     assert df["Note"][0] == "Some, note"
     assert df["AB"][0] == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad_player_id", ["troutmi01&year=2020", "troutmi01#x", "../etc", "bad id", "troutmi01\n"])
+async def test_bref_rejects_query_injection_player_id(bad_player_id: str) -> None:
+    from polars_baseball.exceptions import InvalidParameterError
+
+    mock_http = AsyncMock(spec=HttpClient)
+    client = BaseballClient.with_null_cache(http=mock_http)
+    with pytest.raises(InvalidParameterError):
+        await client.bref.splits(bad_player_id, year=2024)
+    with pytest.raises(InvalidParameterError):
+        await client.bref.game_logs(bad_player_id, year=2024)
+    mock_http.get_text.assert_not_awaited()
+
+
+def test_bref_game_log_parser_rejects_excessive_and_invalid_colspan() -> None:
+    from polars_baseball.parsers.bref import BRefGameLogParser
+
+    parser = BRefGameLogParser("batting")
+    huge_colspan_html = (
+        "<html><body><table id='players_standard_batting'>"
+        "<thead><tr><th colspan='10000'>Evil</th></tr></thead>"
+        "<tbody><tr><td>1</td></tr></tbody></table></body></html>"
+    )
+    with pytest.raises(UpstreamStructureChangedError, match="colspan"):
+        parser.parse(huge_colspan_html)
+
+    bad_colspan_html = (
+        "<html><body><table id='players_standard_batting'>"
+        "<thead><tr><th colspan='abc'>Bad</th></tr></thead>"
+        "<tbody><tr><td>1</td></tr></tbody></table></body></html>"
+    )
+    with pytest.raises(UpstreamStructureChangedError, match="colspan"):
+        parser.parse(bad_colspan_html)
+
+
+def test_bref_game_log_parser_xpath_injection_safe() -> None:
+    from polars_baseball.parsers.bref import BRefGameLogParser
+
+    parser = BRefGameLogParser("batting'] | //table[@id='other")
+    html = (
+        "<html><body><table id='other'><thead><tr><th>A</th></tr></thead>"
+        "<tbody><tr><td>1</td></tr></tbody></table></body></html>"
+    )
+    with pytest.raises(UpstreamStructureChangedError):
+        parser.parse(html)

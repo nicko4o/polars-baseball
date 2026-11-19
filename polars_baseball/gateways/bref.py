@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from datetime import timedelta
 from typing import TYPE_CHECKING, Literal
@@ -8,16 +9,27 @@ import polars as pl
 
 from polars_baseball._cache import generate_cache_key
 from polars_baseball._config import (
-    BREF_GAME_LOGS_URL_TEMPLATE,
+    BREF_GAME_LOGS_URL,
     BREF_ROOT,
-    BREF_SPLITS_URL_TEMPLATE,
+    BREF_SPLITS_URL,
 )
 from polars_baseball._schema_utils import validate_and_cast_schema
+from polars_baseball.exceptions import InvalidParameterError
 from polars_baseball.gateways.base import BaseGateway
 from polars_baseball.parsers.bref import BRefGameLogParser, BRefSplitsParser, parse_bref_dataset
 
 if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
+
+_BREF_PLAYER_ID_PATTERN = re.compile(r"\A[a-z0-9]+\Z")
+_VALID_LOG_TYPES: frozenset[str] = frozenset({"batting", "pitching"})
+
+
+def validate_bref_player_id(player_id: str) -> None:
+    if not player_id or not _BREF_PLAYER_ID_PATTERN.match(player_id):
+        raise InvalidParameterError(
+            f"Invalid Baseball Reference player_id {player_id!r}: must be non-empty lowercase alphanumeric."
+        )
 
 
 class BRefGateway(BaseGateway):
@@ -81,13 +93,15 @@ class BRefGateway(BaseGateway):
         force_update: bool = False,
     ) -> tuple[pl.DataFrame, dict[str, str], pl.DataFrame]:
         """Fetch splits raw HTML and return parsed (df_main, player_info, df_level)."""
+        validate_bref_player_id(playerid)
         split_type = "p" if pitching else "b"
         str_year = "Career" if year is None else str(year)
-        url = BREF_SPLITS_URL_TEMPLATE.format(player_id=playerid, year=str_year, split_type=split_type)
+        params: dict[str, str] = {"id": playerid, "year": str_year, "t": split_type}
         key = generate_cache_key("bref/splits_html", {"playerid": playerid, "year": str_year, "type": split_type})
 
         html = await self._fetch_cached_raw(
-            url,
+            BREF_SPLITS_URL,
+            params=params,
             headers=headers,
             use_cache=use_cache,
             max_age=max_age,
@@ -109,12 +123,15 @@ class BRefGateway(BaseGateway):
         force_update: bool = False,
     ) -> pl.DataFrame:
         """Fetch game log HTML from BRef and return parsed DataFrame."""
+        validate_bref_player_id(player_id)
+        if log_type not in _VALID_LOG_TYPES:
+            raise InvalidParameterError("log_type must be either 'batting' or 'pitching'.")
         bref_log_type = "b" if log_type == "batting" else "p"
-        url = BREF_GAME_LOGS_URL_TEMPLATE.format(player_id=player_id, log_type=bref_log_type, year=year)
+        params: dict[str, str] = {"id": player_id, "t": bref_log_type, "year": str(year)}
         parser = BRefGameLogParser(log_type)
         return await self._fetch_cached_df(
-            url,
-            None,
+            BREF_GAME_LOGS_URL,
+            params,
             parser=parser.parse,
             headers=headers,
             use_cache=use_cache,

@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from polars_baseball._config import (
     DATE_FORMAT,
     SEASON_MID_MARCH_DAY,
+    SEASON_MID_MARCH_MONTH,
     STATCAST_FIRST_YEAR,
     STATCAST_SEASON_COMPLETION_DAY,
     STATCAST_SEASON_COMPLETION_MONTH,
@@ -102,7 +103,9 @@ def season_completion_threshold(year: int) -> date:
 
 def most_recent_season() -> int:
     today = get_baseball_eastern_today()
-    if today.month > 3 or (today.month == 3 and today.day >= SEASON_MID_MARCH_DAY):
+    if today.month > SEASON_MID_MARCH_MONTH or (
+        today.month == SEASON_MID_MARCH_MONTH and today.day >= SEASON_MID_MARCH_DAY
+    ):
         return today.year
     return today.year - 1
 

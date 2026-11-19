@@ -29,6 +29,10 @@ def test_validate_safe_path_component() -> None:
     with pytest.raises(ValueError, match="Unsafe compiled dataset path"):
         validate_safe_path_component("../parent")
 
+    for bad_path in ("foo\x00bar", r"foo\bar", "C:relative"):
+        with pytest.raises(ValueError, match="Unsafe compiled dataset path"):
+            validate_safe_path_component(bad_path)
+
 
 def test_atomic_write_and_read(tmp_path: Path) -> None:
     target_bytes = tmp_path / "subdir" / "data.bin"

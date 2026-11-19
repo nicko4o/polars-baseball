@@ -93,18 +93,28 @@ def test_invalid_schema_error_is_server_error() -> None:
     assert issubclass(InvalidSchemaError, ServerError)
 
 
-def test_http_error_is_server_error() -> None:
-    assert issubclass(PolarsBaseballHttpError, ServerError)
+def test_http_error_is_polars_baseball_error_not_server_or_client() -> None:
+    assert issubclass(PolarsBaseballHttpError, PolarsBaseballError)
+    assert not issubclass(PolarsBaseballHttpError, ServerError)
+    assert not issubclass(PolarsBaseballHttpError, ClientError)
 
 
-def test_http_client_error_is_client_error_and_http_error() -> None:
+def test_http_client_error_is_client_error_and_not_server_error() -> None:
     assert issubclass(PolarsBaseballHttpClientError, ClientError)
     assert issubclass(PolarsBaseballHttpClientError, PolarsBaseballHttpError)
+    assert not issubclass(PolarsBaseballHttpClientError, ServerError)
+    err = PolarsBaseballHttpClientError("404", status_code=404)
+    assert isinstance(err, ClientError)
+    assert not isinstance(err, ServerError)
 
 
-def test_http_server_error_is_server_error_and_http_error() -> None:
+def test_http_server_error_is_server_error_and_not_client_error() -> None:
     assert issubclass(PolarsBaseballHttpServerError, ServerError)
     assert issubclass(PolarsBaseballHttpServerError, PolarsBaseballHttpError)
+    assert not issubclass(PolarsBaseballHttpServerError, ClientError)
+    err = PolarsBaseballHttpServerError("500", status_code=500)
+    assert isinstance(err, ServerError)
+    assert not isinstance(err, ClientError)
 
 
 def test_invalid_parameter_error_is_value_error() -> None:

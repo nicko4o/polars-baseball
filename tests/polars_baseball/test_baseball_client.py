@@ -29,16 +29,20 @@ def test_baseball_client_defaults() -> None:
 
 
 def test_baseball_client_with_file_cache(tmp_path: Path) -> None:
-    client = BaseballClient.with_file_cache(tmp_path)
+    cache_dir = tmp_path / "lazy_client_cache"
+    client = BaseballClient.with_file_cache(cache_dir, github_token="ghp_test")
     assert isinstance(client.http, HttpClient)
     assert isinstance(client.cache, FileCacheAdapter)
-    assert client.cache.cache_dir == tmp_path
+    assert client.cache.cache_dir == cache_dir
+    assert client.github_token == "ghp_test"
+    assert not cache_dir.exists()
 
 
 def test_baseball_client_with_null_cache() -> None:
-    client = BaseballClient.with_null_cache()
+    client = BaseballClient.with_null_cache(github_token="ghp_null")
     assert isinstance(client.http, HttpClient)
     assert isinstance(client.cache, NullCacheAdapter)
+    assert client.github_token == "ghp_null"
 
 
 def test_baseball_client_injection() -> None:

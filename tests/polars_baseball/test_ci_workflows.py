@@ -121,3 +121,29 @@ def test_codecov_patch_target_configured() -> None:
     doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     patch_target = doc["coverage"]["status"]["patch"]["default"]["target"]
     assert patch_target in ("auto", 90) or isinstance(patch_target, (int, float))
+
+
+def _iter_workflow_uses() -> list[tuple[str, str, str]]:
+    entries: list[tuple[str, str, str]] = []
+    for path in sorted(_WORKFLOWS_DIR.glob("*.yml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job_name, job in doc.get("jobs", {}).items():
+            entries.extend((path.name, job_name, uses) for step in job.get("steps", []) if (uses := step.get("uses")))
+    return entries
+
+
+def test_all_workflow_actions_pinned_to_commit_sha() -> None:
+    import re
+
+    sha_pattern = re.compile(r"^[^@]+@[0-9a-f]{40}$")
+    unpinned = [
+        f"{fname}:{job_name}:{uses}" for fname, job_name, uses in _iter_workflow_uses() if not sha_pattern.match(uses)
+    ]
+
+    assert not unpinned, f"Unpinned GitHub Actions found: {unpinned}"
+
+
+def test_publish_workflow_deploy_requires_environment() -> None:
+    doc = _load_workflow("python-publish.yml")
+    deploy = doc.get("jobs", {}).get("deploy", {})
+    assert deploy.get("environment") == "pypi", "deploy job must declare 'environment: pypi'"

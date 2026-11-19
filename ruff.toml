@@ -18,6 +18,8 @@ select = [
     "D415",   # docstring: ends with punctuation
     "D419",   # docstring: empty allowed (not forcing) — soft rule
     "C901",   # McCabe complexity checking
+    "BLE",    # flake8-blind-except: forbid blanket `except Exception`
+    "ASYNC",  # flake8-async: flag blocking calls inside async functions
 ]
 ignore = [
     "E501", # Line too long (handled by formatter)
@@ -40,10 +42,9 @@ max-complexity = 12
 "polars_baseball/parsers/**" = ["D103"]
 "polars_baseball/_schemas/**" = ["D103"]
 "polars_baseball/exceptions.py" = ["D103"]
-"polars_baseball/context.py" = ["D103"]
 "polars_baseball/data/**" = ["D103"]
-"tests/**" = ["D103"]
-"scripts/**" = ["D103"]
+"tests/**" = ["D103", "ASYNC240"]
+"scripts/**" = ["D103", "BLE001", "ASYNC240"]
 "benchmarks/**" = ["D103"]
 
 [format]

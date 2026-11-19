@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Final
 
 import polars as pl
 
@@ -18,6 +18,8 @@ from polars_baseball.parsers.film_room import parse_film_room_search
 if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
     from polars_baseball.gateways.film_room import FilmRoomGateway
+
+DEFAULT_FILM_ROOM_LIMIT: Final[int] = 100
 
 
 def _build_int_clause(field: str, val: list[int] | int | None) -> str | None:
@@ -36,7 +38,7 @@ def _build_str_clause(field: str, val: list[str] | str | None) -> str | None:
     v_list = [val] if isinstance(val, str) else val
     if not v_list:
         return None
-    escaped_strs = [s.replace('"', '\\"') for s in v_list]
+    escaped_strs = [s.replace("\\", "\\\\").replace('"', '\\"') for s in v_list]
     strs = ", ".join(f'"{s}"' for s in escaped_strs)
     return f"{field} = [{strs}]"
 
@@ -206,25 +208,39 @@ class FilmRoomQueryBuilder:
         return FilmRoomQueryBuilder.build_from_params(params)
 
 
-def film_room_cache_key(**kw: object) -> str:
+def film_room_cache_key(
+    params: FilmRoomSearchParams | None = None,
+    *,
+    player_ids: list[int] | int | None = None,
+    team_ids: list[int] | int | None = None,
+    seasons: list[int] | int | None = None,
+    date_range: Sequence[str | date | datetime] | None = None,
+    event_types: list[str] | str | None = None,
+    pitch_types: list[str] | str | None = None,
+    min_exit_velocity: float | None = None,
+    max_exit_velocity: float | None = None,
+    min_distance: int | None = None,
+    max_distance: int | None = None,
+    limit: int = DEFAULT_FILM_ROOM_LIMIT,
+    query: str | None = None,
+) -> str:
     """Generate MD5 cache key for film_room_search endpoint."""
-    limit = cast(int, kw.get("limit", 100))
-    params = FilmRoomSearchParams(
-        player_ids=cast(list[int] | int | None, kw.get("player_ids")),
-        team_ids=cast(list[int] | int | None, kw.get("team_ids")),
-        seasons=cast(list[int] | int | None, kw.get("seasons")),
-        date_range=cast(Sequence[str | date | datetime] | None, kw.get("date_range")),
-        event_types=cast(list[str] | str | None, kw.get("event_types")),
-        pitch_types=cast(list[str] | str | None, kw.get("pitch_types")),
-        min_exit_velocity=cast(float | None, kw.get("min_exit_velocity")),
-        max_exit_velocity=cast(float | None, kw.get("max_exit_velocity")),
-        min_distance=cast(int | None, kw.get("min_distance")),
-        max_distance=cast(int | None, kw.get("max_distance")),
+    resolved = params or FilmRoomSearchParams(
+        player_ids=player_ids,
+        team_ids=team_ids,
+        seasons=seasons,
+        date_range=date_range,
+        event_types=event_types,
+        pitch_types=pitch_types,
+        min_exit_velocity=min_exit_velocity,
+        max_exit_velocity=max_exit_velocity,
+        min_distance=min_distance,
+        max_distance=max_distance,
         limit=limit,
-        query=cast(str | None, kw.get("query")),
+        query=query,
     )
-    query_str = FilmRoomQueryBuilder.build_from_params(params)
-    return generate_cache_key(FILM_ROOM_GRAPHQL_URL, {"query": query_str, "limit": limit})
+    query_str = FilmRoomQueryBuilder.build_from_params(resolved)
+    return generate_cache_key(FILM_ROOM_GRAPHQL_URL, {"query": query_str, "limit": resolved.limit})
 
 
 class MlbFilmRoomMixin:

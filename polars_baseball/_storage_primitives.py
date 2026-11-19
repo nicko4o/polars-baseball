@@ -6,7 +6,7 @@ import asyncio
 import tempfile
 import zipfile
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -34,10 +34,19 @@ def get_file_lock(key: str) -> asyncio.Lock:
 def validate_safe_path_component(value: str) -> None:
     """Validate that a path component is relative and safe.
 
-    Raises ValueError for absolute paths or path-traversal patterns.
+    Raises ValueError for absolute paths, backslashes, null bytes, Windows drive
+    prefixes, or path-traversal patterns.
     """
     path = Path(value)
-    if not value or path.is_absolute() or ".." in path.parts:
+    win_path = PureWindowsPath(value)
+    if (
+        not value
+        or "\x00" in value
+        or "\\" in value
+        or bool(win_path.drive)
+        or path.is_absolute()
+        or ".." in path.parts
+    ):
         raise ValueError(f"Unsafe compiled dataset path: {value}")
 
 

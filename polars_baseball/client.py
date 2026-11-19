@@ -46,12 +46,23 @@ class BaseballClient:
         self.lookup: LookupClient = LookupClient(self)
 
     @classmethod
-    def with_file_cache(cls, cache_dir: Path, *, http: HttpClient | None = None) -> BaseballClient:
-        return cls(http=http or HttpClient(), cache=FileCacheAdapter(cache_dir))
+    def with_file_cache(
+        cls,
+        cache_dir: Path,
+        *,
+        http: HttpClient | None = None,
+        github_token: str | None = None,
+    ) -> BaseballClient:
+        return cls(http=http or HttpClient(), cache=FileCacheAdapter(cache_dir), github_token=github_token)
 
     @classmethod
-    def with_null_cache(cls, *, http: HttpClient | None = None) -> BaseballClient:
-        return cls(http=http or HttpClient(), cache=NullCacheAdapter())
+    def with_null_cache(
+        cls,
+        *,
+        http: HttpClient | None = None,
+        github_token: str | None = None,
+    ) -> BaseballClient:
+        return cls(http=http or HttpClient(), cache=NullCacheAdapter(), github_token=github_token)
 
     async def __aenter__(self) -> BaseballClient:
         return self

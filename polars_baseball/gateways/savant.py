@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
-from polars_baseball._cache import generate_cache_key
+from polars_baseball._cache import _in_flight_lock_for, generate_cache_key
 from polars_baseball._encoding import ensure_str
 from polars_baseball.exceptions import UpstreamParseError
 from polars_baseball.gateways.base import BaseGateway
@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from polars_baseball.client import BaseballClient
 
 _GAMEFEED_DATASET_PARAM = "__dataset__"
-_ERROR_SCAN_LIMIT = 200
 
 GamefeedParser = Callable[[int, JsonObject], pl.DataFrame]
 
@@ -79,11 +78,15 @@ class SavantGateway(BaseGateway):
         if cached is not None:
             return cached
 
-        result = await self._fetch_optional_dataset(url, params)
-        if result is None:
-            return None
-        await asyncio.to_thread(self._context.cache.set, key, result)
-        return result
+        async with _in_flight_lock_for(self._context.cache, key):
+            cached = await asyncio.to_thread(self._context.cache.get, key)
+            if cached is not None:
+                return cached
+            result = await self._fetch_optional_dataset(url, params)
+            if result is None:
+                return None
+            await asyncio.to_thread(self._context.cache.set, key, result)
+            return result
 
     async def get_gamefeed_dataset(
         self,

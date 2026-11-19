@@ -134,8 +134,10 @@ async def main() -> int:
 
     if args.dry_run:
         print("[Dry Run] Retrieved Cloudflare Cookies:")
-        print(f"  CF_CLEARANCE: {cf_clearance}")
-        print(f"  CF_COOKIE:    {cookie_header}")
+        cf_display = f"<redacted len={len(cf_clearance)}>" if cf_clearance else "<none>"
+        cookie_display = f"<redacted len={len(cookie_header)}>" if cookie_header else "<none>"
+        print(f"  CF_CLEARANCE: {cf_display}")
+        print(f"  CF_COOKIE:    {cookie_display}")
         return 0
 
     success = True
