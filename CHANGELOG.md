@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-19
+
 ### Added
 
 - Exported all public exception classes (`PolarsBaseballError`, `ClientError`, `ServerError`, `InvalidParameterError`, `PolarsBaseballHttpError`, `PolarsBaseballHttpClientError`, `PolarsBaseballHttpServerError`, `PolarsBaseballTransportError`, `UpstreamParseError`, `UpstreamStructureChangedError`, `UpstreamDataCorruptedError`, `UpstreamUnavailableError`, `InvalidSchemaError`, `CacheClearError`) directly from the `polars_baseball` root package.

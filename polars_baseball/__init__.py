@@ -21,7 +21,7 @@ from polars_baseball.exceptions import (
     UpstreamUnavailableError,
 )
 
-__version__ = "0.29.1"
+__version__ = "0.30.0"
 
 _logging.getLogger("polars_baseball").addHandler(_logging.NullHandler())
 
