@@ -1,55 +1,32 @@
 > [!NOTE]
-> All public data-fetching APIs are asynchronous. Use `await` inside an async environment, or wrap calls with `asyncio.run()` in scripts.
+> All public data-fetching APIs are asynchronous. Use `await` inside an async environment, or `asyncio.run()` in scripts.
 
-# Retrosheet Data Acquisition
+# Retrosheet
 
-Retrosheet functions retrieve game logs, schedules, rosters, park codes, and event files.
+Retrieves Retrosheet game logs, schedules, rosters, park codes, and raw event files. Schemas are defined in [`polars_baseball/_schemas/retrosheet.py`](https://github.com/nicko4o/polars-baseball/blob/main/polars_baseball/_schemas/retrosheet.py).
 
-## Functions
-
-| Function | Data |
-| --- | --- |
-| `events(season, game_type="regular")` | Retrieves Retrosheet event files as a DataFrame with `season`, `event_type`, `filename`, and raw `content` columns. |
-| `rosters(season)` | Season roster data. |
-| `schedules(season)` | Season schedules. |
-| `season_game_logs(season)` | Regular-season game logs. |
-| `all_star_game_logs()` | All-Star game logs. |
-| `wild_card_logs()` | Wild Card game logs. |
-| `division_series_logs()` | Division Series game logs. |
-| `lcs_logs()` | League Championship Series game logs. |
-| `world_series_logs()` | World Series game logs. |
-| `park_codes()` | Retrosheet park codes. |
-
----
-
-## Output DataFrame Schema & Internal Definitions
-
-Retrosheet schemas and column definitions are defined in [`polars_baseball/_schemas/retrosheet.py`](https://github.com/nicko4o/polars-baseball/blob/main/polars_baseball/_schemas/retrosheet.py).
-
-### Endpoint Schema Summary
-
-| Function | Primary Output Columns | Key Polars Types |
-| --- | --- | --- |
-| `rosters` | `player_id`, `last_name`, `first_name`, `bats`, `throws`, `team`, `pos` | `player_id`: `String`, `last_name`: `String`, `pos`: `String` |
-| `schedules` | `date`, `game_number`, `day_of_week`, `visiting_team`, `home_team` | `date`: `String`, `game_number`: `Int64`, `visiting_team`: `String` |
-| `season_game_logs` (and postseason/All-Star game logs) | `date`, `game_number`, `visiting_team`, `home_team`, `visiting_score`, `home_score` | `date`: `String`, `visiting_score`: `Int64`, `home_score`: `Int64` |
-| `park_codes` | `park_id`, `name`, `aka`, `city`, `state`, `start_date`, `end_date`, `league` | `park_id`: `String`, `name`: `String`, `state`: `String` |
-
----
+## Example
 
 ```python
 import asyncio
 from polars_baseball import BaseballClient
 
+
 async def main() -> None:
     async with BaseballClient() as client:
         roster_df = await client.retrosheet.rosters(2019)
-        schedule_df = await client.retrosheet.schedules(2019)
         parks_df = await client.retrosheet.park_codes()
-        print(roster_df.head())
-        print(schedule_df.head())
-        print(parks_df.head())
+        print(roster_df.head(), parks_df.head())
+
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+## Available Methods
+
+`all_star_game_logs`, `division_series_logs`, `events`, `lcs_logs`, `park_codes`, `rosters`, `schedules`, `season_game_logs`, `wild_card_logs`, `world_series_logs`.
+
+## API Reference
+
+::: polars_baseball.retrosheet.RetrosheetClient

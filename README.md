@@ -9,47 +9,12 @@
 
 Languages: [English](README.md) | [Traditional Chinese](README.zh-TW.md)
 
-`polars-baseball` is a typed, async-first Python library for retrieving MLB and baseball analytics
-data from Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, and the
-MLB Stats API—landing directly in `polars.DataFrame` without going through pandas first.
-
-## Why use polars-baseball instead of pybaseball?
-
-`pybaseball` is useful and established. `polars-baseball` is aimed at a different execution model:
-async data ingestion, native Polars output, and one consistent entry point across multiple baseball
-data providers.
-
-| Feature | pybaseball | polars-baseball |
-| --- | --- | --- |
-| Polars native | No | Yes |
-| Async data fetching | No | Yes |
-| Statcast / Baseball Savant | Yes | Yes |
-| FanGraphs | Yes | Yes |
-| MLB Stats API | Limited | Yes |
-| Lahman / Retrosheet workflows | Partial | Yes |
-| Built-in cache | Partial | Yes |
-| Typed public API | Partial | Yes |
-
-Typical pandas-first workflow:
-
-```text
-pybaseball -> pandas -> convert to Polars -> analysis
-```
-
-`polars-baseball` workflow:
-
-```text
-polars-baseball -> Polars -> analysis
-```
+`polars-baseball` is a typed, async-first Python library for retrieving baseball analytics data from Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, and the MLB Stats API directly into `polars.DataFrame`.
 
 ## Key Features
 
-- Public data-fetching APIs return `polars.DataFrame` by default (unless an endpoint explicitly documents a non-tabular contract).
-- Every data-fetching API is `async def`, so you can compose queries concurrently with `asyncio`.
-- Unified access to Statcast, Baseball Savant, FanGraphs, Baseball Reference, Lahman, Retrosheet, MLB Stats API, and player ID lookups.
-- Opt-in local Parquet caching avoids redundant network requests across large queries.
-- `BaseballClient` gives long-running services explicit control over HTTP connection pools and cache lifecycles.
-- `HttpClient` exposes timeout, retry, and Baseball Reference rate-limit settings.
+- **Polars-native & Async-first**: Every data-fetching API is `async def` and returns `polars.DataFrame` (or `pl.LazyFrame` / `list[pl.DataFrame]` where documented).
+- **Unified Client**: `BaseballClient` manages HTTP connection pooling, retries, rate limiting (`HttpClient`), and optional local Parquet caching across 7 providers (`savant`, `fangraphs`, `bref`, `mlb`, `retrosheet`, `lahman`, `lookup`).
 
 ## Installation
 
@@ -65,120 +30,46 @@ cd polars-baseball
 uv sync --all-extras
 ```
 
-To run visualization examples:
-
-```bash
-pip install "polars-baseball[plot]"
-```
-
 ## Quick Start
-
-### Statcast pitch-level data
 
 ```python
 import asyncio
-
+import polars as pl
 from polars_baseball import BaseballClient
 
 
 async def main() -> None:
     async with BaseballClient() as client:
-        df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
-        print(df.head(5))
+        df = await client.savant.pitcher(
+            start_date="2026-06-01",
+            end_date="2026-06-01",
+            # Use await client.lookup.playerid_lookup("Judge", "Aaron") to find player IDs
+            player_id=506433,
+        )
+        summary = df.group_by("pitch_type").agg(
+            pl.col("release_speed").mean().alias("mean_speed"),
+            pl.len().alias("pitch_count"),
+        )
+        print(summary.sort("pitch_count", descending=True))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Aggregate directly with Polars
+Runnable scripts live in [`examples/`](examples/) and interactive notebooks in [`notebooks/`](notebooks/):
 
-```python
-import polars as pl
-from polars_baseball import BaseballClient
-
-async with BaseballClient() as client:
-    df = await client.savant.pitcher(
-        start_date="2026-06-01",
-        end_date="2026-06-01",
-        # Use await client.lookup.playerid_lookup("Judge", "Aaron") to find player IDs
-        player_id=506433,
-    )
-    summary = df.group_by("pitch_type").agg(
-        pl.col("release_speed").mean().alias("mean_speed"),
-        pl.len().alias("pitch_count"),
-    )
-    print(summary.sort("pitch_count", descending=True))
-```
-
-### FanGraphs leaderboard
-
-```python
-from polars_baseball import BaseballClient
-
-async with BaseballClient() as client:
-    df = await client.fangraphs.batting(
-        start_season=2026,
-        end_season=2026,
-        qual=100,
-        max_results=20,
-    )
-    print(df.head(10))
-```
-
-## Examples
-
-### Scripts (CLI-ready)
-
-Runnable `.py` examples live in [`examples/`](examples/):
-
-- [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py): Statcast pitch mix with Polars.
-- [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py): FanGraphs batting leaderboard.
-- [`examples/mlb_schedule.py`](examples/mlb_schedule.py): MLB Stats API schedule query.
-
-### Notebooks (interactive)
-
-Interactive Jupyter notebooks live in [`notebooks/`](notebooks/):
-
-- [`notebooks/statcast_pitch_mix_demo.ipynb`](notebooks/statcast_pitch_mix_demo.ipynb): Statcast pitch mix, velocity leaders, batted-ball outcomes.
-- [`notebooks/fangraphs_leaderboard_demo.ipynb`](notebooks/fangraphs_leaderboard_demo.ipynb): FanGraphs batting leaderboard with sabermetric filters.
-- [`notebooks/mlb_schedule_demo.ipynb`](notebooks/mlb_schedule_demo.ipynb): MLB schedule, standings, rosters, and team metadata.
-## Benchmarking
-
-Do not trust performance claims without a reproducible command:
-
-```bash
-python -m benchmarks run statcast_7day_cold
-```
-
-List available profiles:
-
-```bash
-python -m benchmarks run list
-```
-
-Full command reference:
-
-```text
-python -m benchmarks run <profile> [--json] [--json-file PATH] [--baseline] [--fail-if-regression]
-python -m benchmarks baseline show
-python -m benchmarks baseline clear
-```
-
-The runner reports wall time, CPU time, peak Python memory (via `tracemalloc`), GC collections,
-and result shape. Use the `--baseline` flag to save results and compare against historical data.
-Use the same date range, cache state, Python version, and machine when comparing
-against pandas-first workflows.
+- [`examples/statcast_pitch_mix.py`](examples/statcast_pitch_mix.py) / [`notebooks/statcast_pitch_mix_demo.ipynb`](notebooks/statcast_pitch_mix_demo.ipynb)
+- [`examples/fangraphs_leaderboard.py`](examples/fangraphs_leaderboard.py) / [`notebooks/fangraphs_leaderboard_demo.ipynb`](notebooks/fangraphs_leaderboard_demo.ipynb)
+- [`examples/mlb_schedule.py`](examples/mlb_schedule.py) / [`notebooks/mlb_schedule_demo.ipynb`](notebooks/mlb_schedule_demo.ipynb)
 
 ## Web Services & Concurrency
 
-Long-running concurrent services should manage their own `BaseballClient` and pass it into API calls for explicit resource and connection pool management:
+Long-running services should manage one `BaseballClient` per application lifespan:
 
 ```python
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
-
 import polars_baseball as pb
 
 
@@ -195,55 +86,32 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/statcast")
 async def get_statcast() -> dict[str, int]:
     client: pb.BaseballClient = app.state.pb_client
-    df = await client.savant.statcast(
-        start_date="2026-06-01",
-        end_date="2026-06-02",
-    )
+    df = await client.savant.statcast(start_date="2026-06-01", end_date="2026-06-02")
     return {"rows": df.height}
 ```
 
-## API Namespace Policy
+## Benchmarking
 
-The package root (`import polars_baseball as pb`) exposes provider namespaces (`pb.savant`, `pb.fangraphs`, `pb.bref`, `pb.mlb`, `pb.retrosheet`, `pb.lahman`, `pb.lookup`), the client class (`pb.BaseballClient`), and universal enums (`Position`, `KeyType`).
+```bash
+python -m benchmarks run list
+python -m benchmarks run statcast_7day_cold [--baseline] [--fail-if-regression]
+```
 
-Provider-specific workflows and enums live in their dedicated namespaces (e.g. `pb.fangraphs.*`, `pb.mlb.*`). Modules prefixed with `_`, including `_schemas`, are internal implementation details and are not part of the compatibility contract.
+## Documentation & Governance
 
-## Documentation & Resources
+- [Documentation Home & API Index](docs/index.md)
+- [Maintaining Guide](docs/MAINTAINING.md)
+- [Contributing](.github/CONTRIBUTING.md) · [Security Policy](.github/SECURITY.md)
 
-- [Documentation Home](docs/index.md): Guides, notebooks, and provider references.
-- [API Use-Case Index](docs/api_index.md): Choose the right API by task.
-- [Maintaining Guide](docs/MAINTAINING.md): Package publishing and maintenance steps.
+## Data Attribution & Best-Effort Notice
 
-## Community & Governance
+`polars-baseball` does not claim ownership of upstream datasets:
 
-We welcome contributions! Please review our repository policies before submitting PRs or issues:
-
-- [Contributing Guidelines](.github/CONTRIBUTING.md) (Includes AI-Assisted Contribution Policy)
-- [Code of Conduct](.github/CODE_OF_CONDUCT.md)
-- [Security Policy](.github/SECURITY.md)
-
-## Data Attribution & Copyright Notices
-
-`polars-baseball` is a data retrieval library and does not claim ownership of upstream datasets:
-
-- **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
-- **Statcast & MLB Stats API**: Data provided courtesy of Major League Baseball / Baseball Savant.
-- **FanGraphs & Baseball Reference**: Data provided courtesy of FanGraphs and Baseball Reference. Please respect upstream terms of service and rate limits.
+- **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet ([www.retrosheet.org](https://www.retrosheet.org)).
+- **Statcast & MLB Stats API**: Major League Baseball / Baseball Savant.
+- **FanGraphs & Baseball Reference**: Rely on web scraping behind Cloudflare Turnstile and strict rate limits; access is **best-effort**. Configure `bref_requests_per_minute`, pass `CF_CLEARANCE`/`CF_COOKIE` via `extra_headers`, or use local Parquet caching.
 - **Lahman**: Lahman's Baseball Database by Sean Lahman.
 
-> [!IMPORTANT]
-> **Best-Effort Notice for FanGraphs and Baseball Reference**:
-> Unlike official or archival feeds (MLB Stats API, Savant, Retrosheet, Lahman), FanGraphs and Baseball Reference rely on web scraping and are protected by Cloudflare Turnstile anti-bot gates and strict rate limits. Access to these two sources is strictly **best-effort**. Please set responsible rate limits (`bref_requests_per_minute`), pass clearance cookies (`CF_CLEARANCE`, `CF_COOKIE`) via `extra_headers` if challenged, or use local Parquet caching.
+## Citation & License
 
-## Citation
-
-If you use `polars-baseball` in research, academic work, or software projects, please cite it using [`CITATION.cff`](CITATION.cff).
-
-## Author
-
-Created and maintained by Nick.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
+Cite via [`CITATION.cff`](CITATION.cff). Licensed under the [MIT License](LICENSE) by Nick.
