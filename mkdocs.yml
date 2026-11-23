@@ -56,12 +56,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - API Index: api_index.md
   - Guides:
       - Caching: guides/caching.md
       - Error Handling: guides/error_handling.md
-      - Plotting: guides/plotting.md
-      - Jupyter Integration: guides/jupyter.md
   - Provider Reference:
       - Statcast & Savant: reference/statcast.md
       - MLB Stats API: reference/mlb_api.md
