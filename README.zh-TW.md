@@ -2,7 +2,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
 [![Python versions](https://img.shields.io/pypi/pyversions/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
-[![Documentation](https://img.shields.io/badge/docs-mkdocs--material-blue.svg)](https://nicko4o.github.io/polars-baseball/)
 [![CI](https://github.com/nicko4o/polars-baseball/actions/workflows/pytest.yml/badge.svg)](https://github.com/nicko4o/polars-baseball/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/nicko4o/polars-baseball)](https://codecov.io/gh/nicko4o/polars-baseball)
 [![License](https://img.shields.io/pypi/l/polars-baseball.svg)](https://github.com/nicko4o/polars-baseball/blob/main/LICENSE)
@@ -207,7 +206,7 @@ async def get_statcast() -> dict[str, int]:
 
 ## 文件與資源
 
-- [官方線上文件](https://nicko4o.github.io/polars-baseball/)
+- [文件首頁 (Documentation Home)](docs/index.md)：使用指南、Notebooks 與各資料源 API 參考。
 - [API 用途索引 (API Index)](docs/api_index.md)：依任務選擇正確 API。
 - [維護者指南 (Maintaining Guide)](docs/MAINTAINING.md)：套件發布與維護流程。
 
@@ -223,10 +222,10 @@ async def get_statcast() -> dict[str, int]:
 
 `polars-baseball` 為資料擷取 SDK，並不主張任何上游資料來源之所有權：
 
-- **Retrosheet**: The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
-- **Statcast & MLB Stats API**：資料由 Major League Baseball / Baseball Savant 提供。
-- **FanGraphs & Baseball Reference**：資料由 FanGraphs 與 Baseball Reference 授權提供，請遵循上游服務條款與請求頻率限制。
-- **Lahman**: Lahman's Baseball Database by Sean Lahman.
+- Retrosheet：The information used here was obtained free of charge from and is copyrighted by Retrosheet. Interested parties may contact Retrosheet at [www.retrosheet.org](https://www.retrosheet.org).
+- Statcast 與 MLB Stats API 資料由 Major League Baseball / Baseball Savant 提供。
+- FanGraphs 與 Baseball Reference 資料由各自平台授權提供，請遵循上游服務條款與請求頻率限制。
+- Lahman 資料集為 Sean Lahman 維護之 Lahman's Baseball Database。
 
 > [!IMPORTANT]
 > **FanGraphs 與 Baseball Reference「盡力而為（Best-Effort）」與防爬蟲聲明**：

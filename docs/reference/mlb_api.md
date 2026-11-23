@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 ## 4. Player Stats (`mlb.player_stats`)
 
-`mlb.player_stats(person_id: int, group: str | MlbStatsGroup, stats_type: str = "season", season: int | None = None, force_update: bool = False) -> pl.DataFrame`
+`mlb.player_stats(person_id: int, group: str | MlbStatsGroup = "hitting", stats_type: str = "season", season: int | None = None, start_date: date | str | None = None, end_date: date | str | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves hitting, pitching, or fielding statistics for a player. `group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
 
@@ -156,9 +156,9 @@ if __name__ == "__main__":
 
 ## 8. Stat Leaders (`mlb.stat_leaders`)
 
-`mlb.stat_leaders(season: int, categories: list[str], limit: int = 10, stat_group: str | MlbStatsGroup | None = None, force_update: bool = False) -> pl.DataFrame`
+`mlb.stat_leaders(categories: list[str] | None = None, season: int | None = None, stat_group: str | None = None, limit: int = 10, force_update: bool = False, leader_categories: str | list[str] | None = None) -> pl.DataFrame`
 
-Retrieves league leaders for one or more stat categories. `stat_group` accepts an `MlbStatsGroup` enum or a string (e.g. `"hitting"`).
+Retrieves league leaders for one or more stat categories. `stat_group` accepts an `MlbStatsGroup` enum value or a string (e.g. `"hitting"`).
 
 ```python
 import asyncio
@@ -166,7 +166,7 @@ import polars_baseball as pb
 
 async def main() -> None:
     async with pb.BaseballClient() as client:
-        df = await client.mlb.stat_leaders(2026, ["homeRuns"], stat_group="hitting")
+        df = await client.mlb.stat_leaders(["homeRuns"], season=2026, stat_group="hitting")
         print(df.head())
 if __name__ == "__main__":
     asyncio.run(main())
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 
 ## 15. Transactions (`mlb.transactions`)
 
-`mlb.transactions(date: str | None = None, start_date: str | None = None, end_date: str | None = None, force_update: bool = False) -> pl.DataFrame`
+`mlb.transactions(date: date | str | None = None, start_date: date | str | None = None, end_date: date | str | None = None, team_id: int | None = None, player_id: int | None = None, sport_id: int = 1, force_update: bool = False) -> pl.DataFrame`
 
 Retrieves transaction records for a specific date or date range. Provide either `date` or the `start_date`/`end_date` range, not both.
 
@@ -363,7 +363,7 @@ if __name__ == "__main__":
 
 ## 20. Film Room Search (`mlb.film_room_search`)
 
-`mlb.film_room_search(player_ids: list[int] | int | None = None, team_ids: list[int] | int | None = None, seasons: list[int] | int | None = None, date_range: tuple[str, str] | None = None, event_types: list[str] | str | None = None, pitch_types: list[str] | str | None = None, min_exit_velocity: float | None = None, max_exit_velocity: float | None = None, min_distance: int | None = None, max_distance: int | None = None, limit: int = 100, query: str | None = None, force_update: bool = False) -> pl.DataFrame`
+`mlb.film_room_search(*, player_ids: list[int] | int | None = None, team_ids: list[int] | int | None = None, seasons: list[int] | int | None = None, date_range: Sequence[str | date | datetime] | None = None, event_types: list[str] | str | None = None, pitch_types: list[str] | str | None = None, min_exit_velocity: float | None = None, max_exit_velocity: float | None = None, min_distance: int | None = None, max_distance: int | None = None, limit: int = 100, query: str | None = None, force_update: bool = False) -> pl.DataFrame`
 
 Searches MLB Film Room video clips across players, teams, seasons, date ranges, pitch types, hit results, and Statcast metrics (exit velocity, hit distance).
 
