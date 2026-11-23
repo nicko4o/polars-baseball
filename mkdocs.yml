@@ -70,4 +70,5 @@ nav:
       - Player Lookups: reference/lookups.md
       - Lahman Database: reference/lahman.md
       - Retrosheet: reference/retrosheet.md
+      - Stability Policy: reference/stability.md
   - Maintenance: MAINTAINING.md

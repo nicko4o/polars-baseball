@@ -94,7 +94,6 @@ When running automated pipelines or web endpoints, transient upstream errors (su
 import asyncio
 import logging
 from typing import TypeVar, Callable, Awaitable
-import polars as pl
 import polars_baseball as pb
 from polars_baseball.exceptions import ClientError, ServerError
 
@@ -127,11 +126,11 @@ async def retry_async(
     raise RuntimeError("Unreachable")
 
 async def main() -> None:
-    client = BaseballClient()
-    df = await retry_async(
-        lambda: client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
-    )
-    print("Success, rows:", df.height)
+    async with pb.BaseballClient() as client:
+        df = await retry_async(
+            lambda: client.savant.statcast(start_date="2026-06-01", end_date="2026-06-01")
+        )
+        print("Success, rows:", df.height)
 
 if __name__ == "__main__":
     asyncio.run(main())

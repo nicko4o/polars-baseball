@@ -2,7 +2,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
 [![Python versions](https://img.shields.io/pypi/pyversions/polars-baseball.svg)](https://pypi.org/project/polars-baseball/)
-[![Documentation](https://img.shields.io/badge/docs-mkdocs--material-blue.svg)](https://nicko4o.github.io/polars-baseball/)
 [![CI](https://github.com/nicko4o/polars-baseball/actions/workflows/pytest.yml/badge.svg)](https://github.com/nicko4o/polars-baseball/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/nicko4o/polars-baseball)](https://codecov.io/gh/nicko4o/polars-baseball)
 [![License](https://img.shields.io/pypi/l/polars-baseball.svg)](https://github.com/nicko4o/polars-baseball/blob/main/LICENSE)
@@ -211,7 +210,7 @@ Provider-specific workflows and enums live in their dedicated namespaces (e.g. `
 
 ## Documentation & Resources
 
-- [Official Documentation Portal](https://nicko4o.github.io/polars-baseball/)
+- [Documentation Home](docs/index.md): Guides, notebooks, and provider references.
 - [API Use-Case Index](docs/api_index.md): Choose the right API by task.
 - [Maintaining Guide](docs/MAINTAINING.md): Package publishing and maintenance steps.
 

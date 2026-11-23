@@ -32,7 +32,7 @@ Retrosheet schemas and column definitions are defined in [`polars_baseball/_sche
 | --- | --- | --- |
 | `rosters` | `player_id`, `last_name`, `first_name`, `bats`, `throws`, `team`, `pos` | `player_id`: `String`, `last_name`: `String`, `pos`: `String` |
 | `schedules` | `date`, `game_number`, `day_of_week`, `visiting_team`, `home_team` | `date`: `String`, `game_number`: `Int64`, `visiting_team`: `String` |
-| `game_logs` | `date`, `game_number`, `visiting_team`, `home_team`, `visiting_score`, `home_score` | `date`: `String`, `visiting_score`: `Int64`, `home_score`: `Int64` |
+| `season_game_logs` (and postseason/All-Star game logs) | `date`, `game_number`, `visiting_team`, `home_team`, `visiting_score`, `home_score` | `date`: `String`, `visiting_score`: `Int64`, `home_score`: `Int64` |
 | `park_codes` | `park_id`, `name`, `aka`, `city`, `state`, `start_date`, `end_date`, `league` | `park_id`: `String`, `name`: `String`, `state`: `String` |
 
 ---

@@ -2,7 +2,7 @@
 
 ## 我們的承諾
 
-身為成員、貢獻者和領導者，我們承諾為每個人創造一個免受騷擾的社群參與體驗，不論年齡、體型、可見或不可見的殘疾、族裔、性特徵、性別認同與表達、經驗水準、教育程度、社會經濟地位、國籍、個人外貌、種族、階級、膚色、宗教信仰或性取向及性別認同。
+身為成員、貢獻者和領導者，我們承諾為每個人創造一個免受騷擾的社群參與體驗，不論年齡、體型、可見或不可見的殘疾、族裔、性特徵、性別認同與表達、經驗水準、教育程度、社會經濟地位、國籍、個人外貌、膚色、種族與階級、宗教信仰，或性取向及性別認同。
 
 我們承諾以有助於建立開放、友善、多元、包容且健康的社群方式來採取行動與互動。
 
@@ -72,8 +72,7 @@
 
 本行為準則改編自 [Contributor Covenant][homepage] 2.1 版本，可於 [https://www.contributor-covenant.org/version/2/1/code_of_conduct.html][version] 取得。
 
-社群影響指南的靈感來自 [Mozilla 的行為準則執行階梯][Mozilla CoC]。
+社群影響指南的靈感來自 Mozilla 的行為準則執行階梯。
 
 [homepage]: https://www.contributor-covenant.org
 [version]: https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
-[Mozilla CoC]: https://github.com/mozilla/diversity/blob/master/code-of-conduct-enforcement-ladder.md

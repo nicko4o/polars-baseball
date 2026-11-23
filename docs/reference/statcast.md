@@ -62,8 +62,8 @@ them lazily with Polars predicate and projection pushdown.
 
 ### Functions
 
-- `client.savant.scan_statcast(seasons=None, *, auto_download=False)` — lazily scan local partitions
-- `client.savant.sync_statcast(seasons, *, force_update=False, verbose=True, concurrency_limit=3)` — scrape full seasons into partitions
+- `savant.scan_statcast(seasons=None, auto_download=False, force_update=False, max_age=None) -> pl.LazyFrame` — lazily scan local partitions
+- `savant.sync_statcast(seasons, force_update=False, verbose=True, concurrency_limit=3) -> list[Path]` — scrape full seasons into partitions
 
 ### Arguments
 
@@ -140,9 +140,9 @@ Retrieve aggregate pitcher performance statistics.
 - `savant.pitcher_spin_dir_comp(year: int, pitch_a: str = "FF", pitch_b: str = "CH", min_pitches: int = 100, pitcher_pov: bool = True) -> pl.DataFrame`
 - `savant.pitcher_run_value(year: int) -> pl.DataFrame`
 - `savant.pitcher_bat_tracking(year: int, min_swings: int | str = "q") -> pl.DataFrame`
-- `savant.pitch_arsenal_stats(year: int, player_type: str = "pitcher", min_pitches: int = 25) -> pl.DataFrame`
+- `savant.pitch_arsenal_stats(year: int, min_pitches: int = 250, player_type: str = "pitcher") -> pl.DataFrame`
 - `savant.pitch_tempo(year: int, min_pitches: int = 250) -> pl.DataFrame`
-- `savant.park_factors(year: int | list[int] | tuple[int, int] | None = None, start_year: int | None = None, end_year: int | None = None, venue_id: int | list[int] | None = None, bat_side: str = "all") -> pl.DataFrame`
+- `savant.park_factors(year: int | list[int] | tuple[int, int] | None = None, start_year: int | None = None, end_year: int | None = None, venue_id: int | list[int] | None = None, bat_side: str = "all", concurrency_limit: int = 3) -> pl.DataFrame`
 
 
 ### Arguments
@@ -162,7 +162,7 @@ Retrieve specialized defensive metrics.
 ### Functions
 
 - `savant.outs_above_average(year: int, pos: str, min_att: int | str = "q", view: str = "Fielder") -> pl.DataFrame`
-- `savant.fielding_run_value(year: int, pos: str, min_inn: int = 100) -> pl.DataFrame`
+- `savant.fielding_run_value(year: int, position: int | str | None = None, pos: int | str | None = None, min_inn: int | None = None) -> pl.DataFrame`
 - `savant.outfield_directional_oaa(year: int, min_opp: int | str = "q") -> pl.DataFrame`
 - `savant.outfield_catch_prob(year: int, min_opp: int | str = "q") -> pl.DataFrame`
 - `savant.outfielder_jump(year: int, min_att: int | str = "q") -> pl.DataFrame`

@@ -34,19 +34,21 @@ The namespace helpers accept the following keyword arguments:
 | --- | --- | --- | --- |
 | `start_season` | `int` | required | First season to retrieve. |
 | `end_season` | `int \| None` | `start_season` | Final season to retrieve. |
-| `stats_category` | `FangraphsStatsCategory` | `BATTING` | Category of data to fetch . |
+| `stats_category` | `FangraphsStatsCategory \| str` | `BATTING` | Category of data to fetch (`fg_data` only). |
 | `league` | `FangraphsLeague \| str` | `ALL` | League filter (e.g. `"AL"`, `"NL"`). |
 | `month` | `FangraphsMonth \| str` | `ALL` | Month or split filter. |
 | `position` | `FangraphsPositions \| str` | `ALL` | Position filter. |
-| `stat_columns` | `str \| list[str]` | `ALL` | Columns to return, or `ALL` for default. |
+| `stat_columns` | `str \| list[str] \| list[FangraphsStatColumn]` | `"ALL"` | Columns to return, or `"ALL"` for default. |
 | `qual` | `int \| None` | `None` | Minimum plate appearances or innings pitched qualifier. |
 | `split_seasons` | `bool` | `True` | `True` = season-level rows; `False` = aggregated over the range. |
 | `on_active_roster` | `bool` | `False` | Only return active-roster players when `True`. |
 | `minimum_age` / `maximum_age` | `int` | `0` / `100` | Player age filters. |
-| `team` | `str` | `""` | Team abbreviation or ID. Use `"0,ts"` for team rows. |
-| `filters` | `list[FanGraphsFilter] \| None` | `None` | Stat-level filters (e.g. `[FanGraphsFilter("HR", "gt", 40)]`). |
+| `team` | `str` | `""` | Team abbreviation or ID (`fg_data` and `team_*` helpers only). Use `"0,ts"` for team rows in `fg_data`. |
+| `filters` | `Sequence[FanGraphsFilterInput] \| None` | `None` | Stat-level filters (e.g. `[FanGraphsFilter("HR", "gt", 40)]`). |
 | `players` | `str` | `""` | Filter by specific player ID list string. |
 | `max_results` | `int` | `1_000_000` | Maximum rows to retrieve. |
+| `force_update` | `bool` | `False` | Bypass local cache and fetch fresh upstream data. |
+| `cache_max_age` | `timedelta \| None` | `None` | Maximum cache age before re-fetching. |
 
 ---
 

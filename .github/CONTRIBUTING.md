@@ -34,7 +34,7 @@ Our engineering philosophy favors:
 ## Guidelines & Engineering Discipline
 
 ### 1. Polars & Async-First Architecture
-* **Polars-First**: Public data APIs should return native `polars.DataFrame` objects (except documented exceptions like `standings()`). Never use Pandas.
+* **Polars-First**: Public data APIs should return native `polars.DataFrame` objects (except documented exceptions like `bref.splits()` returning `list[pl.DataFrame]` or `savant.scan_statcast()` returning `pl.LazyFrame`). Never use Pandas.
 * **Async-First**: Data-fetching APIs must be asynchronous (`async def`) and exposed through `BaseballClient` subclients for resource isolation.
 * **Explicit Schemas**: Every returned DataFrame must be backed by an explicit Polars schema contract (e.g., `BWAR_BAT_SCHEMA`) defined within its parser or schema module.
 * **Public Exports**: New public entry points must be declared in `polars_baseball.__all__` and covered by contract tests.
